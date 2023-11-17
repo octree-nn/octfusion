@@ -207,9 +207,9 @@ class SDFusionModel(BaseModel):
         split = self.x
 
         batch = split.shape[0]
-        # times = torch.zeros((batch,), device = self.device).float().uniform_(0, 1)
+        times = torch.zeros((batch,), device = self.device).float().uniform_(0, 1)
 
-        times = torch.zeros((batch,), device = self.device) + 0.9
+        # times = torch.zeros((batch,), device = self.device) + 0.9
 
         noise = torch.randn_like(split)
 
@@ -235,10 +235,10 @@ class SDFusionModel(BaseModel):
 
         output_data = torch.zeros((doctree_gt.total_num,1), device = self.device)
 
-        # out, logits, doctree_out = self.df(input_data, doctree_in = noised_doctree, doctree_out = doctree_gt, t = noise_level)
+        out, logits, doctree_out = self.df(input_data, doctree_in = noised_doctree, doctree_out = doctree_gt, t = noise_level)
 
-        out, logits, doctree_out = self.df(input_data, doctree_in = noised_doctree, doctree_out = None, t = noise_level)
-        self.export_octree(doctree_out.octree, save_dir = 'pred_airplane')
+        # out, logits, doctree_out = self.df(input_data, doctree_in = noised_doctree, doctree_out = None, t = noise_level)
+        # self.export_octree(doctree_out.octree, save_dir = 'pred_airplane')
 
         self.df_loss = F.mse_loss(out, output_data)
 
