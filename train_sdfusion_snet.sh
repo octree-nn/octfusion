@@ -30,8 +30,11 @@ ema_rate=0.999
 ### model stuff ###
 model='sdfusion_split'
 df_cfg='configs/sdfusion_snet.yaml'
-ckpt='logs_home/2023-11-17T15-44-56-sdfusion_split-snet-airplane-LR1e-4-release/ckpt/df_steps-latest.pth'
+# ckpt=''
+
+vq_model="GraphVAE"
 vq_cfg="configs/shapenet_vqvae.yaml"
+vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-00200.model.pth"
 
 ####################
 
@@ -70,9 +73,9 @@ if [ $debug = 1 ]; then
 fi
 
 cmd="train.py --name ${name} --logs_dir ${logs_dir} --gpu_ids ${gpu_ids} \
-            --lr ${lr} --min_lr ${min_lr} --warmup_epochs ${warmup_epochs} --epochs ${epochs} --batch_size ${batch_size} --ema_rate ${ema_rate} \
+            --lr ${lr} --epochs ${epochs}\
             --model ${model} --df_cfg ${df_cfg} \
-            --vq_cfg ${vq_cfg} \
+            --vq_model ${vq_model} --vq_cfg ${vq_cfg} --vq_ckpt ${vq_ckpt} \
             --display_freq ${display_freq} --print_freq ${print_freq}
             --save_steps_freq ${save_steps_freq} \
             --debug ${debug}"

@@ -78,7 +78,7 @@ class DualOctree:
       batch_id = torch.cat([leaf_batch_id, batch_id], dim = 0)
       self.batch_id_dict[i] = batch_id
 
-  def batch_id(self, depth):
+  def batch_id(self, depth, nempty = False):
     return self.batch_id_dict[depth]
 
   # def batch_id(self, depth, nempty: bool = False):
@@ -362,9 +362,9 @@ class DualOctree:
       self.graph[d]['edge_idx'] = edge_idx[:, sidx]
       self.graph[d]['edge_dir'] = edge_dir[sidx]
 
-  def get_input_feature(self, all_leaf_nodes=True, feature = 'ND'):
+  def get_input_feature(self, all_leaf_nodes=True):
     # the initial feature of leaf nodes in the layer self.depth
-    octree_feature = InputFeature(feature = feature, nempty=False)
+    octree_feature = InputFeature(feature = "ND", nempty=False)
     data = octree_feature(self.octree)
 
     # data = ocnn.octree_property(self.octree, 'feature', self.depth)

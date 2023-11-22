@@ -16,32 +16,6 @@ from . import graph_ounet_v1
 from ocnn.nn import octree2voxel
 from ocnn.octree import Octree
 
-def create_full_octree(full_depth, batch_size, device):
-    r''' Initialize a full octree for decoding.
-    '''
-    octree = Octree(full_depth, full_depth, batch_size, device)
-    for d in range(full_depth+1):
-      octree.octree_grow_full(depth=d)
-    return octree
-
-def voxel2fulloctree(voxel: torch.Tensor, depth ,batch_size, device, nempty: bool = False):
-  r''' Converts the input feature to the full-voxel-based representation.
-
-  Args:
-    voxel (torch.Tensor): batch_size, channel, num, num, num
-    depth (int): The depth of current octree.
-    nempty (bool): If True, :attr:`data` only contains the features of non-empty
-        octree nodes.
-  '''
-  channel = voxel.shape[1]
-  octree = create_full_octree(depth, batch_size, device)
-  x, y, z, b = octree.xyzb(depth, nempty)
-  key = octree.key(depth, nempty)
-  data = voxel.new_zeros(key.shape[0], channel)
-  data = voxel[b,:, x,y,z]
-
-  return data
-
 
 def init_weights(net, init_type='normal', gain=0.01):
     def init_func(m):
@@ -77,36 +51,34 @@ def init_weights(net, init_type='normal', gain=0.01):
 
 class GraphVQVAE(graph_ounet_v1.GraphOUNet):
 
-    def __init__(self, depth, channel_in, nout, full_depth=2, depth_out=6,
+    def __init__(self, depth, channel_in, nout, full_depth=2, depth_stop = 6, depth_out=8,
                 resblk_type='bottleneck', bottleneck=4,resblk_num=3, code_channel=3, embed_dim=3, n_embed=2**13, remap=None, sane_index_shape=False):
-        super().__init__(depth, channel_in, nout, full_depth, depth_out,
+        super().__init__(depth, channel_in, nout, full_depth, depth_stop, depth_out,
                         resblk_type, bottleneck,resblk_num)
         # this is to make the encoder and decoder symmetric
 
         n_edge_type, avg_degree = 7, 7
         self.decoder_mid = torch.nn.Module()
-        self.decoder_mid.block_1 = modules_v1.GraphResBlocks(self.channels[full_depth], self.channels[full_depth],self.dropout,
-         self.resblk_num[full_depth], n_edge_type, avg_degree, full_depth-1)
-        self.decoder_mid.block_2 = modules_v1.GraphResBlocks(self.channels[full_depth], self.channels[full_depth],self.dropout,
-         self.resblk_num[full_depth], n_edge_type, avg_degree, full_depth-1)
+        self.decoder_mid.block_1 = modules_v1.GraphResBlocks(self.channels[depth_stop], self.channels[depth_stop],self.dropout,
+         self.resblk_nums[depth_stop], n_edge_type, avg_degree, depth_stop-1)
+        self.decoder_mid.block_2 = modules_v1.GraphResBlocks(self.channels[depth_stop], self.channels[depth_stop],self.dropout,
+         self.resblk_nums[depth_stop], n_edge_type, avg_degree, depth_stop-1)
 
         self.decoder = torch.nn.ModuleList(
             [modules_v1.GraphResBlocks(self.channels[d], self.channels[d],self.dropout,
-         self.resblk_num[d], n_edge_type, avg_degree, d-1)
-            for d in range(full_depth, depth + 1)])
+         self.resblk_nums[d], n_edge_type, avg_degree, d-1)
+            for d in range(depth_stop, depth + 1)])
 
         self.code_channel = code_channel
-        ae_channel_in = self.channels[self.full_depth]
+        ae_channel_in = self.channels[self.depth_stop]
         self.project1 = modules_v1.Conv1x1Gn(ae_channel_in, self.code_channel)
         self.project2 = modules_v1.Conv1x1GnGelu(self.code_channel, ae_channel_in)
-        # self.project1 = modules_v1.Conv1x1(ae_channel_in, self.code_channel)
-        # self.project2 = modules_v1.Conv1x1(self.code_channel, ae_channel_in)
 
         self.quantize = VectorQuantizer(n_embed, embed_dim, beta=1.0,
                                     remap=remap, sane_index_shape=sane_index_shape, legacy=False)
 
-        self.quant_conv = torch.nn.Conv3d(self.code_channel, embed_dim, 1)
-        self.post_quant_conv = torch.nn.Conv3d(embed_dim, self.code_channel, 1)
+        self.quant_conv = modules_v1.Conv1x1(self.code_channel, embed_dim)
+        self.post_quant_conv = modules_v1.Conv1x1(embed_dim, self.code_channel)
 
         init_weights(self.quant_conv, 'normal', 0.02)
         init_weights(self.post_quant_conv, 'normal', 0.02)
@@ -114,41 +86,35 @@ class GraphVQVAE(graph_ounet_v1.GraphOUNet):
     def octree_encoder(self, octree, doctree): # encoder的操作是从depth到full-deth为止，在这里就是从6到2
         convs = super().octree_encoder(octree, doctree) # conv的channel随着八叉树深度从6到2的变化为[32, 64, 128, 256, 512]
         # reduce the dimension
-        # code = self.project1(convs[self.full_depth], octree, self.full_depth)
-        code = self.project1(convs[self.full_depth]) # [batch_size * (2 ** full_depth) ** 3, code_channel]
-        code = octree2voxel(data=code, octree=octree, depth = self.full_depth) #  vox[b, x, y, z] = data [b, x, y, z, c]
-        code = code.permute(0,4,1,2,3).contiguous()
-        code = self.quant_conv(code)    # [bs, 3, 16, 16, 16]
+        code = self.project1(convs[self.depth_stop], octree, self.depth_stop) # [batch_size * (2 ** full_depth) ** 3, code_channel]
+        code = self.quant_conv(code)
         # print(code.max())
         # print(code.min())
-        quant_code, emb_loss, info = self.quantize(code, is_voxel=True)
-        return quant_code, emb_loss
+        quant_code, emb_loss, info = self.quantize(code, is_octree = True)
+        return quant_code, emb_loss, code.max(), code.min()
 
     def octree_decoder(self, quant_code, doctree_out, update_octree=False):
         #quant code [bs, 3, 16, 16, 16]
         quant_code = self.post_quant_conv(quant_code)   # [bs, code_channel, 16, 16, 16]
         octree_out = doctree_out.octree
 
-        latent_code = voxel2fulloctree(voxel = quant_code, depth = self.full_depth ,batch_size = octree_out.batch_size, device = octree_out.device)
-
         logits = dict()
         reg_voxs = dict()
         deconvs = dict()
 
-        full_depth = self.full_depth
+        depth_stop = self.depth_stop
 
-        deconvs[full_depth] = self.project2(latent_code, octree_out, self.full_depth)
-        # deconvs[full_depth] = self.project2(latent_code)
+        deconvs[depth_stop] = self.project2(quant_code, octree_out, depth_stop)
 
-        edge_idx = doctree_out.graph[full_depth]['edge_idx']
-        edge_type = doctree_out.graph[full_depth]['edge_dir']
-        node_type = doctree_out.graph[full_depth]['node_type']
+        edge_idx = doctree_out.graph[depth_stop]['edge_idx']
+        edge_type = doctree_out.graph[depth_stop]['edge_dir']
+        node_type = doctree_out.graph[depth_stop]['node_type']
 
-        deconvs[full_depth] = self.decoder_mid.block_1(deconvs[full_depth], octree_out, full_depth, edge_idx, edge_type, node_type)
-        deconvs[full_depth] = self.decoder_mid.block_2(deconvs[full_depth], octree_out, full_depth, edge_idx, edge_type, node_type)
+        deconvs[depth_stop] = self.decoder_mid.block_1(deconvs[depth_stop], octree_out, depth_stop, edge_idx, edge_type, node_type)
+        deconvs[depth_stop] = self.decoder_mid.block_2(deconvs[depth_stop], octree_out, depth_stop, edge_idx, edge_type, node_type)
 
-        for i, d in enumerate(range(self.full_depth, self.depth_out+1)): # decoder的操作是从full_depth到depth_out为止
-            if d > self.full_depth:
+        for i, d in enumerate(range(self.depth_stop, self.depth_out+1)): # decoder的操作是从full_depth到depth_out为止
+            if d > self.depth_stop:
                 nnum = doctree_out.nnum[d-1]
                 leaf_mask = doctree_out.node_child(d-1) < 0
                 deconvs[d] = self.upsample[i-1](deconvs[d-1], octree_out, d, leaf_mask, nnum)
@@ -201,10 +167,12 @@ class GraphVQVAE(graph_ounet_v1.GraphOUNet):
         doctree_out.post_processing_for_docnn()
 
         # for auto-encoder:
-        quant_code, emb_loss = self.octree_encoder(octree_in, doctree_in)
+        quant_code, emb_loss, code_max, code_min = self.octree_encoder(octree_in, doctree_in)
         out = self.octree_decoder(quant_code, doctree_out, update_octree)
         output = {'logits': out[0], 'reg_voxs': out[1], 'octree_out': out[2]}
         output['emb_loss'] = emb_loss.mean()
+        output['code_max'] = code_max
+        output['code_min'] = code_min
 
         # compute function value with mpu
         if pos is not None:
@@ -223,24 +191,23 @@ class GraphVQVAE(graph_ounet_v1.GraphOUNet):
         doctree_in.post_processing_for_docnn()
 
         convs = super().octree_encoder(octree_in, doctree_in) # conv的channel随着八叉树深度从6到2的变化为[32, 64, 128, 256, 512]
-        code = self.project1(convs[self.full_depth], octree_in, self.full_depth)
-        # code = self.project1(convs[self.full_depth]) # [batch_size * (2 ** full_depth) ** 3, code_channel]
-        code = octree2voxel(data=code, octree=octree_in, depth = self.full_depth) #  vox[b, x, y, z] = data [b, x, y, z, c]
-        code = code.permute(0,4,1,2,3).contiguous()
+        code = self.project1(convs[self.depth_stop], octree_in, self.depth_stop)  # [batch_size * (2 ** full_depth) ** 3, code_channel]
+
         code = self.quant_conv(code)    # [bs, 3, 16, 16, 16]
 
-        return code
+        return code, doctree_in
 
-    def decode_code(self, code, batch_size, device, force_not_quantize=False):
+    def decode_code(self, code, doctree_in, force_not_quantize=False):
 
         # also go through quantization layer
         if not force_not_quantize:
-            quant_code, emb_loss, info = self.quantize(code, is_voxel=True)
+            quant_code, emb_loss, info = self.quantize(code, is_octree = True)
         else:
             quant_code = code
 
+        octree_in = doctree_in.octree
         # generate dual octrees
-        octree_out = self.create_full_octree(batch_size, device)
+        octree_out = self.create_child_octree(octree_in)
         doctree_out = dual_octree.DualOctree(octree_out)
         doctree_out.post_processing_for_docnn()
 

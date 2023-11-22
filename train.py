@@ -78,14 +78,10 @@ def train_main_worker(opt, model, train_loader, test_loader, test_loader_for_eva
                     continue
 
                 # eval
-                # model.inference(data)
-                # model.inference(batch_size = 8)
+
+                # model.inference(batch_size = 4)
                 # visualizer.display_current_results(model.get_current_visuals(), iter_i, phase='train')
 
-                # test_data = next(test_dg)
-                # model.inference(test_data)
-                # model.inference(batch_size = 4)
-                # visualizer.display_current_results(model.get_current_visuals(), iter_i, phase='test')
                 # torch.cuda.empty_cache()
 
             if iter_ip1 % opt.save_latest_freq == 0:

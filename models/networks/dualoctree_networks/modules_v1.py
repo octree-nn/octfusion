@@ -42,7 +42,7 @@ class DualOctreeGroupNorm(torch.nn.Module):
     self.in_channels = in_channels
     self.group = group
 
-    assert self.in_channels % self.group == 0
+    assert in_channels % group == 0
     self.channels_per_group = in_channels // group
 
     self.weights = torch.nn.Parameter(torch.Tensor(1, in_channels))
@@ -54,26 +54,11 @@ class DualOctreeGroupNorm(torch.nn.Module):
     torch.nn.init.zeros_(self.bias)
 
 
-  def forward(self, data: torch.Tensor, octree: Octree, depth: int):
+  def forward(self, data, doctree, depth):
     r''''''
 
-    batch_size = octree.batch_size
-    batch_id = octree.batch_id(depth, self.nempty)
-    batch_nnum = octree.batch_nnum
-    nnum = octree.nnum
-    batch_nnum_nempty = octree.batch_nnum_nempty
-    nnum_nempty = octree.nnum_nempty
-    lnum = nnum - nnum_nempty
-    batch_lnum = batch_nnum - batch_nnum_nempty
-    leaf_num = lnum[octree.full_depth: depth].sum()
-    leaf_batch_id = batch_id.new_zeros(leaf_num)
-    now = 0
-    for d in range(octree.full_depth, depth):
-      d_lnum = batch_lnum[d]
-      for batch_idx,num in enumerate(d_lnum):
-        leaf_batch_id[now:now+num] = batch_idx
-        now = now + num
-    batch_id = torch.cat([leaf_batch_id, batch_id],dim = 0)
+    batch_size = doctree.batch_size
+    batch_id = doctree.batch_id(depth)
 
     assert batch_id.shape[0]==data.shape[0]
 
@@ -257,9 +242,9 @@ class Conv1x1Gn(torch.nn.Module):
     self.conv = Conv1x1(channel_in, channel_out, use_bias=False)
     self.gn = DualOctreeGroupNorm(channel_out)
 
-  def forward(self, x, octree, depth):
+  def forward(self, x, doctree, depth):
     out = self.conv(x)
-    out = self.gn(out, octree, depth)
+    out = self.gn(out, doctree, depth)
     return out
 
 class Conv1x1GnGelu(torch.nn.Module):
@@ -270,9 +255,9 @@ class Conv1x1GnGelu(torch.nn.Module):
     self.gn = DualOctreeGroupNorm(channel_out)
     self.gelu = torch.nn.GELU()
 
-  def forward(self, x, octree, depth):
+  def forward(self, x, doctree, depth):
     out = self.conv(x)
-    out = self.gn(out, octree, depth)
+    out = self.gn(out, doctree, depth)
     out = self.gelu(out)
     return out
 
@@ -285,9 +270,9 @@ class Conv1x1GnGeluSequential(torch.nn.Module):
     self.gelu = torch.nn.GELU()
 
   def forward(self, data):
-    x, octree, depth = data
+    x, doctree, depth = data
     out = self.conv(x)
-    out = self.gn(out, octree, depth)
+    out = self.gn(out, doctree, depth)
     out = self.gelu(out)
     return out
 
@@ -430,19 +415,19 @@ class GraphResBlock(torch.nn.Module):
     if self.channel_in != self.channel_out:
       self.conv1x1c = Conv1x1Gn(channel_in, channel_out)
 
-  def forward(self, x, octree, depth, edge_index, edge_type, node_type):
+  def forward(self, x, doctree, depth, edge_index, edge_type, node_type):
     h = x
-    h = self.norm1(data = h, octree = octree, depth = depth)
+    h = self.norm1(data = h, doctree = doctree, depth = depth)
     h = nonlinearity(h)
     h = self.conv1(h,edge_index, edge_type, node_type)
 
-    h = self.norm2(data = h, octree = octree, depth = depth)
+    h = self.norm2(data = h, doctree = doctree, depth = depth)
     h = nonlinearity(h)
     h = self.dropout(h)
     h = self.conv2(h,edge_index, edge_type, node_type)
 
     if self.channel_in != self.channel_out:
-      x = self.conv1x1c(x, octree, depth)
+      x = self.conv1x1c(x, doctree, depth)
 
     out = h + x
     return out
@@ -460,9 +445,9 @@ class GraphResBlocks(torch.nn.Module):
                n_edge_type, avg_degree, n_node_type)
         for i in range(self.resblk_num)])
 
-  def forward(self, data, octree, depth, edge_index, edge_type, node_type):
+  def forward(self, data, doctree, depth, edge_index, edge_type, node_type):
     for i in range(self.resblk_num):
-      data = self.resblks[i](data, octree, depth, edge_index, edge_type, node_type)
+      data = self.resblks[i](data, doctree, depth, edge_index, edge_type, node_type)
     return data
 
 

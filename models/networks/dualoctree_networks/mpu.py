@@ -135,8 +135,9 @@ def get_linear_pred(pts, octree, shape_code, neighs, depth_start, depth_end):
 
 
 class NeuralMPU:
-  def __init__(self, full_depth, depth):
+  def __init__(self, full_depth, depth_stop, depth):
     self.full_depth = full_depth
+    self.depth_stop = depth_stop
     self.depth = depth
 
   def __call__(self, pos, reg_voxs, octree_out): # reg_voxs就是dual octree的每个节点中存储的vector，其维度为4
@@ -144,6 +145,8 @@ class NeuralMPU:
     neighs = dict()
     for d in range(self.full_depth, self.depth+1):
       neighs[d] = octree_linear_pts(octree_out, d, pos)
+
+    for d in range(self.depth_stop, self.depth+1):
       fval, flgs = get_linear_pred(
           pos, octree_out, reg_voxs[d], neighs, self.full_depth, d)
       mpus[d] = (fval, flgs)

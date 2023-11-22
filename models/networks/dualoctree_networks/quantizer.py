@@ -65,15 +65,21 @@ class VectorQuantizer(nn.Module):
         back=torch.gather(used[None,:][inds.shape[0]*[0],:], 1, inds)
         return back.reshape(ishape)
 
-    def forward(self, z, temp=None, rescale_logits=False, return_logits=False, is_voxel=False):
+    def forward(self, z, temp=None, rescale_logits=False, return_logits=False, is_voxel=False, is_octree = False):
         assert temp is None or temp==1.0, "Only for interface compatible with Gumbel"
         assert rescale_logits==False, "Only for interface compatible with Gumbel"
         assert return_logits==False, "Only for interface compatible with Gumbel"
         # reshape z -> (batch, height, width, channel) and flatten
-        if not is_voxel:
-            z = rearrange(z, 'b c h w -> b h w c').contiguous()
-        else:
+        if is_voxel:
             z = rearrange(z, 'b c d h w -> b d h w c').contiguous()
+        elif is_octree:
+            pass
+
+        # if not is_voxel:
+        #     z = rearrange(z, 'b c h w -> b h w c').contiguous()
+        # else:
+        #     z = rearrange(z, 'b c d h w -> b d h w c').contiguous()
+
         z_flattened = z.view(-1, self.e_dim)
         # distances from z to embeddings e_j (z - e)^2 = z^2 + e^2 - 2 e * z
 
@@ -98,10 +104,15 @@ class VectorQuantizer(nn.Module):
         z_q = z + (z_q - z).detach()
 
         # reshape back to match original input shape
-        if not is_voxel:
-            z_q = rearrange(z_q, 'b h w c -> b c h w').contiguous()
-        else:
+        if is_voxel:
             z_q = rearrange(z_q, 'b d h w c -> b c d h w').contiguous()
+        elif is_octree:
+            pass
+
+        # if not is_voxel:
+        #     z_q = rearrange(z_q, 'b h w c -> b c h w').contiguous()
+        # else:
+        #     z_q = rearrange(z_q, 'b d h w c -> b c d h w').contiguous()
 
         if self.remap is not None:
             min_encoding_indices = min_encoding_indices.reshape(z.shape[0],-1) # add batch axis

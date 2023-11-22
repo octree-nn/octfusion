@@ -13,22 +13,21 @@ from . import mpu
 from . import modules_v1
 from . import dual_octree
 
-
-
 class GraphOUNet(torch.nn.Module):
 
-  def __init__(self, depth, channel_in, nout, full_depth=2, depth_out=6,
+  def __init__(self, depth, channel_in, nout, full_depth=2, depth_stop = 6, depth_out=8,
                resblk_type='bottleneck', bottleneck=4, resblk_num = 3):
     super().__init__()
     self.depth = depth
     self.channel_in = channel_in
     self.nout = nout
     self.full_depth = full_depth
+    self.depth_stop = depth_stop
     self.depth_out = depth_out
     self.resblk_type = resblk_type
     self.bottleneck = bottleneck
     self.resblk_num = resblk_num
-    self.neural_mpu = mpu.NeuralMPU(self.full_depth, self.depth_out)
+    self.neural_mpu = mpu.NeuralMPU(self.full_depth, self.depth_stop, self.depth_out)
     self._setup_channels_and_resblks()
     n_edge_type, avg_degree = 7, 7
     self.dropout = 0.0
@@ -38,42 +37,44 @@ class GraphOUNet(torch.nn.Module):
         channel_in, self.channels[depth], n_edge_type, avg_degree, depth-1)
     self.encoder = torch.nn.ModuleList(
         [modules_v1.GraphResBlocks(self.channels[d], self.channels[d],self.dropout,
-         self.resblk_num[d], n_edge_type, avg_degree, d-1)
-         for d in range(depth, full_depth-1, -1)])
+         self.resblk_nums[d] - 1, n_edge_type, avg_degree, d-1)
+         for d in range(depth, depth_stop-1, -1)])
     self.downsample = torch.nn.ModuleList(
         [modules_v1.GraphDownsample(self.channels[d], self.channels[d-1])
-         for d in range(depth, full_depth, -1)])
-
-    self.encoder_mid = torch.nn.Module()
-    self.encoder_mid.block_1 = modules_v1.GraphResBlocks(self.channels[full_depth], self.channels[full_depth],self.dropout,
-         self.resblk_num[full_depth], n_edge_type, avg_degree, full_depth-1)
-    self.encoder_mid.block_2 = modules_v1.GraphResBlocks(self.channels[full_depth], self.channels[full_depth],self.dropout,
-         self.resblk_num[full_depth], n_edge_type, avg_degree, full_depth-1)
-    self.encoder_norm_out = modules_v1.DualOctreeGroupNorm(self.channels[full_depth])
+         for d in range(depth, depth_stop, -1)])
+        
+    # self.encoder_mid = torch.nn.Module()
+    # self.encoder_mid.block_1 = modules_v1.GraphResBlocks(self.channels[depth_stop], self.channels[depth_stop],self.dropout,
+    #      self.resblk_nums[depth_stop], n_edge_type, avg_degree, depth_stop-1)
+    # self.encoder_mid.block_2 = modules_v1.GraphResBlocks(self.channels[depth_stop], self.channels[depth_stop],self.dropout,
+    #      self.resblk_nums[depth_stop], n_edge_type, avg_degree, depth_stop-1)
+    self.encoder_norm_out = modules_v1.DualOctreeGroupNorm(self.channels[depth_stop])
 
     self.nonlinearity = torch.nn.GELU()
 
     # decoder
     self.upsample = torch.nn.ModuleList(
         [modules_v1.GraphUpsample(self.channels[d-1], self.channels[d])
-         for d in range(full_depth+1, depth + 1)])
+         for d in range(depth_stop + 1, depth + 1)])
+
+    # self.decoder是在auto encoder里单独定义的
     self.decoder = torch.nn.ModuleList(
         [modules_v1.GraphResBlocks(self.channels[d], self.channels[d],self.dropout,
-         self.resblk_num[d], n_edge_type, avg_degree, d-1)
+         self.resblk_nums[d], n_edge_type, avg_degree, d-1)
          for d in range(full_depth+1, depth + 1)])
 
     # header
     self.predict = torch.nn.ModuleList(
         [self._make_predict_module(self.channels[d], 2)  # 这里的2就是当前节点是否要劈成八份的label
-         for d in range(full_depth, depth + 1)])
+         for d in range(depth_stop, depth + 1)])
     self.regress = torch.nn.ModuleList(
         [self._make_predict_module(self.channels[d], 4)  # 这里的4就是王老师说的，MPU里一个node里的4个特征分别代表法向量和偏移量
-         for d in range(full_depth, depth + 1)])
+         for d in range(depth_stop, depth + 1)])
 
   def _setup_channels_and_resblks(self):
     # self.resblk_num = [3] * 7 + [1] + [1] * 9
     # self.resblk_num = [3] * 16
-    self.resblk_num = [self.resblk_num] * 16      # resblk_num[d] 为深度d（分辨率）下resblock的数量。
+    self.resblk_nums = [self.resblk_num] * 16      # resblk_num[d] 为深度d（分辨率）下resblock的数量。
     self.channels = [4, 512, 512, 256, 128, 64, 32, 32, 24]  # depth i的channel为channels[i]
 
   def _make_predict_module(self, channel_in, channel_out=2, num_hidden=32):
@@ -85,12 +86,12 @@ class GraphOUNet(torch.nn.Module):
     return doctree.get_input_feature()
 
   def octree_encoder(self, octree, doctree):
-    depth, full_depth = self.depth, self.full_depth
+    depth, depth_stop = self.depth, self.depth_stop
     data = self._get_input_feature(doctree)
 
     convs = dict()
     convs[depth] = data   # channel为4
-    for i, d in enumerate(range(depth, full_depth-1, -1)):   # encoder的操作是从depth到full-deth为止
+    for i, d in enumerate(range(depth, depth_stop-1, -1)):   # encoder的操作是从depth到depth_stop为止
       # perform graph conv
       convd = convs[d]  # get convd
       edge_idx = doctree.graph[d]['edge_idx']
@@ -98,21 +99,21 @@ class GraphOUNet(torch.nn.Module):
       node_type = doctree.graph[d]['node_type']
       if d == self.depth:  # the first conv
         convd = self.conv1(convd, edge_idx, edge_type, node_type)
-      convd = self.encoder[i](convd, octree, d, edge_idx, edge_type, node_type)
+      convd = self.encoder[i](convd, doctree, d, edge_idx, edge_type, node_type)
       convs[d] = convd  # update convd
       # print(convd.shape)
 
       # downsampleing
-      if d > full_depth:  # init convd
+      if d > depth_stop:  # init convd
         nnum = doctree.nnum[d]
         lnum = doctree.lnum[d-1]
         leaf_mask = doctree.node_child(d-1) < 0
-        convs[d-1] = self.downsample[i](convd, octree, d-1, leaf_mask, nnum, lnum)
+        convs[d-1] = self.downsample[i](convd, doctree, d-1, leaf_mask, nnum, lnum)
 
-    convs[full_depth] = self.encoder_mid.block_1(convs[full_depth], octree, full_depth, edge_idx, edge_type, node_type)
-    convs[full_depth] = self.encoder_mid.block_2(convs[full_depth], octree, full_depth, edge_idx, edge_type, node_type)
-    convs[full_depth] = self.encoder_norm_out(convs[full_depth], octree, full_depth)
-    convs[full_depth] = self.nonlinearity(convs[full_depth])
+    # convs[depth_stop] = self.encoder_mid.block_1(convs[depth_stop], doctree, depth_stop, edge_idx, edge_type, node_type)
+    # convs[depth_stop] = self.encoder_mid.block_2(convs[depth_stop], doctree, depth_stop, edge_idx, edge_type, node_type)
+    convs[depth_stop] = self.encoder_norm_out(convs[depth_stop], doctree, depth_stop)
+    convs[depth_stop] = self.nonlinearity(convs[depth_stop])
 
     return convs
 
@@ -165,14 +166,26 @@ class GraphOUNet(torch.nn.Module):
 
     return logits, reg_voxs, doctree_out.octree
 
-  def create_full_octree(self, batch_size, device):
+  def create_full_octree(self, octree_in: Octree):
     r''' Initialize a full octree for decoding.
     '''
+
+    device = octree_in.device
+    batch_size = octree_in.batch_size
     octree = Octree(self.depth, self.full_depth, batch_size, device)
     for d in range(self.full_depth+1):
       octree.octree_grow_full(depth=d)
-    octree.depth = self.full_depth
     return octree
+
+  def create_child_octree(self, octree_in: Octree):
+    octree_out = self.create_full_octree(octree_in)
+    octree_out.depth = self.full_depth
+    for d in range(self.full_depth, self.depth_stop):
+      label = octree_in.nempty_mask(d).long()
+      octree_out.octree_split(label, d)
+      octree_out.octree_grow(d + 1)
+      octree_out.depth += 1
+    return octree_out
 
   def forward(self, octree_in, octree_out=None, pos=None): # 这里的pos的大小为[batch_size * 5000, 4]，意思是把所有batch的points都concate在一起，用4的最后一个维度来表示batch_idx
     # generate dual octrees

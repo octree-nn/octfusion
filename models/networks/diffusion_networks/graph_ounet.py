@@ -632,6 +632,7 @@ class UNet3DModel(nn.Module):
 
         self.output_blocks = nn.ModuleList([])
         self.predict = nn.ModuleList([])
+        self.tanh = nn.Tanh()
         for level, mult in list(enumerate(channel_mult))[::-1]:
             for i in range(num_res_blocks + 1):
                 ich = input_block_chans.pop()
@@ -651,7 +652,7 @@ class UNet3DModel(nn.Module):
                 ch = model_channels * mult
                 if level and i == num_res_blocks:
                     out_ch = ch
-                    self.predict.append(self._make_predict_module(out_ch, 2))
+                    self.predict.append(self._make_predict_module(out_ch, 1))
                     d += 1
                     upsample = GraphUpsample(ch, out_ch, n_edge_type, avg_degree, d-1)
                     self.output_blocks.append(upsample)
@@ -661,7 +662,7 @@ class UNet3DModel(nn.Module):
         self.end = nn.SiLU()
         self.out = GraphConv(model_channels, out_channels, n_edge_type, avg_degree, self.depth - 1)
 
-    def _make_predict_module(self, channel_in, channel_out=2, num_hidden=32):
+    def _make_predict_module(self, channel_in, channel_out=1, num_hidden=32):
         return torch.nn.Sequential(
             Conv1x1(channel_in, num_hidden),
             Conv1x1(num_hidden, channel_out, use_bias=True))
@@ -737,8 +738,11 @@ class UNet3DModel(nn.Module):
                 logit = self.predict[d - self.full_depth](h)
                 nnum = doctree_out.nnum[d]
                 logits[d] = logit[-nnum:]
+                logits[d] = self.tanh(logits[d])
+                logits[d] = logits[d].squeeze()
                 if update_octree:
-                    label = logits[d].argmax(1).to(torch.int32)
+                    label = (logits[d] > 0).to(torch.int32)
+                    # label = logits[d].argmax(1).to(torch.int32)
                     octree_out = doctree_out.octree
                     octree_out.octree_split(label, d)
                     octree_out.octree_grow(d + 1)

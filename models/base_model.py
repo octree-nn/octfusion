@@ -26,9 +26,13 @@ def create_model(opt):
     elif opt.model == 'sdfusion_d3pm':
         from models.sdfusion_model_d3pm import SDFusionModel
         model = SDFusionModel()
-    
+
     elif opt.model == 'sdfusion_split':
         from models.sdfusion_model_split import SDFusionModel
+        model = SDFusionModel()
+
+    elif opt.model == 'sdfusion_union':
+        from models.sdfusion_model_union import SDFusionModel
         model = SDFusionModel()
 
     elif opt.model == 'sdfusion-txt2shape':

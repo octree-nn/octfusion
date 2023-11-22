@@ -43,7 +43,7 @@ class BaseOptions():
         ############## START: model related options ################
         self.parser.add_argument(
                             '--model', type=str, default='sdfusion',
-                            choices=['vqvae', 'sdfusion', 'sdfusion_new','sdfusion_LAS','sdfusion_split', 'sdfusion-img2shape', 'sdfusion-txt2shape','sdfusion-mm2shape'],
+                            choices=['vqvae', 'sdfusion', 'sdfusion_new','sdfusion_LAS','sdfusion_split','sdfusion_d3pm', 'sdfusion_union', 'sdfusion-img2shape', 'sdfusion-txt2shape','sdfusion-mm2shape'],
                             help='chooses which model to use.'
                         )
         self.parser.add_argument('--ckpt', type=str, default=None, help='ckpt to load.')
@@ -55,7 +55,7 @@ class BaseOptions():
         self.parser.add_argument('--uc_scale', type=float, default=1.0, help='scale for un guidance')
 
         # vqvae stuff
-        self.parser.add_argument('--vq_model', type=str, default='',choices=['vqvae', 'GraphAE', 'GraphVQVAE'], help='for choosing the vqvae model to use.')
+        self.parser.add_argument('--vq_model', type=str, default='',choices=['vqvae', 'GraphAE', 'GraphVQVAE','GraphVAE'], help='for choosing the vqvae model to use.')
 
         self.parser.add_argument('--vq_cfg', type=str, default='configs/vqvae_snet.yaml', help='vqvae model config file')
         self.parser.add_argument('--vq_dset', type=str, default=None, help='dataset vqvae originally trained on')

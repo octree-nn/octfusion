@@ -10,37 +10,11 @@ import torch.nn
 from torch.nn import init
 
 from .quantizer import VectorQuantizer
-from . import modules_v1
+from . import modules
 from . import dual_octree
-from . import graph_ounet_v1
+from . import graph_ounet
 from ocnn.nn import octree2voxel
 from ocnn.octree import Octree
-
-def create_full_octree(full_depth, batch_size, device):
-    r''' Initialize a full octree for decoding.
-    '''
-    octree = Octree(full_depth, full_depth, batch_size, device)
-    for d in range(full_depth+1):
-      octree.octree_grow_full(depth=d)
-    return octree
-
-def voxel2fulloctree(voxel: torch.Tensor, depth ,batch_size, device, nempty: bool = False):
-  r''' Converts the input feature to the full-voxel-based representation.
-
-  Args:
-    voxel (torch.Tensor): batch_size, channel, num, num, num
-    depth (int): The depth of current octree.
-    nempty (bool): If True, :attr:`data` only contains the features of non-empty
-        octree nodes.
-  '''
-  channel = voxel.shape[1]
-  octree = create_full_octree(depth, batch_size, device)
-  x, y, z, b = octree.xyzb(depth, nempty)
-  key = octree.key(depth, nempty)
-  data = voxel.new_zeros(key.shape[0], channel)
-  data = voxel[b,:, x,y,z]
-
-  return data
 
 
 def init_weights(net, init_type='normal', gain=0.01):
@@ -75,7 +49,34 @@ def init_weights(net, init_type='normal', gain=0.01):
     for m in net.children():
         m.apply(init_func)
 
-class GraphVQVAE(graph_ounet_v1.GraphOUNet):
+
+def create_full_octree(full_depth, batch_size, device):
+    r''' Initialize a full octree for decoding.
+    '''
+    octree = Octree(full_depth, full_depth, batch_size, device)
+    for d in range(full_depth+1):
+      octree.octree_grow_full(depth=d)
+    return octree
+
+def voxel2fulloctree(voxel: torch.Tensor, depth ,batch_size, device, nempty: bool = False):
+  r''' Converts the input feature to the full-voxel-based representation.
+
+  Args:
+    voxel (torch.Tensor): batch_size, channel, num, num, num
+    depth (int): The depth of current octree.
+    nempty (bool): If True, :attr:`data` only contains the features of non-empty
+        octree nodes.
+  '''
+  channel = voxel.shape[1]
+  octree = create_full_octree(depth, batch_size, device)
+  x, y, z, b = octree.xyzb(depth, nempty)
+  key = octree.key(depth, nempty)
+  data = voxel.new_zeros(key.shape[0], channel)
+  data = voxel[b,:, x,y,z]
+
+  return data
+
+class GraphVQVAE(graph_ounet.GraphOUNet):
 
     def __init__(self, depth, channel_in, nout, full_depth=2, depth_out=6,
                 resblk_type='bottleneck', bottleneck=4,resblk_num=3, code_channel=3, embed_dim=3, n_embed=2**13, remap=None, sane_index_shape=False):
@@ -84,16 +85,14 @@ class GraphVQVAE(graph_ounet_v1.GraphOUNet):
         # this is to make the encoder and decoder symmetric
         n_edge_type, avg_degree = 7, 7
         self.decoder = torch.nn.ModuleList(
-            [modules_v1.GraphResBlocks(self.channels[d], self.channels[d],self.dropout,
-         self.resblk_num[d], n_edge_type, avg_degree, d-1)
+            [modules.GraphResBlocks(self.channels[d], self.channels[d],
+            self.resblk_num[d], bottleneck, n_edge_type, avg_degree, d-1, resblk_type)
             for d in range(full_depth, depth + 1)])
-
-        self.decoder_norm_out = torch.nn.ModuleList(modules_v1.DualOctreeGroupNorm(self.channels[d]) for d in range(full_depth, depth + 1))
 
         self.code_channel = code_channel
         ae_channel_in = self.channels[self.full_depth]
-        self.project1 = modules_v1.Conv1x1(ae_channel_in, self.code_channel)
-        self.project2 = modules_v1.Conv1x1(self.code_channel, ae_channel_in)
+        self.project1 = modules.Conv1x1Bn(ae_channel_in, self.code_channel)
+        self.project2 = modules.Conv1x1BnRelu(self.code_channel, ae_channel_in)
 
         self.quantize = VectorQuantizer(n_embed, embed_dim, beta=1.0,
                                     remap=remap, sane_index_shape=sane_index_shape, legacy=False)
@@ -111,10 +110,10 @@ class GraphVQVAE(graph_ounet_v1.GraphOUNet):
         code = octree2voxel(data=code, octree=octree, depth = self.full_depth) #  vox[b, x, y, z] = data [b, x, y, z, c]
         code = code.permute(0,4,1,2,3).contiguous()
         code = self.quant_conv(code)    # [bs, 3, 16, 16, 16]
-        print(code.max())
-        print(code.min())
+        # print(code.max())
+        # print(code.min())
         quant_code, emb_loss, info = self.quantize(code, is_voxel=True)
-        return quant_code, emb_loss
+        return quant_code, emb_loss, code.max(), code.min()
 
     def octree_decoder(self, quant_code, doctree_out, update_octree=False):
         #quant code [bs, 3, 16, 16, 16]
@@ -137,16 +136,10 @@ class GraphVQVAE(graph_ounet_v1.GraphOUNet):
             edge_idx = doctree_out.graph[d]['edge_idx']
             edge_type = doctree_out.graph[d]['edge_dir']
             node_type = doctree_out.graph[d]['node_type']
-            octree_out = doctree_out.octree
-            deconvs[d] = self.decoder[i](deconvs[d], octree_out, d, edge_idx, edge_type, node_type)
-
-            out = deconvs[d]
-            out = self.decoder_norm_out[i](out, octree_out, d)
-            out = self.nonlinearity(out)
+            deconvs[d] = self.decoder[i](deconvs[d], edge_idx, edge_type, node_type)
 
             # predict the splitting label
-            # logit = self.predict[i](deconvs[d])
-            logit = self.predict[i](out)
+            logit = self.predict[i](deconvs[d])
             nnum = doctree_out.nnum[d]
             logits[d] = logit[-nnum:]
 
@@ -162,8 +155,7 @@ class GraphVQVAE(graph_ounet_v1.GraphOUNet):
                 doctree_out.post_processing_for_docnn()
 
             # predict the signal
-            # reg_vox = self.regress[i](deconvs[d])
-            reg_vox = self.regress[i](out)
+            reg_vox = self.regress[i](deconvs[d])
 
             # TODO: improve it
             # pad zeros to reg_vox to reuse the original code for ocnn
@@ -188,10 +180,12 @@ class GraphVQVAE(graph_ounet_v1.GraphOUNet):
         doctree_out.post_processing_for_docnn()
 
         # for auto-encoder:
-        quant_code, emb_loss = self.octree_encoder(octree_in, doctree_in)
+        quant_code, emb_loss, code_max, code_min = self.octree_encoder(octree_in, doctree_in)
         out = self.octree_decoder(quant_code, doctree_out, update_octree)
         output = {'logits': out[0], 'reg_voxs': out[1], 'octree_out': out[2]}
-        output['emb_loss'] = emb_loss.mean()
+        output['emb_loss'] = emb_loss
+        output['code_max'] = code_max
+        output['code_min'] = code_min
 
         # compute function value with mpu
         if pos is not None:

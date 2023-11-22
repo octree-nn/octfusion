@@ -24,8 +24,8 @@ saved_ckpt*/
 # data
 data
 demo_data/
-airplane_gt/
-pred_airplane/
+*airplane*/
+*octree*/
 
 # bak
 bak*/
