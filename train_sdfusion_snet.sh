@@ -6,7 +6,7 @@ logs_dir='logs_home'
 
 ### set gpus ###
 # gpu_ids=0          # single-gpu
-gpu_ids=1  # multi-gpu
+gpu_ids=3  # multi-gpu
 
 if [ ${#gpu_ids} -gt 1 ]; then
     # specify these two if multi-gpu
@@ -28,7 +28,7 @@ ema_rate=0.999
 ####################
 
 ### model stuff ###
-model='sdfusion_split'
+model='sdfusion_union_three_time'
 df_cfg='configs/sdfusion_snet.yaml'
 # ckpt=''
 

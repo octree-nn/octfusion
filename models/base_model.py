@@ -23,16 +23,20 @@ def create_model(opt):
         from models.sdfusion_model_LAS import SDFusionModel
         model = SDFusionModel()
 
-    elif opt.model == 'sdfusion_d3pm':
-        from models.sdfusion_model_d3pm import SDFusionModel
-        model = SDFusionModel()
-
     elif opt.model == 'sdfusion_split':
         from models.sdfusion_model_split import SDFusionModel
         model = SDFusionModel()
 
-    elif opt.model == 'sdfusion_union':
-        from models.sdfusion_model_union import SDFusionModel
+    elif opt.model == 'sdfusion_union_two_time':
+        from models.sdfusion_model_union_two_time import SDFusionModel
+        model = SDFusionModel()
+
+    elif opt.model == 'sdfusion_union_three_time':
+        from models.sdfusion_model_union_three_time import SDFusionModel
+        model = SDFusionModel()
+
+    elif opt.model == 'sdfusion_union_four_time':
+        from models.sdfusion_model_union_four_time import SDFusionModel
         model = SDFusionModel()
 
     elif opt.model == 'sdfusion-txt2shape':

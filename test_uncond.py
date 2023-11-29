@@ -27,13 +27,13 @@ category = 'airplane'
 label = category_5_to_label[category]
 total_num = category_5_to_num[category]
 
-out_dir_lr = 'airplane_lr'
+out_dir_lr = 'airplane_hr'
 if not os.path.exists(out_dir_lr): os.makedirs(out_dir_lr)
 
 # initialize SDFusion model
-model = 'sdfusion_split'
+model = 'sdfusion_split_union_two_time'
 df_cfg = 'configs/sdfusion_snet.yaml'
-ckpt_path = 'logs_home/2023-11-21T21-47-24-sdfusion_split-snet-airplane-LR1e-4-release/ckpt/df_steps-latest.pth'
+ckpt_path = 'logs_home/2023-11-28T15-06-40-sdfusion_split_union_two_time-snet-airplane-LR1e-4-release/ckpt/df_steps-latest.pth'
 vq_cfg = "configs/shapenet_vqvae.yaml"
 dset="snet"
 opt_lr.init_model_args(model = model, df_cfg = df_cfg, ckpt_path=ckpt_path, vq_cfg = vq_cfg)
@@ -41,7 +41,7 @@ opt_lr.init_dset_args(dataset_mode=dset)
 SDFusion_lr = create_model(opt_lr)
 
 ngen = 1
-ddim_steps = 200
+ddim_steps = 50
 ddim_eta = 0.
 
 for i in range(total_num):

@@ -326,14 +326,29 @@ class GraphMaxpool(torch.nn.Module):
 
 def doctree_align(value, key, query):
   # out-of-bound
-  out_of_bound = query > key[-1]
-  query[out_of_bound] = -1
+  query_clone = query.clone()
+  out_of_bound = query_clone > key[-1]
+  query_clone[out_of_bound] = -1
 
   # search
-  idx = torch.searchsorted(key, query)
-  found = key[idx] == query
+  idx = torch.searchsorted(key, query_clone)
+  found = key[idx] == query_clone
 
   # assign the found value to the output
-  out = torch.zeros(query.shape[0], value.shape[1], device=value.device)
+  out = torch.zeros(query_clone.shape[0], value.shape[1], device=value.device)
   out[found] = value[idx[found]]
+  return out
+
+def octree_align(value, key, query):
+
+  query_clone = query.clone()
+  out_of_bound = query_clone > key[-1]
+  query_clone[out_of_bound] = -1
+
+  idx = torch.searchsorted(key, query_clone)
+  found = key[idx] == query_clone
+
+  out = torch.zeros(query_clone.shape[0], value.shape[1], device = value.device) - 1
+  out[found] = value[idx[found]]
+
   return out

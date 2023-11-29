@@ -7,6 +7,8 @@ model:
   name: graph_vqvae_v1
 
   channel: 4
+  small_depth: 6
+  large_depth: 8
   depth: &depth 6
   nout: 4
   depth_out: *depth
@@ -39,7 +41,7 @@ data:
     filelist: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/filelist/train_airplane.txt
     load_sdf: False
     load_occu: False
-    batch_size: 8
+    batch_size: 1
     shuffle: True
     # num_workers: 0
 
@@ -67,7 +69,7 @@ data:
     # data loading
     location: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/dataset_256
     filelist: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/filelist/test_airplane.txt
-    batch_size: 8
+    batch_size: 1
     load_sdf: False
     load_occu: False
     shuffle: False

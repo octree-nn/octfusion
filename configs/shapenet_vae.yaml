@@ -7,10 +7,10 @@ model:
   name: graph_vae
 
   channel: 4
-  depth: 8
+  depth: &depth 9
   nout: 4
-  depth_out: 8
-  full_depth: 4
+  depth_out: *depth
+  full_depth: &full_depth 4
   depth_stop: 6
   bottleneck: 4
   resblock_type: basic
@@ -25,9 +25,9 @@ data:
     name: shapenet
 
     # octree building
-    depth: 8
+    depth: *depth
     offset: 0.0
-    full_depth: 4
+    full_depth: *full_depth
     node_dis: True
     split_label: True
 
@@ -56,9 +56,9 @@ data:
     name: shapenet
 
     # octree building
-    depth: 8
+    depth: *depth
     offset: 0.0
-    full_depth: 4
+    full_depth: *full_depth
     node_dis: True
     split_label: True
 
