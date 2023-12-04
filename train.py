@@ -66,10 +66,10 @@ def train_main_worker(opt, model, train_loader, test_loader, test_loader_for_eva
 
         if get_rank() == 0:
             if iter_i % opt.print_freq == 0:
-                errors = model.get_current_errors()
+                errors, stage_flag = model.get_current_errors()
 
                 t = (time.time() - iter_start_time) / opt.batch_size
-                visualizer.print_current_errors(iter_i, errors, t)
+                visualizer.print_current_errors(iter_i, errors, stage_flag, t)
 
             # display every n batches
             if iter_i % opt.display_freq == 0:

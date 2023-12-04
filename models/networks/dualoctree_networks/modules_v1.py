@@ -96,16 +96,16 @@ class DualOctreeGroupNorm(torch.nn.Module):
             self.in_channels, self.group, self.nempty)  # noqa
 
 
-def ckpt_conv_wrapper(conv_op, x, edge_index, edge_type):
-  def conv_wrapper(x, edge_index, edge_type, dummy_tensor):
-    return conv_op(x, edge_index, edge_type)
+def ckpt_conv_wrapper(conv_op, x, *args):
+  def conv_wrapper(x, dummy_tensor, *args):
+    return conv_op(x, *args)
 
   # The dummy tensor is a workaround when the checkpoint is used for the first conv layer:
   # https://discuss.pytorch.org/t/checkpoint-with-no-grad-requiring-inputs-problem/19117/11
   dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
 
   return torch.utils.checkpoint.checkpoint(
-      conv_wrapper, x, edge_index, edge_type, dummy)
+      conv_wrapper, x, dummy, *args)
 
 
 # class GraphConv_v0(torch_geometric.nn.MessagePassing):
@@ -396,10 +396,11 @@ class GraphUpsample(torch.nn.Module):
 class GraphResBlock(torch.nn.Module):
 
   def __init__(self, channel_in, channel_out,dropout, n_edge_type=7,
-               avg_degree=7, n_node_type=0):
+               avg_degree=7, n_node_type=0, use_checkpoint=False):
     super().__init__()
     self.channel_in = channel_in
     self.channel_out = channel_out
+    self.use_checkpoint = use_checkpoint
 
     self.norm1 = DualOctreeGroupNorm(channel_in)
 
@@ -419,12 +420,20 @@ class GraphResBlock(torch.nn.Module):
     h = x
     h = self.norm1(data = h, doctree = doctree, depth = depth)
     h = nonlinearity(h)
-    h = self.conv1(h,edge_index, edge_type, node_type)
+
+    if self.use_checkpoint:
+      h = ckpt_conv_wrapper(self.conv1, h, edge_index, edge_type, node_type)
+    else:
+      h = self.conv1(h,edge_index, edge_type, node_type)
 
     h = self.norm2(data = h, doctree = doctree, depth = depth)
     h = nonlinearity(h)
     h = self.dropout(h)
-    h = self.conv2(h,edge_index, edge_type, node_type)
+
+    if self.use_checkpoint:
+      h = ckpt_conv_wrapper(self.conv2, h, edge_index, edge_type, node_type)
+    else:
+      h = self.conv2(h, edge_index, edge_type, node_type)
 
     if self.channel_in != self.channel_out:
       x = self.conv1x1c(x, doctree, depth)
@@ -436,13 +445,13 @@ class GraphResBlock(torch.nn.Module):
 class GraphResBlocks(torch.nn.Module):
 
   def __init__(self, channel_in, channel_out, dropout,resblk_num,
-               n_edge_type=7, avg_degree=7, n_node_type=0):
+               n_edge_type=7, avg_degree=7, n_node_type=0, use_checkpoint=False):
     super().__init__()
     self.resblk_num = resblk_num
     channels = [channel_in] + [channel_out] * resblk_num
     self.resblks = torch.nn.ModuleList([
         GraphResBlock(channels[i], channels[i+1],dropout,
-               n_edge_type, avg_degree, n_node_type)
+               n_edge_type, avg_degree, n_node_type, use_checkpoint)
         for i in range(self.resblk_num)])
 
   def forward(self, data, doctree, depth, edge_index, edge_type, node_type):

@@ -28,7 +28,7 @@ import torchvision.utils as vutils
 import torchvision.transforms as transforms
 
 from models.base_model import BaseModel
-from models.networks.diffusion_networks.network_two_times import DiffusionUNet
+from models.networks.diffusion_networks.network_two_times_backup import DiffusionUNet
 from models.networks.diffusion_networks.ldm_diffusion_util import *
 
 from models.networks.diffusion_networks.samplers.ddim_new import DDIMSampler
@@ -44,7 +44,7 @@ TRUNCATED_TIME = 0.7
 
 class SDFusionModel(BaseModel):
     def name(self):
-        return 'SDFusion-Model'
+        return 'SDFusion-Model-Union-Two-Times'
 
     def initialize(self, opt):
         BaseModel.initialize(self, opt)
@@ -142,12 +142,6 @@ class SDFusionModel(BaseModel):
         else:
             self.df_module = self.df
 
-        self.ddim_steps = 200
-        if self.opt.debug == "1":
-            # NOTE: for debugging purpose
-            self.ddim_steps = 7
-        cprint(f'[*] setting ddim_steps={self.ddim_steps}', 'blue')
-
     def reset_parameters(self):
         self.ema_df.load_state_dict(self.df.state_dict())
 
@@ -203,10 +197,12 @@ class SDFusionModel(BaseModel):
 
         batch_size = self.batch_size
 
-        small = False
-        large = False
+        self.stage_flag = ''
 
         if random() < 0.5:
+
+            self.stage_flag = 'small'
+
             times1 = torch.zeros((batch_size,), device = self.device).float().uniform_(0,1)
             times2 = torch.ones((batch_size,), device = self.device).float()
 
@@ -226,9 +222,11 @@ class SDFusionModel(BaseModel):
 
             noised_octree_large = self.split2octree_large(noised_octree_small, noised_split_large)
 
-            small = True
 
         else:
+
+            self.stage_flag = 'large'
+
             times1 = torch.zeros((batch_size,), device = self.device).float()
             times2 = torch.zeros((batch_size,), device = self.device).float().uniform_(0,1)
 
@@ -252,8 +250,6 @@ class SDFusionModel(BaseModel):
 
             noised_octree_large = self.split2octree_large(noised_octree_small, noised_split_large)
 
-            large = True
-
         noised_doctree = dual_octree.DualOctree(noised_octree_large)
         noised_doctree.post_processing_for_docnn()
 
@@ -268,14 +264,14 @@ class SDFusionModel(BaseModel):
 
         self.df_split_loss = 0.
 
-        if small:
+        if self.stage_flag == 'small':
             for d in range(self.full_depth, self.small_depth):
                 logitd = logits[d]
                 label_gt = self.octree_in.nempty_mask(d).float()
                 label_gt = label_gt * 2 - 1
                 self.df_split_loss += F.mse_loss(logitd, label_gt)
 
-        if large:
+        elif self.stage_flag == 'large':
             for d in logits.keys():
                 logitd = logits[d]
                 label_gt = self.octree_in.nempty_mask(d).float()
@@ -372,7 +368,7 @@ class SDFusionModel(BaseModel):
         time_pairs = self.get_sampling_timesteps(
             batch_size, device=self.device, steps=steps)
 
-        large_iter = tqdm(time_pairs, desc='sampling loop time step')
+        large_iter = tqdm(time_pairs, desc='large sampling loop time step')
         x_start_large = None
 
         for time2, time_next2 in large_iter:
@@ -591,7 +587,7 @@ class SDFusionModel(BaseModel):
         if hasattr(self, 'loss_gamma'):
             ret['gamma'] = self.loss_gamma.data
 
-        return ret
+        return ret, self.stage_flag
 
     def get_current_visuals(self):
 

@@ -11,13 +11,13 @@ def load_dualoctree(conf, ckpt, opt = None):
     assert type(ckpt) == str
     flags = conf.model
     params = [flags.depth, flags.channel, flags.nout,
-            flags.full_depth, flags.depth_stop, flags.depth_out]
+            flags.full_depth, flags.depth_stop, flags.depth_out, flags.use_checkpoint]
     if flags.name == 'graph_ounet' or \
         flags.name == 'graph_unet' or \
         flags.name == 'graph_ae' or \
-        flags.name == 'graph_vae' or \
-        flags.name == 'graph_vqvae' or \
-        flags.name == 'graph_vqvae_v1':
+        flags.name == 'graph_vqvae_v0' or \
+        flags.name == 'graph_vqvae_v1' or \
+        flags.name == 'graph_vae':
         params.append(flags.resblock_type)
         params.append(flags.bottleneck)
         params.append(flags.resblk_num)
@@ -41,7 +41,6 @@ def load_dualoctree(conf, ckpt, opt = None):
     trained_dict = torch.load(ckpt, map_location='cuda')
     if ckpt.endswith('.solver.tar'):
         model_dict = trained_dict['model_dict']
-        start_epoch = trained_dict['epoch'] + 1
     else:
         model_dict = trained_dict
 

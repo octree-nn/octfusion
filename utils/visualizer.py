@@ -79,10 +79,11 @@ class Visualizer():
     def reset(self):
         self.saved = False
 
-    def print_current_errors(self, current_iters, errors, t):
+    def print_current_errors(self, current_iters,errors, stage_flag, t):
         # message = '(GPU: %s, epoch: %d, iters: %d, time: %.3f) ' % (self.opt.gpu_ids_str, t)
         # message = f"[{self.opt.exp_time}] (GPU: {self.opt.gpu_ids_str}, iters: {current_iters}, time: {t:.3f}) "
         message = f"[{self.opt.name}] (GPU: {self.opt.gpu_ids_str}, iters: {current_iters}, time: {t:.3f}) "
+        message += 'stage: %s ' % stage_flag
         for k, v in errors.items():
             message += '%s: %.6f ' % (k, v)
 

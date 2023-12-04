@@ -15,7 +15,7 @@ from . import dual_octree
 
 class GraphOUNet(torch.nn.Module):
 
-  def __init__(self, depth, channel_in, nout, full_depth=2, depth_stop = 6, depth_out=8,
+  def __init__(self, depth, channel_in, nout, full_depth=2, depth_stop = 6, depth_out=8, use_checkpoint = False,
                resblk_type='bottleneck', bottleneck=4, resblk_num = 3):
     super().__init__()
     self.depth = depth
@@ -24,6 +24,7 @@ class GraphOUNet(torch.nn.Module):
     self.full_depth = full_depth
     self.depth_stop = depth_stop
     self.depth_out = depth_out
+    self.use_checkpoint = use_checkpoint
     self.resblk_type = resblk_type
     self.bottleneck = bottleneck
     self.resblk_num = resblk_num
@@ -37,17 +38,12 @@ class GraphOUNet(torch.nn.Module):
         channel_in, self.channels[depth], n_edge_type, avg_degree, depth-1)
     self.encoder = torch.nn.ModuleList(
         [modules_v1.GraphResBlocks(self.channels[d], self.channels[d],self.dropout,
-         self.resblk_nums[d] - 1, n_edge_type, avg_degree, d-1)
+         self.resblk_nums[d] - 1, n_edge_type, avg_degree, d-1, self.use_checkpoint)
          for d in range(depth, depth_stop-1, -1)])
     self.downsample = torch.nn.ModuleList(
         [modules_v1.GraphDownsample(self.channels[d], self.channels[d-1])
          for d in range(depth, depth_stop, -1)])
-        
-    # self.encoder_mid = torch.nn.Module()
-    # self.encoder_mid.block_1 = modules_v1.GraphResBlocks(self.channels[depth_stop], self.channels[depth_stop],self.dropout,
-    #      self.resblk_nums[depth_stop], n_edge_type, avg_degree, depth_stop-1)
-    # self.encoder_mid.block_2 = modules_v1.GraphResBlocks(self.channels[depth_stop], self.channels[depth_stop],self.dropout,
-    #      self.resblk_nums[depth_stop], n_edge_type, avg_degree, depth_stop-1)
+
     self.encoder_norm_out = modules_v1.DualOctreeGroupNorm(self.channels[depth_stop])
 
     self.nonlinearity = torch.nn.GELU()
@@ -60,7 +56,7 @@ class GraphOUNet(torch.nn.Module):
     # self.decoder是在auto encoder里单独定义的
     self.decoder = torch.nn.ModuleList(
         [modules_v1.GraphResBlocks(self.channels[d], self.channels[d],self.dropout,
-         self.resblk_nums[d], n_edge_type, avg_degree, d-1)
+         self.resblk_nums[d], n_edge_type, avg_degree, d-1, self.use_checkpoint)
          for d in range(full_depth+1, depth + 1)])
 
     # header
@@ -75,7 +71,7 @@ class GraphOUNet(torch.nn.Module):
     # self.resblk_num = [3] * 7 + [1] + [1] * 9
     # self.resblk_num = [3] * 16
     self.resblk_nums = [self.resblk_num] * 16      # resblk_num[d] 为深度d（分辨率）下resblock的数量。
-    self.channels = [4, 512, 512, 256, 128, 64, 32, 32, 24]  # depth i的channel为channels[i]
+    self.channels = [4, 512, 512, 256, 128, 64, 32, 32, 24, 8]  # depth i的channel为channels[i]
 
   def _make_predict_module(self, channel_in, channel_out=2, num_hidden=32):
     return torch.nn.Sequential(
@@ -110,8 +106,6 @@ class GraphOUNet(torch.nn.Module):
         leaf_mask = doctree.node_child(d-1) < 0
         convs[d-1] = self.downsample[i](convd, doctree, d-1, leaf_mask, nnum, lnum)
 
-    # convs[depth_stop] = self.encoder_mid.block_1(convs[depth_stop], doctree, depth_stop, edge_idx, edge_type, node_type)
-    # convs[depth_stop] = self.encoder_mid.block_2(convs[depth_stop], doctree, depth_stop, edge_idx, edge_type, node_type)
     convs[depth_stop] = self.encoder_norm_out(convs[depth_stop], doctree, depth_stop)
     convs[depth_stop] = self.nonlinearity(convs[depth_stop])
 
