@@ -13,8 +13,8 @@ unet:
     depth: 8
     middle_depth: 6
     full_depth: 4
-    in_channels: 1
-    out_channels: 1
+    in_channels: 3
+    out_channels: 3
     model_channels: 32
     num_res_blocks: 2
     attention_resolutions: [2,4] # 16, 8, 4

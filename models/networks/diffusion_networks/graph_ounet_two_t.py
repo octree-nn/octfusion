@@ -555,26 +555,22 @@ class UNet3DModel(nn.Module):
         self.num_heads_upsample = num_heads_upsample
         self.predict_codebook_ids = n_embed is not None
         self.verbose = verbose
+        self.num_times = 2
         n_edge_type, avg_degree = 7, 7
 
-        time_embed_dim = model_channels * 8
-        # self.time_embed = nn.Sequential(
-        #     linear(model_channels, time_embed_dim),
-        #     nn.SiLU(),
-        #     linear(time_embed_dim, time_embed_dim),
-        # )
+        single_time_embed_dim = model_channels * 4
+        time_embed_dim = self.num_times * single_time_embed_dim
 
-        self.time_embed1 = nn.Sequential(
-            linear(model_channels, time_embed_dim // 2),
-            nn.SiLU(),
-            linear(time_embed_dim // 2, time_embed_dim // 2),
-        )
+        self.time_embed = nn.ModuleList([])
 
-        self.time_embed2 = nn.Sequential(
-            linear(model_channels, time_embed_dim // 2),
-            nn.SiLU(),
-            linear(time_embed_dim // 2, time_embed_dim // 2),
-        )
+        for i in range(self.num_times):
+            self.time_embed.append(
+                nn.Sequential(
+                    linear(model_channels, single_time_embed_dim),
+                    nn.SiLU(),
+                    linear(single_time_embed_dim, single_time_embed_dim)
+                )
+            )
 
         if self.num_classes is not None:
             self.label_emb = nn.Embedding(num_classes, time_embed_dim)
@@ -729,13 +725,17 @@ class UNet3DModel(nn.Module):
 
         logits = dict()
         hs = []
-        t_emb1 = timestep_embedding(timesteps1, self.model_channels, repeat_only=False)
-        emb1 = self.time_embed1(t_emb1)
 
-        t_emb2 = timestep_embedding(timesteps2, self.model_channels, repeat_only=False)
-        emb2 = self.time_embed2(t_emb2)
+        emb = []
 
-        emb = torch.cat([emb1, emb2], dim = 1)
+        timesteps = [timesteps1, timesteps2]
+
+        for i in range(self.num_times):
+            t_emb = timestep_embedding(timesteps[i], self.model_channels, repeat_only=False)
+            t_emb = self.time_embed[i](t_emb)
+            emb.append(t_emb)
+
+        emb = torch.cat(emb, dim = 1)
 
         if self.num_classes is not None:
             assert y.shape == (doctree_in.batch_size,)

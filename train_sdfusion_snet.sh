@@ -28,13 +28,13 @@ ema_rate=0.999
 ####################
 
 ### model stuff ###
-model='sdfusion_union_two_time'
+model='sdfusion_union_three_time'
 df_cfg='configs/sdfusion_snet.yaml'
 # ckpt='logs_home/2023-11-29T14-44-47-sdfusion_union_two_time-snet-airplane-LR1e-4-release/ckpt/df_steps-latest.pth'
 
 vq_model="GraphVAE"
-vq_cfg="configs/shapenet_vqvae.yaml"
-vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00020.model.pth"
+vq_cfg="configs/shapenet_vae.yaml"
+vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00060.model.pth"
 
 ####################
 

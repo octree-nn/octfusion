@@ -487,6 +487,7 @@ class UNet3DModel(nn.Module):
         self,
         image_size,
         depth,
+        middle_depth,
         full_depth,
         in_channels,
         model_channels,
@@ -536,6 +537,7 @@ class UNet3DModel(nn.Module):
 
         self.image_size = image_size
         self.depth = depth
+        self.middle_depth = middle_depth
         self.full_depth = full_depth
         self.in_channels = in_channels
         self.model_channels = model_channels
@@ -558,11 +560,6 @@ class UNet3DModel(nn.Module):
 
         single_time_embed_dim = model_channels * 4
         time_embed_dim = self.num_times * single_time_embed_dim
-        # self.time_embed = nn.Sequential(
-        #     linear(model_channels, time_embed_dim),
-        #     nn.SiLU(),
-        #     linear(time_embed_dim, time_embed_dim),
-        # )
 
         self.time_embed = nn.ModuleList([])
 
@@ -583,6 +580,15 @@ class UNet3DModel(nn.Module):
               GraphConv(in_channels, model_channels, n_edge_type, avg_degree, self.depth - 1)
            ]
         )
+
+        self.input_conv = GraphConv(in_channels, model_channels, n_edge_type, avg_degree, self.depth - 1)
+
+        middle_channel = channel_mult[1] * model_channels
+
+        self.middle_conv = GraphConv(in_channels, middle_channel, n_edge_type, avg_degree, self.middle_depth - 1)
+
+        self.input_blocks = nn.ModuleList([])
+
         d = self.depth
         self._feature_size = model_channels
         input_block_chans = [model_channels]
@@ -740,13 +746,22 @@ class UNet3DModel(nn.Module):
         h = x
         # print(h.type)
         d = self.depth
+        input_depth = doctree_in.depth
+
+        if input_depth == self.depth:
+            h = self.input_conv(h, doctree_in, input_depth)
+        elif input_depth == self.middle_depth:
+            h = self.middle_conv(h, doctree_in, input_depth)
+
+        hs.append(h)
+
         for module in self.input_blocks:
-            if isinstance(module, GraphConv):
-                h = module(h, doctree_in, d)
-            elif isinstance(module, GraphResBlock):
-                h = module(h, emb, doctree_in, d)
+            if isinstance(module, GraphResBlock):
+                if d <= input_depth:
+                    h = module(h, emb, doctree_in, d)
             elif isinstance(module, GraphDownsample):
-                h = module(h, doctree_in, d)
+                if d <= input_depth:
+                    h = module(h, doctree_in, d)
                 d -= 1
 
             hs.append(h)
@@ -776,8 +791,14 @@ class UNet3DModel(nn.Module):
                 h = module(h, doctree_out_copy, d)
                 d += 1
 
+            if input_depth == self.middle_depth and d == input_depth:
+                break
+
         # h = h.type(x.dtype)
         # h = h
+
+        if input_depth == self.middle_depth:
+            return h, logits, doctree_out_copy
 
         h = self.end(self.end_norm(h, doctree_out_copy, d))
 

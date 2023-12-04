@@ -28,7 +28,7 @@ import torchvision.utils as vutils
 import torchvision.transforms as transforms
 
 from models.base_model import BaseModel
-from models.networks.diffusion_networks.network_two_times_backup import DiffusionUNet
+from models.networks.diffusion_networks.network_two_times import DiffusionUNet
 from models.networks.diffusion_networks.ldm_diffusion_util import *
 
 from models.networks.diffusion_networks.samplers.ddim_new import DDIMSampler
@@ -217,11 +217,8 @@ class SDFusionModel(BaseModel):
 
             noise_level2 = self.log_snr(times2)
 
-            noised_octree_nnum = len(noised_octree_small.batch_id(depth = self.small_depth))
-            noised_split_large = torch.randn((noised_octree_nnum, self.code_channel), device = self.device)
-
-            noised_octree_large = self.split2octree_large(noised_octree_small, noised_split_large)
-
+            noised_doctree = dual_octree.DualOctree(noised_octree_small)
+            noised_doctree.post_processing_for_docnn()
 
         else:
 
@@ -250,8 +247,8 @@ class SDFusionModel(BaseModel):
 
             noised_octree_large = self.split2octree_large(noised_octree_small, noised_split_large)
 
-        noised_doctree = dual_octree.DualOctree(noised_octree_large)
-        noised_doctree.post_processing_for_docnn()
+            noised_doctree = dual_octree.DualOctree(noised_octree_large)
+            noised_doctree.post_processing_for_docnn()
 
         input_data = torch.zeros((noised_doctree.total_num,1), device = self.device)
 

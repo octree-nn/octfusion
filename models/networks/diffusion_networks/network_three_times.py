@@ -6,7 +6,6 @@ import torch.nn as nn
 
 from einops import rearrange, repeat
 
-# from .graph_ounet import UNet3DModel
 from .graph_ounet_three_t import UNet3DModel
 
 class DiffusionUNet(nn.Module):
