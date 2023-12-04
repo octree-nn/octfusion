@@ -28,7 +28,7 @@ ema_rate=0.999
 ####################
 
 ### model stuff ###
-model='sdfusion_union_three_time'
+model='sdfusion_union_two_time'
 df_cfg='configs/sdfusion_snet.yaml'
 # ckpt='logs_home/2023-11-29T14-44-47-sdfusion_union_two_time-snet-airplane-LR1e-4-release/ckpt/df_steps-latest.pth'
 

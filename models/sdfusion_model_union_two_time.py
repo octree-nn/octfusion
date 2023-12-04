@@ -68,7 +68,7 @@ class SDFusionModel(BaseModel):
 
         self.full_depth = self.vq_conf.model.full_depth
         self.small_depth = self.vq_conf.model.small_depth
-        self.large_depth = self.vq_conf.model.large_depth
+        self.large_depth = self.vq_conf.model.depth_stop
 
         # init diffusion networks
         df_model_params = df_conf.model.params

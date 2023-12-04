@@ -558,7 +558,7 @@ class UNet3DModel(nn.Module):
         self.num_times = 2
         n_edge_type, avg_degree = 7, 7
 
-        single_time_embed_dim = model_channels * 4
+        single_time_embed_dim = model_channels * 2
         time_embed_dim = self.num_times * single_time_embed_dim
 
         self.time_embed = nn.ModuleList([])

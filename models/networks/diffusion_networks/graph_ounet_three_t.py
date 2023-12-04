@@ -558,7 +558,7 @@ class UNet3DModel(nn.Module):
         self.num_times = 3
         n_edge_type, avg_degree = 7, 7
 
-        single_time_embed_dim = model_channels * 4
+        single_time_embed_dim = model_channels * 2
         time_embed_dim = self.num_times * single_time_embed_dim
 
         self.time_embed = nn.ModuleList([])
@@ -748,10 +748,10 @@ class UNet3DModel(nn.Module):
         d = self.depth
         input_depth = doctree_in.depth
 
-        if input_depth == self.depth:
-            h = self.input_conv(h, doctree_in, input_depth)
-        elif input_depth == self.middle_depth:
-            h = self.middle_conv(h, doctree_in, input_depth)
+        if input_depth == self.middle_depth:
+            h = self.middle_conv(h, doctree_in, self.middle_depth)
+        else:
+            h = self.input_conv(h, doctree_in, self.depth)
 
         hs.append(h)
 

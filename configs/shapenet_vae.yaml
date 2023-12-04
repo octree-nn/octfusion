@@ -43,7 +43,7 @@ data:
     load_sdf: False
     load_code: False
     load_occu: False
-    batch_size: 4
+    batch_size: &batch_size 2
     shuffle: True
     # num_workers: 0
 
@@ -71,7 +71,7 @@ data:
     # data loading
     location: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/dataset_256
     filelist: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/filelist/test_airplane.txt
-    batch_size: 4
+    batch_size: *batch_size
     load_sdf: False
     load_code: False
     load_occu: False

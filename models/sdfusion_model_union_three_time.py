@@ -223,10 +223,6 @@ class SDFusionModel(BaseModel):
 
         batch_size = self.batch_size
 
-        small = False
-        large = False
-        feature = False
-
         self.stage_flag = ''
 
         random_flag = random()
@@ -295,7 +291,6 @@ class SDFusionModel(BaseModel):
             noised_doctree_nnum = noised_doctree.total_num
             noised_input_data = torch.randn((noised_doctree_nnum, self.code_channel), device = self.device)
 
-
         else:
 
             self.stage_flag = 'feature'
@@ -331,21 +326,21 @@ class SDFusionModel(BaseModel):
 
         self.df_split_loss = 0.
 
-        if small:
+        if self.stage_flag == 'small':
             for d in range(self.full_depth, self.small_depth):
                 logitd = logits[d]
                 label_gt = self.octree_in.nempty_mask(d).float()
                 label_gt = label_gt * 2 - 1
                 self.df_split_loss += F.mse_loss(logitd, label_gt)
 
-        if large:
+        elif self.stage_flag == 'large':
             for d in logits.keys():
                 logitd = logits[d]
                 label_gt = self.octree_in.nempty_mask(d).float()
                 label_gt = label_gt * 2 - 1
                 self.df_split_loss += F.mse_loss(logitd, label_gt)
 
-        if feature:
+        elif self.stage_flag == 'feature':
             for d in logits.keys():
                 logitd = logits[d]
                 label_gt = self.octree_in.nempty_mask(d).float()
