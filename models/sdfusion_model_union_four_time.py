@@ -106,9 +106,9 @@ class SDFusionModel(BaseModel):
             self.log_snr = alpha_cosine_log_snr
         else:
             raise ValueError(f'invalid noise schedule {self.noise_schedule}')
-    
+
         # init vqvae
-        
+
         self.autoencoder = load_dualoctree(conf = vq_conf, ckpt = opt.vq_ckpt, opt = opt)
 
         ######## END: Define Networks ########
@@ -223,13 +223,14 @@ class SDFusionModel(BaseModel):
 
         batch_size = self.batch_size
 
-        small = False
-        large = False
-        feature = False
+        self.stage_flag = ''
 
         random_flag = random()
 
         if random_flag < 1/3:
+
+            self.stage_flag = 'small'
+
             times1 = torch.zeros((batch_size,), device = self.device).float().uniform_(0,1)
             times2 = torch.ones((batch_size,), device = self.device).float()
             times3 = torch.ones((batch_size,), device = self.device).float()
@@ -245,22 +246,19 @@ class SDFusionModel(BaseModel):
 
             noise_level2 = self.log_snr(times2)
 
-            noised_octree_nnum = noised_octree_small.nnum[self.small_depth]
-            noised_split_large = torch.randn((noised_octree_nnum, self.split_channel), device = self.device)
-
-            noised_octree_large = self.split2octree_large(noised_octree_small, noised_split_large)
-
-            noised_doctree = dual_octree.DualOctree(noised_octree_large)
-            noised_doctree.post_processing_for_docnn()
-
             noise_level3 = self.log_snr(times3)
+
+            noised_doctree = dual_octree.DualOctree(noised_octree_small)
+            noised_doctree.post_processing_for_docnn()
 
             noised_doctree_nnum = noised_doctree.total_num
             noised_input_data = torch.randn((noised_doctree_nnum, self.code_channel), device = self.device)
 
-            small = True
 
         elif random_flag < 2/3:
+
+            self.stage_flag = 'large'
+
             times1 = torch.zeros((batch_size,), device = self.device).float()
             times2 = torch.zeros((batch_size,), device = self.device).float().uniform_(0,1)
             times3 = torch.ones((batch_size,), device = self.device).float()
@@ -293,9 +291,10 @@ class SDFusionModel(BaseModel):
             noised_doctree_nnum = noised_doctree.total_num
             noised_input_data = torch.randn((noised_doctree_nnum, self.code_channel), device = self.device)
 
-            large = True
-
         else:
+
+            self.stage_flag = 'feature'
+
             times1 = torch.zeros((batch_size,), device = self.device).float()
             times2 = torch.zeros((batch_size,), device = self.device).float()
             times3 = torch.zeros((batch_size,), device = self.device).float().uniform_(0,1)
@@ -318,8 +317,6 @@ class SDFusionModel(BaseModel):
                 sigma_i = sigma3[i] * noise_i
                 noised_input_data[batch_id == i] += sigma_i
 
-            feature = True
-
         doctree_gt = dual_octree.DualOctree(self.octree_in)
         doctree_gt.post_processing_for_docnn()
 
@@ -329,21 +326,21 @@ class SDFusionModel(BaseModel):
 
         self.df_split_loss = 0.
 
-        if small:
+        if self.stage_flag == 'small':
             for d in range(self.full_depth, self.small_depth):
                 logitd = logits[d]
                 label_gt = self.octree_in.nempty_mask(d).float()
                 label_gt = label_gt * 2 - 1
                 self.df_split_loss += F.mse_loss(logitd, label_gt)
 
-        if large:
+        elif self.stage_flag == 'large':
             for d in logits.keys():
                 logitd = logits[d]
                 label_gt = self.octree_in.nempty_mask(d).float()
                 label_gt = label_gt * 2 - 1
                 self.df_split_loss += F.mse_loss(logitd, label_gt)
 
-        if feature:
+        elif self.stage_flag == 'feature':
             for d in logits.keys():
                 logitd = logits[d]
                 label_gt = self.octree_in.nempty_mask(d).float()
@@ -662,7 +659,7 @@ class SDFusionModel(BaseModel):
         if hasattr(self, 'loss_gamma'):
             ret['gamma'] = self.loss_gamma.data
 
-        return ret
+        return ret, self.stage_flag
 
     def get_current_visuals(self):
 
