@@ -19,7 +19,6 @@ logs/
 logs_home/
 quant_logs*/
 qual_logs*/
-saved_ckpt*/
 
 # data
 data
