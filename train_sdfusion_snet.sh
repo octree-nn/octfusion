@@ -6,13 +6,13 @@ logs_dir='logs_home'
 
 ### set gpus ###
 # gpu_ids=0          # single-gpu
-gpu_ids=1  # multi-gpu
+gpu_ids=0,1  # multi-gpu
 
 if [ ${#gpu_ids} -gt 1 ]; then
     # specify these two if multi-gpu
     # NGPU=2
     # NGPU=3
-    NGPU=4
+    NGPU=2
     PORT=11769
     echo "HERE"
 fi

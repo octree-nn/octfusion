@@ -151,6 +151,7 @@ class SDFusionModel(BaseModel):
             device_ids=[opt.local_rank],
             output_device=opt.local_rank,
             broadcast_buffers=False,
+            find_unused_parameters=True,
         )
 
     ############################ START: init diffusion params ############################

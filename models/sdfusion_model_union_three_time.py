@@ -166,6 +166,7 @@ class SDFusionModel(BaseModel):
             device_ids=[opt.local_rank],
             output_device=opt.local_rank,
             broadcast_buffers=False,
+            find_unused_parameters = True,
         )
         if opt.sync_bn:
             self.autoencoder = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.autoencoder)
@@ -174,7 +175,7 @@ class SDFusionModel(BaseModel):
             device_ids=[opt.local_rank],
             output_device=opt.local_rank,
             broadcast_buffers=False,
-            find_unused_parameters = False
+            find_unused_parameters = False,
         )
 
     ############################ START: init diffusion params ############################
