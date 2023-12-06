@@ -14,6 +14,10 @@ LICENSE
 __pycache__/
 .ipynb*/
 
+# checkpoints
+saved_ckpt/
+Tencent/
+
 # logs
 logs/
 logs_home/

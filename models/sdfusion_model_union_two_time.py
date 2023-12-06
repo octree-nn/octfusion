@@ -301,11 +301,7 @@ class SDFusionModel(BaseModel):
         noised_split_small = torch.randn(shape, device = self.device)
         noised_octree_small = self.split2octree_small(noised_split_small)
 
-        noised_octree_nnum = len(noised_octree_small.batch_id(depth = self.small_depth))
-        noised_split_large = torch.randn((noised_octree_nnum, self.code_channel), device = self.device)
-        noised_octree_large = self.split2octree_large(noised_octree_small, noised_split_large)
-
-        noised_doctree = dual_octree.DualOctree(noised_octree_large)
+        noised_doctree = dual_octree.DualOctree(noised_octree_small)
         noised_doctree.post_processing_for_docnn()
 
         x_start_small = None
@@ -351,17 +347,21 @@ class SDFusionModel(BaseModel):
             noised_split_small = mean + torch.sqrt(variance) * noise
 
             noised_octree_small = self.split2octree_small(noised_split_small)
-            noised_octree_nnum = len(noised_octree_small.batch_id(depth = self.small_depth))
-            noised_split_large = torch.randn((noised_octree_nnum, self.code_channel), device = self.device)
-            noised_octree_large = self.split2octree_large(noised_octree_small, noised_split_large)
 
-            noised_doctree = dual_octree.DualOctree(noised_octree_large)
+            noised_doctree = dual_octree.DualOctree(noised_octree_small)
             noised_doctree.post_processing_for_docnn()
 
         self.export_octree(noised_octree_small, self.small_depth, save_dir = 'airplane_lr', index = index)
 
         noised_doctree_small = dual_octree.DualOctree(noised_octree_small)
         noised_doctree_small.post_processing_for_docnn()
+
+        noised_octree_nnum = len(noised_octree_small.batch_id(depth = self.small_depth))
+        noised_split_large = torch.randn((noised_octree_nnum, self.code_channel), device = self.device)
+        noised_octree_large = self.split2octree_large(noised_octree_small, noised_split_large)
+
+        noised_doctree = dual_octree.DualOctree(noised_octree_large)
+        noised_doctree.post_processing_for_docnn()
 
         time_pairs = self.get_sampling_timesteps(
             batch_size, device=self.device, steps=steps)

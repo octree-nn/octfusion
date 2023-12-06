@@ -1,6 +1,6 @@
 solver:
   sdf_scale: 0.9
-  resolution: 160
+  resolution: 600
   save_sdf: False
 
 model:
