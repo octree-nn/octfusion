@@ -480,16 +480,6 @@ class SDFusionModel(BaseModel):
 
         return split_small
 
-    # def octree2split_large1(self, octree):
-
-    #     child_small = octree.children[self.small_depth]
-    #     split_small = (child_small >= 0)
-
-    #     split_small = split_small.float()
-    #     split_small = 2 * split_small - 1
-
-    #     return split_small
-
     def split2octree_small(self, split):
 
         discrete_split = copy.deepcopy(split)
@@ -539,21 +529,6 @@ class SDFusionModel(BaseModel):
         octree_out.depth += 1
 
         return octree_out
-
-    # def split2octree_large1(self, octree, split):
-
-    #     discrete_split = copy.deepcopy(split)
-    #     discrete_split[discrete_split > 0] = 1
-    #     discrete_split[discrete_split < 0] = 0
-
-    #     octree_out = copy.deepcopy(octree)
-    #     nempty_mask = discrete_split
-    #     label = nempty_mask.long()
-    #     octree_out.octree_split(label, depth = self.small_depth)
-    #     octree_out.octree_grow(self.small_depth + 1)
-    #     octree_out.depth += 1
-
-    #     return octree_out
 
     def export_octree(self, octree, depth, save_dir = None, index = 0):
 
