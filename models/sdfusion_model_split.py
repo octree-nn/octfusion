@@ -27,7 +27,7 @@ import torchvision.utils as vutils
 import torchvision.transforms as transforms
 
 from models.base_model import BaseModel
-from models.networks.diffusion_networks.network_two_times_backup import DiffusionUNet
+from models.networks.diffusion_networks.network_two_times_new import DiffusionUNet
 from models.networks.diffusion_networks.ldm_diffusion_util import *
 
 from models.networks.diffusion_networks.samplers.ddim_new import DDIMSampler

@@ -12,8 +12,6 @@ from ocnn.utils import scatter_add
 from models.networks.dualoctree_networks import dual_octree
 from models.networks.diffusion_networks.ldm_diffusion_util import create_full_octree
 
-# from ldm.modules.diffusionmodules.util import (
-# from external.ldm.modules.diffusionmodules.util import (
 from models.networks.diffusion_networks.ldm_diffusion_util import (
     checkpoint,
     conv_nd,
@@ -30,8 +28,10 @@ from models.networks.diffusion_networks.modules import (
     DualOctreeGroupNorm,
 )
 
+norm_channels = 32
+
 def normalization(channels):
-    num_groups = min(32, channels)
+    num_groups = min(norm_channels, channels)
     return DualOctreeGroupNorm(channels, num_groups)
 
 # dummy replace
@@ -558,6 +558,9 @@ class UNet3DModel(nn.Module):
         self.num_times = 3
         n_edge_type, avg_degree = 7, 7
 
+        global norm_channels
+        norm_channels = self.model_channels
+
         single_time_embed_dim = model_channels * 2
         time_embed_dim = self.num_times * single_time_embed_dim
 
@@ -574,12 +577,6 @@ class UNet3DModel(nn.Module):
 
         if self.num_classes is not None:
             self.label_emb = nn.Embedding(num_classes, time_embed_dim)
-
-        self.input_blocks = nn.ModuleList(
-           [
-              GraphConv(in_channels, model_channels, n_edge_type, avg_degree, self.depth - 1)
-           ]
-        )
 
         self.input_conv = GraphConv(in_channels, model_channels, n_edge_type, avg_degree, self.depth - 1)
 

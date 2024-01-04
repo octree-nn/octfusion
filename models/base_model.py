@@ -28,11 +28,31 @@ def create_model(opt):
         model = SDFusionModel()
 
     elif opt.model == 'sdfusion_union_two_time':
-        from models.sdfusion_model_union_two_time import SDFusionModel
+        from models.sdfusion_model_union_two_time_noise_octree import SDFusionModel
+        model = SDFusionModel()
+
+    elif opt.model == 'sdfusion_union_two_time_pred_x0':
+        from models.sdfusion_model_union_two_time_pred_x0 import SDFusionModel
+        model = SDFusionModel()
+
+    elif opt.model == 'sdfusion_union_two_time_pred_noise':
+        from models.sdfusion_model_union_two_time_pred_noise import SDFusionModel
+        model = SDFusionModel()
+
+    elif opt.model == 'sdfusion_union_two_time_noise_octree':
+        from models.sdfusion_model_union_two_time_noise_octree import SDFusionModel
         model = SDFusionModel()
 
     elif opt.model == 'sdfusion_union_three_time':
         from models.sdfusion_model_union_three_time import SDFusionModel
+        model = SDFusionModel()
+    
+    elif opt.model == 'sdfusion_union_three_time_pred_x0':
+        from models.sdfusion_model_union_three_time_pred_x0 import SDFusionModel
+        model = SDFusionModel()
+
+    elif opt.model == 'sdfusion_union_three_time_pred_noise':
+        from models.sdfusion_model_union_three_time_pred_noise import SDFusionModel
         model = SDFusionModel()
 
     elif opt.model == 'sdfusion_union_four_time':

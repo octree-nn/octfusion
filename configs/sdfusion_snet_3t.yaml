@@ -10,19 +10,21 @@ model:
 unet:
   params:
     image_size: 256
-    depth: 6
-    middle_depth: 4
-    full_depth: 4
-    in_channels: &channel 8
-    out_channels: *channel
-    model_channels: 64
+    input_depth: 8
+    large_depth: 6
+    in_split_channels: &split_channels 8
+    in_feature_channels: &feature_channels 3
+    out_split_channels: *split_channels
+    out_feature_channels: *feature_channels
+    model_channels: 32
     num_res_blocks: 2
     attention_resolutions: [2,4] # 16, 8, 4
     # note: this isn\t actually the resolution but
     # the downsampling factor, i.e. this corresnponds to
     # attention on spatial resolution 8,16,32, as the
     # spatial reolution of the latents is 64 for f4
-    channel_mult: [1,2,4,8,8]
+    # channel_mult: [1, 2, 4, 8, 8, 16, 16]
+    channel_mult: [1, 2, 2, 4, 4, 8, 8]
     # channel_mult: [1,1,4,16,16]
     # num_head_channels: 32
     num_heads: 4

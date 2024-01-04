@@ -28,6 +28,11 @@ qual_logs*/
 data
 demo_data/
 *airplane*/
+*chair*/
+*table*/
+*car*/
+*rifle*/
+split_small/
 
 # bak
 bak*/

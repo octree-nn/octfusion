@@ -253,7 +253,7 @@ def mean_flat(tensor):
     return tensor.mean(dim=list(range(1, len(tensor.shape))))
 
 
-def normalization(channels):
+def voxelnormalization(channels):
     """
     Make a standard normalization layer.
     :param channels: number of input channels.

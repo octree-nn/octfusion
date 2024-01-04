@@ -5,8 +5,8 @@ DATE_WITH_TIME=`date "+%Y-%m-%dT%H-%M-%S"`
 logs_dir='logs_home'
 
 ### set gpus ###
-# gpu_ids=0          # single-gpu
-gpu_ids=0,1  # multi-gpu
+gpu_ids=2          # single-gpu
+# gpu_ids=2,3        # multi-gpu
 
 if [ ${#gpu_ids} -gt 1 ]; then
     # specify these two if multi-gpu
@@ -28,20 +28,21 @@ ema_rate=0.999
 ####################
 
 ### model stuff ###
-model='sdfusion_union_two_time'
-df_cfg='configs/sdfusion_snet.yaml'
-# ckpt='logs_home/2023-11-29T14-44-47-sdfusion_union_two_time-snet-airplane-LR1e-4-release/ckpt/df_steps-latest.pth'
+model='sdfusion_union_two_time_noise_octree'
+# model='sdfusion_union_three_time_pred_noise'
+df_cfg='configs/sdfusion_snet_2t.yaml'
+# ckpt='logs_home/2023-12-14T02-10-49-sdfusion_union_two_time_new-snet-chair-LR1e-4-release/ckpt/df_steps-latest.pth'
 
 vq_model="GraphVAE"
-vq_cfg="configs/shapenet_vae.yaml"
-vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00060.model.pth"
+vq_cfg="configs/shapenet_vae_2t.yaml"
+vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth"
 
 ####################
 
 ### dataset stuff ###
 dataset_mode='snet'
 dataroot="data"
-cat='airplane'
+cat='rifle'
 
 #####################
 

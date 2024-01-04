@@ -1,0 +1,86 @@
+solver:
+  sdf_scale: 0.9
+  resolution: 360
+  save_sdf: False
+
+model:
+  name: graph_vae
+
+  channel: 4
+  depth: &depth 8
+  nout: 4
+  depth_out: *depth
+  full_depth: &full_depth 4
+  depth_stop: 6
+  bottleneck: 4
+  resblock_type: basic
+  code_channel: 16
+  resblk_num: 2
+
+  embed_dim: 3
+  n_embed: 8192
+  use_checkpoint: True
+
+data:
+  train:
+    name: shapenet
+
+    # octree building
+    depth: *depth
+    offset: 0.0
+    full_depth: *full_depth
+    node_dis: True
+    split_label: True
+
+    # no data augmentation
+    disable: False
+    distort: False
+
+    # data loading
+    location: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/dataset_256
+    filelist: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/filelist/train_rifle.txt
+    load_sdf: False
+    load_code: False
+    load_occu: False
+    batch_size: &batch_size 16
+    points_scale: &points_scale 1.0
+    shuffle: True
+    # num_workers: 0
+
+    point_scale: 0.5
+    point_sample_num: 10000
+    sample_surf_points: False
+    in_memory: False
+    num_workers: 8
+
+
+  test:
+    name: shapenet
+
+    # octree building
+    depth: *depth
+    offset: 0.0
+    full_depth: *full_depth
+    node_dis: True
+    split_label: True
+
+    # no data augmentation
+    disable: False
+    distort: False
+
+    # data loading
+    location: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/dataset_256
+    filelist: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/filelist/test_rifle.txt
+    batch_size: *batch_size
+    points_scale: *points_scale
+    load_sdf: False
+    load_code: False
+    load_occu: False
+    shuffle: False
+    # num_workers: 0
+
+    point_scale: 0.5
+    point_sample_num: 10000
+    sample_surf_points: False
+    in_memory: False
+    num_workers: 8
