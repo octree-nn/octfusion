@@ -117,7 +117,8 @@ def train_main_worker(opt, model, train_loader, test_loader, test_loader_for_eva
                 epoch += 1
                 print('Now Epoch is:', epoch)
 
-        # model.update_learning_rate_cos(iter_i/epoch_length, opt)
+        if opt.update_learning_rate:
+            model.update_learning_rate_cos(iter_i/epoch_length, opt)
 
         pbar.update(1)
 

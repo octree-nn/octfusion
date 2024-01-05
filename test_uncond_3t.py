@@ -29,9 +29,9 @@ label = category_5_to_label[category]
 total_num = category_5_to_num[category]
 
 # initialize SDFusion model
-model = 'sdfusion_union_three_time_pred_x0'
+model = 'sdfusion_union_three_time_noise_octree'
 df_cfg = 'configs/sdfusion_snet_3t.yaml'
-ckpt_path = 'Tencent/rifle/df_steps-111000.pth'
+ckpt_path = f'Tencent/{category}/df_steps-63000-noise-octree-3t.pth'
 
 vq_cfg = "configs/shapenet_vae_3t_eval.yaml"
 vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth'
@@ -53,9 +53,9 @@ ddim_eta = 0.
 
 for i in range(total_num):
     seed_everything(i)
-    # SDFusion.uncond(batch_size=ngen, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
+    SDFusion.uncond(batch_size=ngen, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
 
-    train_data = next(train_dg)
-    test_data = next(test_dg)
-    SDFusion.uncond_withdata_small(data = test_data, split_path = None, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
+    # train_data = next(train_dg)
+    # test_data = next(test_dg)
+    # SDFusion.uncond_withdata_small(data = test_data, split_path = None, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
     # SDFusion.uncond_withdata_large(data = test_data, steps=ddim_steps, category = category, ema = True, index = i)

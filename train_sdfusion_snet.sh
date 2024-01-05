@@ -21,20 +21,22 @@ fi
 ### hyper params ###
 lr=1e-4
 min_lr=1e-6
+update_learning_rate=0
 warmup_epochs=40
 epochs=4000
 batch_size=64
 ema_rate=0.999
+ckpt_num=10000
 ####################
 
 ### model stuff ###
-model='sdfusion_union_two_time_noise_octree'
+model='sdfusion_union_three_time_noise_octree'
 # model='sdfusion_union_three_time_pred_noise'
-df_cfg='configs/sdfusion_snet_2t.yaml'
+df_cfg='configs/sdfusion_snet_3t.yaml'
 # ckpt='logs_home/2023-12-14T02-10-49-sdfusion_union_two_time_new-snet-chair-LR1e-4-release/ckpt/df_steps-latest.pth'
 
 vq_model="GraphVAE"
-vq_cfg="configs/shapenet_vae_2t.yaml"
+vq_cfg="configs/shapenet_vae_3t.yaml"
 vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth"
 
 ####################
@@ -74,8 +76,8 @@ if [ $debug = 1 ]; then
 fi
 
 cmd="train.py --name ${name} --logs_dir ${logs_dir} --gpu_ids ${gpu_ids} \
-            --lr ${lr} --epochs ${epochs}\
-            --model ${model} --df_cfg ${df_cfg} \
+            --lr ${lr} --epochs ${epochs}  --min_lr ${min_lr} --warmup_epochs ${warmup_epochs} --update_learning_rate ${update_learning_rate} --ema_rate ${ema_rate} \
+            --model ${model} --df_cfg ${df_cfg} --ckpt_num ${ckpt_num} \
             --vq_model ${vq_model} --vq_cfg ${vq_cfg} --vq_ckpt ${vq_ckpt} \
             --display_freq ${display_freq} --print_freq ${print_freq}
             --save_steps_freq ${save_steps_freq} \

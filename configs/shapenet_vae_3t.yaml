@@ -43,7 +43,7 @@ data:
     load_sdf: False
     load_code: False
     load_occu: False
-    batch_size: &batch_size 16
+    batch_size: &batch_size 8
     points_scale: &points_scale 1.0
     shuffle: True
     # num_workers: 0

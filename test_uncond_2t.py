@@ -31,7 +31,7 @@ total_num = category_5_to_num[category]
 # initialize SDFusion model
 model = 'sdfusion_union_two_time_noise_octree'
 df_cfg = 'configs/sdfusion_snet_2t.yaml'
-ckpt_path = 'Tencent/airplane/df_steps-48000-noise-octree.pth'
+ckpt_path = f'Tencent/{category}/df_steps-78000-noise-octree.pth'
 
 vq_cfg = "configs/shapenet_vae_2t_eval.yaml"
 vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.pth'

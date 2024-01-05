@@ -754,9 +754,6 @@ class UNet3DModel(nn.Module):
 
         emb = torch.cat(emb, dim = 1)
 
-        # t_emb = timestep_embedding(timesteps[1], self.model_channels, repeat_only=False)
-        # emb = self.time_embed(t_emb)
-
         if self.num_classes is not None:
             assert y.shape == (doctree_in.batch_size,)
             emb = emb + self.label_emb(y)
@@ -810,7 +807,7 @@ class UNet3DModel(nn.Module):
         update_octree = doctree_out == None
 
         if x_large != None and update_octree:
-            octree_out = create_full_octree(depth = self.input_depth + 2, full_depth = self.full_depth, batch_size = doctree_in.batch_size, device = doctree_in.device)
+            octree_out = create_full_octree(depth = self.input_depth, full_depth = self.full_depth, batch_size = doctree_in.batch_size, device = doctree_in.device)
             doctree_out = dual_octree.DualOctree(octree_out)
             doctree_out.post_processing_for_docnn()
 
@@ -874,15 +871,9 @@ class UNet3DModel(nn.Module):
                 h = module(h, doctree_out, d)
                 d += 1
 
-        # print(d)
-        # print(h.shape)
-
         output_large = self.end_large(self.end_norm_large(h, doctree_out, d))
 
         output_large = self.out_large(output_large, doctree_out, d)
-
-        # assert output_large.shape[0] == x_large.shape[0]
-        # print(x_large.shape, output_large.shape)
 
         if self.verbose:
             print(output_large.shape)

@@ -209,10 +209,6 @@ class SDFusionModel(BaseModel):
     def switch_eval(self):
         self.df.eval()
 
-    # check: ddpm.py, line 871 forward
-    # check: p_losses
-    # check: q_sample, apply_mode
-
     def forward(self):
 
         self.df.train()
@@ -223,9 +219,6 @@ class SDFusionModel(BaseModel):
             self.input_data, self.doctree_in = self.autoencoder_module.extract_code(self.octree_in)
 
         batch_size = self.batch_size
-
-        doctree_gt = dual_octree.DualOctree(self.octree_in)
-        doctree_gt.post_processing_for_docnn()
 
         self.stage_flag = ''
 
