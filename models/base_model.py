@@ -42,6 +42,10 @@ def create_model(opt):
     elif opt.model == 'sdfusion_union_two_time_noise_octree':
         from models.sdfusion_model_union_two_time_noise_octree import SDFusionModel
         model = SDFusionModel()
+    
+    elif opt.model == 'sdfusion_union_two_time_lr':
+        from models.sdfusion_model_union_two_time_lr import SDFusionModel
+        model = SDFusionModel()
 
     elif opt.model == 'sdfusion_union_three_time':
         from models.sdfusion_model_union_three_time import SDFusionModel

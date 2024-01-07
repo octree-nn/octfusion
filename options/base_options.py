@@ -32,7 +32,7 @@ class BaseOptions():
         self.parser.add_argument('--dataroot', type=str, default=None, help='root dir for data. if None, specify by `hostname` in configs/paths.py')
         self.parser.add_argument('--dataset_mode', type=str, default='snet', help='chooses how datasets are loaded. [mnist, snet, abc, snet-abc]')
         self.parser.add_argument('--res', type=int, default=64, help='dataset resolution')
-        self.parser.add_argument('--cat', type=str, default='chair', help='category for shapenet')
+        self.parser.add_argument('--category', type=str, default='chair', help='category for shapenet')
         self.parser.add_argument('--trunc_thres', type=float, default=0.2, help='threshold for truncated sdf.')
 
         self.parser.add_argument('--ratio', type=float, default=1., help='ratio of the dataset to use. for debugging and overfitting')
@@ -43,7 +43,7 @@ class BaseOptions():
         ############## START: model related options ################
         self.parser.add_argument(
                             '--model', type=str, default='sdfusion',
-                            choices=['vqvae', 'sdfusion', 'sdfusion_new','sdfusion_LAS','sdfusion_split', 'sdfusion_union_two_time', 'sdfusion_union_two_time_pred_x0', 'sdfusion_union_two_time_pred_noise', 'sdfusion_union_two_time_noise_octree', 'sdfusion_union_three_time', 'sdfusion_union_three_time_pred_x0', 'sdfusion_union_three_time_pred_noise', 'sdfusion_union_three_time_noise_octree', 'sdfusion_union_four_time', 'sdfusion-img2shape', 'sdfusion-txt2shape','sdfusion-mm2shape'],
+                            choices=['vqvae', 'sdfusion', 'sdfusion_new','sdfusion_LAS','sdfusion_split', 'sdfusion_union_two_time', 'sdfusion_union_two_time_pred_x0', 'sdfusion_union_two_time_pred_noise', 'sdfusion_union_two_time_noise_octree', 'sdfusion_union_two_time_lr', 'sdfusion_union_three_time', 'sdfusion_union_three_time_pred_x0', 'sdfusion_union_three_time_pred_noise', 'sdfusion_union_three_time_noise_octree', 'sdfusion_union_four_time', 'sdfusion-img2shape', 'sdfusion-txt2shape','sdfusion-mm2shape'],
                             help='chooses which model to use.'
                         )
         self.parser.add_argument('--ckpt', type=str, default=None, help='ckpt to load.')

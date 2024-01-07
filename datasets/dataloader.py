@@ -1,3 +1,4 @@
+import os
 import torch.utils.data
 
 from datasets.base_dataset import CreateDataset
@@ -14,6 +15,8 @@ def get_data_generator(loader):
 def config_dataloader(opt, disable_train_data=False):
     dualoctree_conf = OmegaConf.load(opt.vq_cfg)
     flags_train, flags_test = dualoctree_conf.data.train, dualoctree_conf.data.test
+    flags_train.filelist = os.path.join(flags_train.filelist, f'train_{opt.category}.txt')
+    flags_test.filelist = os.path.join(flags_test.filelist, f'test_{opt.category}.txt')
     if not disable_train_data and not flags_train.disable:
       train_loader = get_dataloader(opt,flags_train, drop_last = True)
 

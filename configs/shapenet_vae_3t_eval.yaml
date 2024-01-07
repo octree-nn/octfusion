@@ -39,7 +39,7 @@ data:
 
     # data loading
     location: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/dataset_256
-    filelist: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/filelist/train_rifle.txt
+    filelist: &filelist /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/filelist
     load_sdf: False
     load_code: False
     load_occu: False
@@ -71,7 +71,7 @@ data:
 
     # data loading
     location: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/dataset_256
-    filelist: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/filelist/test_rifle.txt
+    filelist: *filelist
     batch_size: *batch_size
     points_scale: *points_scale
     load_sdf: False

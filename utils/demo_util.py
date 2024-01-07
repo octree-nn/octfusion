@@ -72,14 +72,14 @@ class SDFusionOpt(BaseOpt):
         # opt.cat = 'all'
         print(f'[*] {self.name()} initialized.')
 
-    def init_dset_args(self, dataroot='data', dataset_mode='snet', cat='all', res=64, cached_dir=None):
+    def init_dset_args(self, dataroot='data', dataset_mode='snet', category='all', res=64, cached_dir=None):
         # dataset - snet
         self.dataroot = dataroot
         self.cached_dir = cached_dir
         self.ratio = 1.0
         self.res = res
         self.dataset_mode = dataset_mode
-        self.cat = cat
+        self.category = category
         self.start_iter = 0
 
     def init_model_args(

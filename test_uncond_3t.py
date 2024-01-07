@@ -24,21 +24,21 @@ category_5_to_label = {
 
 category_5_to_num = {'airplane' : 3236, 'car': 5996,  'chair': 5422, 'table': 6807, 'rifle': 1897}
 
-category = 'rifle'
+category = 'car'
 label = category_5_to_label[category]
 total_num = category_5_to_num[category]
 
 # initialize SDFusion model
 model = 'sdfusion_union_three_time_noise_octree'
 df_cfg = 'configs/sdfusion_snet_3t.yaml'
-ckpt_path = f'Tencent/{category}/df_steps-63000-noise-octree-3t.pth'
+ckpt_path = f'Tencent/{category}/df_steps-141000-noise-octree-3t.pth'
 
 vq_cfg = "configs/shapenet_vae_3t_eval.yaml"
 vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth'
 
 dset="snet"
 opt.init_model_args(model = model, df_cfg = df_cfg, ckpt_path=ckpt_path, vq_cfg = vq_cfg, vq_ckpt_path = vq_ckpt)
-opt.init_dset_args(dataset_mode=dset)
+opt.init_dset_args(dataset_mode=dset, category=category)
 SDFusion = create_model(opt)
 
 train_loader, test_loader, test_loader_for_eval = config_dataloader(opt)
