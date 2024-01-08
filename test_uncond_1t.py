@@ -29,12 +29,13 @@ label = category_5_to_label[category]
 total_num = category_5_to_num[category]
 
 # initialize SDFusion model
-model = 'sdfusion_union_two_time_lr'
-df_cfg = 'configs/sdfusion_snet_2t.yaml'
-ckpt_path = f'Tencent/{category}/df_steps-84000-noise-octree-lr.pth'
+model = 'sdfusion_feature'
+df_cfg = 'configs/sdfusion_snet_1t.yaml'
+# ckpt_path = f'Tencent/{category}/df_steps-66000-large-1t.pth'
+ckpt_path = 'Tencent/feature-stage/df_steps-126000.pth'
 
-vq_cfg = "configs/shapenet_vae_2t_eval.yaml"
-vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.pth'
+vq_cfg = "configs/shapenet_vae_1t_eval.yaml"
+vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth'
 
 dset="snet"
 opt.init_model_args(model = model, df_cfg = df_cfg, ckpt_path=ckpt_path, vq_cfg = vq_cfg, vq_ckpt_path = vq_ckpt)
@@ -53,9 +54,6 @@ ddim_eta = 0.
 
 for i in range(total_num):
     seed_everything(i)
-    SDFusion.uncond(batch_size=ngen, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
-
-    # train_data = next(train_dg)
-    # test_data = next(test_dg)
-    # SDFusion.uncond_withdata_small(data = train_data, split_path = None, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
-    # SDFusion.uncond_withdata_large(train_data, steps=ddim_steps, category = category, ema = True, index = i)
+    train_data = next(train_dg)
+    test_data = next(test_dg)
+    SDFusion.uncond(data = train_data, split_path = None, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)

@@ -7,11 +7,7 @@ import math
 def create_model(opt):
     model = None
 
-    if opt.model == 'vqvae':
-        from models.vqvae_model import VQVAEModel
-        model = VQVAEModel()
-
-    elif opt.model == 'sdfusion':
+    if opt.model == 'sdfusion':
         from models.sdfusion_model import SDFusionModel
         model = SDFusionModel()
 
@@ -23,8 +19,16 @@ def create_model(opt):
         from models.sdfusion_model_LAS import SDFusionModel
         model = SDFusionModel()
 
-    elif opt.model == 'sdfusion_split':
-        from models.sdfusion_model_split import SDFusionModel
+    elif opt.model == 'sdfusion_small':
+        from models.sdfusion_model_small import SDFusionModel
+        model = SDFusionModel()
+    
+    elif opt.model == 'sdfusion_large':
+        from models.sdfusion_model_large import SDFusionModel
+        model = SDFusionModel()
+    
+    elif opt.model == 'sdfusion_feature':
+        from models.sdfusion_model_feature import SDFusionModel
         model = SDFusionModel()
 
     elif opt.model == 'sdfusion_union_two_time':
