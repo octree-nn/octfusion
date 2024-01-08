@@ -554,8 +554,6 @@ class UNet3DModel(nn.Module):
             self.label_emb = nn.Embedding(num_classes, time_embed_dim)
 
         d = self.large_depth
-        
-        num_res_blocks = [1,2,4]
 
         self.input_blocks = nn.ModuleList(
            [
@@ -567,7 +565,7 @@ class UNet3DModel(nn.Module):
         input_block_chans = [model_channels]
         ch = model_channels
         for level, mult in enumerate(channel_mult):
-            for _ in range(num_res_blocks[level]):
+            for _ in range(self.num_res_blocks[level]):
                 resblk = GraphResBlock(
                         ch,
                         time_embed_dim,
@@ -625,7 +623,7 @@ class UNet3DModel(nn.Module):
 
         self.output_blocks = nn.ModuleList([])
         for level, mult in list(enumerate(channel_mult))[::-1]:
-            for i in range(num_res_blocks[level] + 1):
+            for i in range(self.num_res_blocks[level] + 1):
                 ich = input_block_chans.pop()
                 resblk = GraphResBlock(
                         ch + ich,
@@ -641,7 +639,7 @@ class UNet3DModel(nn.Module):
                     )
                 self.output_blocks.append(resblk)
                 ch = model_channels * mult
-                if level and i == num_res_blocks[level]:
+                if level and i == self.num_res_blocks[level]:
                     out_ch = ch
                     d += 1
                     upsample = GraphUpsample(ch, out_ch, n_edge_type, avg_degree, d-1)

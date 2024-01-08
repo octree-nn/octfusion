@@ -16,15 +16,15 @@ unet:
     in_feature_channels: &feature_channels 3
     out_split_channels: *split_channels
     out_feature_channels: *feature_channels
-    model_channels: 32
-    num_res_blocks: [1, 1, 2]
+    model_channels: 128
+    num_res_blocks: [2, 2, 2]
     attention_resolutions: [2,4] # 16, 8, 4
     # note: this isn\t actually the resolution but
     # the downsampling factor, i.e. this corresnponds to
     # attention on spatial resolution 8,16,32, as the
     # spatial reolution of the latents is 64 for f4
     # channel_mult: [1, 2, 4, 8, 8, 16, 16]
-    channel_mult: [1, 1, 2]
+    channel_mult: [1, 2, 4]
     # channel_mult: [1,1,4,16,16]
     # num_head_channels: 32
     num_heads: 4

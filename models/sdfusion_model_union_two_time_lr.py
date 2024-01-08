@@ -398,8 +398,6 @@ class SDFusionModel(BaseModel):
             noise_cond1 = log_snr1
             noise_cond2 = log_snr2
 
-            # noised_key = noised_doctree_small.graph[self.small_depth]['keyd']
-
             if ema:
                 feature_start, logits, doctree_out = self.ema_df(x_small = None, x_feature = noised_feature, doctree_in = noised_doctree_small, doctree_out = None, t1 = noise_cond1, t2 = noise_cond2)
             else:
@@ -430,11 +428,6 @@ class SDFusionModel(BaseModel):
             gt_to_noise_feature = doctree_align_reverse(feature_start, noised_key, gt_key)
 
             noised_feature = alpha_next2 * gt_to_noise_feature + sigma_next2 * torch.randn_like(gt_to_noise_feature)
-
-            # c = -expm1(log_snr2 - log_snr_next2)
-            # mean = alpha_next2 * (noised_feature * (1 - c) / alpha2 + c * gt_to_noise_feature)
-            # variance = (sigma_next2 ** 2) * c
-            # noised_feature = mean + torch.sqrt(variance) * torch.randn_like(noised_feature)
 
         doctree_small = noised_doctree_small
         octree_small = noised_octree_small
