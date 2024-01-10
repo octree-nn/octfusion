@@ -45,7 +45,7 @@ data:
     load_occu: False
     batch_size: &batch_size 1
     points_scale: &points_scale 1.0
-    shuffle: True
+    shuffle: False
     # num_workers: 0
 
     point_scale: 0.5

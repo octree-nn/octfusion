@@ -29,10 +29,10 @@ label = category_5_to_label[category]
 total_num = category_5_to_num[category]
 
 # initialize SDFusion model
-model = 'sdfusion_feature'
+model = 'sdfusion_large_pred_x0'
 df_cfg = 'configs/sdfusion_snet_1t.yaml'
-# ckpt_path = f'Tencent/{category}/df_steps-66000-large-1t.pth'
-ckpt_path = 'Tencent/feature-stage/df_steps-126000.pth'
+ckpt_path = f'Tencent/{category}/df_steps-96000-large-pred-x0-cosine.pth'
+# ckpt_path = 'Tencent/feature-stage/df_steps-117000-feature-pred-x0.pth'
 
 vq_cfg = "configs/shapenet_vae_1t_eval.yaml"
 vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth'
@@ -52,8 +52,11 @@ ngen = 1
 ddim_steps = 200
 ddim_eta = 0.
 
+split_dir = 'split_small'
+
 for i in range(total_num):
     seed_everything(i)
     train_data = next(train_dg)
     test_data = next(test_dg)
-    SDFusion.uncond(data = train_data, split_path = None, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
+    split_path = os.path.join(split_dir, f'noised_split_small_{i}.pth')
+    SDFusion.uncond(data = test_data, split_path = None, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
