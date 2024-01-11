@@ -43,7 +43,7 @@ class BaseOptions():
         ############## START: model related options ################
         self.parser.add_argument(
                             '--model', type=str, default='sdfusion',
-                            choices=['sdfusion_small', 'sdfusion_large','sdfusion_large_pred_x0', 'sdfusion_feature', 'sdfusion_feature_pred_x0', 'sdfusion_union_two_time', 'sdfusion_union_two_time_pred_x0', 'sdfusion_union_two_time_pred_noise', 'sdfusion_union_two_time_noise_octree', 'sdfusion_union_two_time_lr', 'sdfusion_union_two_time_lr_noise_octree', 'sdfusion_union_three_time', 'sdfusion_union_three_time_pred_x0', 'sdfusion_union_three_time_pred_noise', 'sdfusion_union_three_time_noise_octree', 'sdfusion_union_four_time', 'sdfusion-img2shape', 'sdfusion-txt2shape','sdfusion-mm2shape'],
+                            choices=['sdfusion_small', 'sdfusion_large','sdfusion_large_pred_x0', 'sdfusion_feature_lr_pred_x0', 'sdfusion_feature', 'sdfusion_feature_pred_x0', 'sdfusion_union_two_time', 'sdfusion_union_two_time_noise_octree', 'sdfusion_union_three_time', 'sdfusion_union_three_time_pred_x0', 'sdfusion_union_three_time_pred_noise', 'sdfusion_union_three_time_noise_octree', 'sdfusion_union_four_time', 'sdfusion-img2shape', 'sdfusion-txt2shape','sdfusion-mm2shape'],
                             help='chooses which model to use.'
                         )
         self.parser.add_argument('--ckpt', type=str, default=None, help='ckpt to load.')

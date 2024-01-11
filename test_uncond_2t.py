@@ -31,7 +31,7 @@ total_num = category_5_to_num[category]
 # initialize SDFusion model
 model = 'sdfusion_union_two_time_lr'
 df_cfg = 'configs/sdfusion_snet_2t.yaml'
-ckpt_path = f'Tencent/{category}/df_steps-120000-noise-octree-lr.pth'
+ckpt_path = f'Tencent/{category}/df_steps-114000-feature-stage-linear.pth'
 
 vq_cfg = "configs/shapenet_vae_2t_eval.yaml"
 vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.pth'

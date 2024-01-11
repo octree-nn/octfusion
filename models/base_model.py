@@ -22,45 +22,33 @@ def create_model(opt):
     elif opt.model == 'sdfusion_small':
         from models.sdfusion_model_small import SDFusionModel
         model = SDFusionModel()
-    
+
     elif opt.model == 'sdfusion_large':
         from models.sdfusion_model_large import SDFusionModel
         model = SDFusionModel()
-    
+
     elif opt.model == 'sdfusion_large_pred_x0':
         from models.sdfusion_model_large_pred_x0 import SDFusionModel
         model = SDFusionModel()
-    
+
+    elif opt.model == 'sdfusion_feature_lr_pred_x0':
+        from models.sdfusion_model_feature_lr_pred_x0 import SDFusionModel
+        model = SDFusionModel()
+
     elif opt.model == 'sdfusion_feature':
         from models.sdfusion_model_feature import SDFusionModel
         model = SDFusionModel()
-    
+
     elif opt.model == 'sdfusion_feature_pred_x0':
         from models.sdfusion_model_feature_pred_x0 import SDFusionModel
         model = SDFusionModel()
 
     elif opt.model == 'sdfusion_union_two_time':
-        from models.sdfusion_model_union_two_time_noise_octree import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_union_two_time_pred_x0':
-        from models.sdfusion_model_union_two_time_pred_x0 import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_union_two_time_pred_noise':
-        from models.sdfusion_model_union_two_time_pred_noise import SDFusionModel
+        from models.sdfusion_model_union_two_time import SDFusionModel
         model = SDFusionModel()
 
     elif opt.model == 'sdfusion_union_two_time_noise_octree':
         from models.sdfusion_model_union_two_time_noise_octree import SDFusionModel
-        model = SDFusionModel()
-    
-    elif opt.model == 'sdfusion_union_two_time_lr':
-        from models.sdfusion_model_union_two_time_lr import SDFusionModel
-        model = SDFusionModel()
-    
-    elif opt.model == 'sdfusion_union_two_time_lr_noise_octree':
-        from models.sdfusion_model_union_two_time_lr_noise_octree import SDFusionModel
         model = SDFusionModel()
 
     elif opt.model == 'sdfusion_union_three_time':

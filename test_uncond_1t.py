@@ -31,8 +31,7 @@ total_num = category_5_to_num[category]
 # initialize SDFusion model
 model = 'sdfusion_large_pred_x0'
 df_cfg = 'configs/sdfusion_snet_1t.yaml'
-ckpt_path = f'Tencent/{category}/df_steps-96000-large-pred-x0-cosine.pth'
-# ckpt_path = 'Tencent/feature-stage/df_steps-117000-feature-pred-x0.pth'
+ckpt_path = f'Tencent/{category}/df_steps-117000-large-pred-x0-linear.pth'
 
 vq_cfg = "configs/shapenet_vae_1t_eval.yaml"
 vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth'

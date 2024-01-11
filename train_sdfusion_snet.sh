@@ -31,13 +31,13 @@ ckpt_num=10000
 
 ### model stuff ###
 # model='sdfusion_union_three_time_noise_octree'
-model='sdfusion_large'
-df_cfg='configs/sdfusion_snet_1t.yaml'
+model='sdfusion_feature_lr_pred_x0'
+df_cfg='configs/sdfusion_snet_2t.yaml'
 
 vq_model="GraphVAE"
-vq_cfg="configs/shapenet_vae_1t.yaml"
-vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth"
-# vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.pth"
+vq_cfg="configs/shapenet_vae_2t.yaml"
+# vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth"
+vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.pth"
 
 ####################
 

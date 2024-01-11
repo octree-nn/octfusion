@@ -97,15 +97,15 @@ class SDFusionModel(BaseModel):
             self.ema_updater = EMA(self.ema_rate)
             self.reset_parameters()
             set_requires_grad(self.ema_df, False)
-        
-        self.noise_schedule = 'linear'
+
+        self.noise_schedule = "linear"
         if self.noise_schedule == "linear":
             self.log_snr = beta_linear_log_snr
         elif self.noise_schedule == "cosine":
             self.log_snr = alpha_cosine_log_snr
         else:
             raise ValueError(f'invalid noise schedule {self.noise_schedule}')
-    
+
         # init vqvae
 
         self.autoencoder = load_dualoctree(conf = vq_conf, ckpt = opt.vq_ckpt, opt = opt)
@@ -128,7 +128,7 @@ class SDFusionModel(BaseModel):
             if self.isTrain:
                 self.optimizers = [self.optimizer]
             # self.schedulers = [self.scheduler]
-                
+
 
         # setup renderer
         if 'snet' in opt.dataset_mode:
@@ -227,7 +227,7 @@ class SDFusionModel(BaseModel):
         noise_level = self.log_snr(times)
 
         alpha, sigma = log_snr_to_alpha_sigma(noise_level)
-        
+
         leaf_num = self.doctree_in.lnum[self.full_depth:self.small_depth].sum()
         minus = torch.zeros((leaf_num, self.split_channel), device = self.device) - 1
         self.split_large = torch.cat([minus, self.split_large], dim = 0)
@@ -244,7 +244,7 @@ class SDFusionModel(BaseModel):
             noised_split_large[batch_id == i] += sigma_i
 
         output = self.df(x_large = noised_split_large, doctree = self.doctree_in, t = noise_level)
-        
+
         self.loss = F.mse_loss(output, self.split_large)
 
 
@@ -278,8 +278,6 @@ class SDFusionModel(BaseModel):
 
         doctree_small = dual_octree.DualOctree(octree_small)
         doctree_small.post_processing_for_docnn()
-
-        batch_size = doctree_small.batch_size
 
         doctree_num = doctree_small.total_num
         leaf_num = doctree_small.lnum[self.full_depth:self.small_depth].sum()
@@ -504,7 +502,7 @@ class SDFusionModel(BaseModel):
         if hasattr(self, 'loss_gamma'):
             ret['gamma'] = self.loss_gamma.data
 
-        return ret, "feature"
+        return ret, "large"
 
     def get_current_visuals(self):
 

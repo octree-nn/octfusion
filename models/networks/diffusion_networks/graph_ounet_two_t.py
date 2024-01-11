@@ -546,17 +546,6 @@ class UNet3DModel(nn.Module):
         single_time_embed_dim = model_channels * 4
         time_embed_dim = self.num_times * single_time_embed_dim
 
-        # self.time_embed = nn.ModuleList([])
-
-        # for i in range(self.num_times):
-        #     self.time_embed.append(
-        #         nn.Sequential(
-        #             linear(model_channels, single_time_embed_dim),
-        #             nn.SiLU(),
-        #             linear(single_time_embed_dim, single_time_embed_dim)
-        #         )
-        #     )
-
         self.time_embed = nn.Sequential(
             linear(model_channels, single_time_embed_dim),
             nn.SiLU(),
@@ -575,10 +564,10 @@ class UNet3DModel(nn.Module):
         self.predict = nn.ModuleList([])
         self.tanh = nn.Tanh()
 
-        self.graph_downs.append(GraphConv(in_split_channels, model_channels, n_edge_type, avg_degree, self.input_depth - 1))
+        self.graph_downs.append(GraphConv(self.in_feature_channels, model_channels, n_edge_type, avg_degree, self.input_depth - 1))
 
         small_channels = model_channels * channel_mult[1]
-        self.small_emb = conv_nd(dims, in_split_channels, small_channels, 3, padding=1)
+        self.small_emb = conv_nd(dims, self.in_split_channels, small_channels, 3, padding=1)
 
         d = self.input_depth
 
@@ -707,7 +696,7 @@ class UNet3DModel(nn.Module):
 
         self.end_norm_large = normalization(model_channels)
         self.end_large = nn.SiLU()
-        self.out_large = GraphConv(model_channels, self.out_split_channels, n_edge_type, avg_degree, self.input_depth - 1)
+        self.out_large = GraphConv(model_channels, self.out_feature_channels, n_edge_type, avg_degree, self.input_depth - 1)
 
     def _make_predict_module(self, channel_in, channel_out=1, num_hidden=32):
         return torch.nn.Sequential(
@@ -730,7 +719,7 @@ class UNet3DModel(nn.Module):
         self.middle_block.apply(convert_module_to_f32)
         self.output_blocks.apply(convert_module_to_f32)
 
-    def forward(self, x_small, x_large, doctree_in, doctree_out, timesteps1 = None, timesteps2 = None, context = None, y = None, **kwargs):
+    def forward(self, x_small, x_feature, doctree_in, doctree_out, timesteps1 = None, timesteps2 = None, context = None, y = None, **kwargs):
         """
         Apply the model to an input batch.
         :param x: an [N x C x ...] Tensor of inputs.
@@ -763,9 +752,9 @@ class UNet3DModel(nn.Module):
         logits = dict()
         hs = []
 
-        if x_large != None:
+        if x_feature != None:
 
-            h = x_large
+            h = x_feature
 
             for module in self.graph_downs:
                 if isinstance(module, GraphConv):
@@ -806,7 +795,7 @@ class UNet3DModel(nn.Module):
 
         update_octree = doctree_out == None
 
-        if x_large != None and update_octree:
+        if x_feature != None and update_octree:
             octree_out = create_full_octree(depth = self.input_depth, full_depth = self.full_depth, batch_size = doctree_in.batch_size, device = doctree_in.device)
             doctree_out = dual_octree.DualOctree(octree_out)
             doctree_out.post_processing_for_docnn()
