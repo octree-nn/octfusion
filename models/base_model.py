@@ -34,6 +34,10 @@ def create_model(opt):
     elif opt.model == 'sdfusion_feature_lr_pred_x0':
         from models.sdfusion_model_feature_lr_pred_x0 import SDFusionModel
         model = SDFusionModel()
+    
+    elif opt.model == 'sdfusion_feature_lr_pred_noise':
+        from models.sdfusion_model_feature_lr_pred_noise import SDFusionModel
+        model = SDFusionModel()
 
     elif opt.model == 'sdfusion_feature':
         from models.sdfusion_model_feature import SDFusionModel

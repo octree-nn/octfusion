@@ -30,9 +30,10 @@ ckpt_num=10000
 ####################
 
 ### model stuff ###
+note="class-cond"
 # model='sdfusion_union_three_time_noise_octree'
-model='sdfusion_feature_lr_pred_x0'
-df_cfg='configs/sdfusion_snet_2t.yaml'
+model='sdfusion_union_two_time_noise_octree'
+df_cfg='configs/sdfusion_snet_5.yaml'
 
 vq_model="GraphVAE"
 vq_cfg="configs/shapenet_vae_2t.yaml"
@@ -44,7 +45,7 @@ vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.p
 ### dataset stuff ###
 dataset_mode='snet'
 dataroot="data"
-category='rifle'
+category='im_5'
 
 #####################
 
@@ -58,8 +59,6 @@ save_steps_freq=3000
 today=$(date '+%m%d')
 me=`basename "$0"`
 me=$(echo $me | cut -d'.' -f 1)
-
-note="release"
 
 name="${DATE_WITH_TIME}-${model}-${dataset_mode}-${category}-LR${lr}-${note}"
 

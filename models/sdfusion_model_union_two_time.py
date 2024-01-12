@@ -98,7 +98,7 @@ class SDFusionModel(BaseModel):
             self.reset_parameters()
             set_requires_grad(self.ema_df, False)
 
-        self.noise_schedule = 'linear'
+        self.noise_schedule = "cosine"
         if self.noise_schedule == "linear":
             self.log_snr = beta_linear_log_snr
         elif self.noise_schedule == "cosine":

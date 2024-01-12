@@ -79,7 +79,7 @@ class SDFusionModel(BaseModel):
         self.conditioning_key = df_model_params.conditioning_key
         self.num_timesteps = df_model_params.timesteps
 
-        if self.conditioning_key == 'adm':
+        if self.conditioning_key == 'class':
             self.num_classes = unet_params.num_classes
         elif self.conditioning_key == 'None':
             self.num_classes = 1
@@ -196,7 +196,7 @@ class SDFusionModel(BaseModel):
         self.split_large = input['split_large']
         self.octree_in = input['octree_in']
         self.batch_size = self.octree_in.batch_size
-        self.label = input['label']
+        self.label = input['label'].to(self.device)
 
     def switch_train(self):
         self.df.train()
@@ -227,6 +227,8 @@ class SDFusionModel(BaseModel):
 
         random_flag = random()
 
+        print(self.label)
+
         if random_flag < stage1:
 
             self.stage_flag = 'small'
@@ -243,7 +245,7 @@ class SDFusionModel(BaseModel):
             noise = torch.randn_like(self.split_small, device = self.device)
             noised_split_small = alpha * self.split_small + sigma * noise
 
-            output_small = self.df(x_small = noised_split_small, x_feature = None, doctree_in = None, doctree_out = None, t1 = noise_level1, t2 = noise_level2)
+            output_small = self.df(x_small = noised_split_small, x_feature = None, doctree_in = None, doctree_out = None, t1 = noise_level1, t2 = noise_level2, class_label = self.label)
 
         else:
 
@@ -282,7 +284,7 @@ class SDFusionModel(BaseModel):
                 sigma_i = sigma2[i] * noise_i
                 noised_feature[batch_id == i] += sigma_i
 
-            output_feature, logits, _ = self.df(x_small = None, x_feature = noised_feature, doctree_in = noised_doctree, doctree_out = self.doctree_in, t1 = noise_level1, t2 = noise_level2)
+            output_feature, logits, _ = self.df(x_small = None, x_feature = noised_feature, doctree_in = noised_doctree, doctree_out = self.doctree_in, t1 = noise_level1, t2 = noise_level2, class_label = self.label)
 
         if self.stage_flag == 'small':
             self.loss = F.mse_loss(output_small, self.split_small)

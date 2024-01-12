@@ -553,7 +553,7 @@ class UNet3DModel(nn.Module):
         )
 
         if self.num_classes is not None:
-            self.label_emb = nn.Embedding(num_classes, time_embed_dim)
+            self.label_emb = nn.Embedding(self.num_classes, time_embed_dim)
 
         self.graph_downs = nn.ModuleList([])
         self.conv_downs = nn.ModuleList([])
@@ -575,7 +575,7 @@ class UNet3DModel(nn.Module):
         ch = model_channels
 
         for level, mult in enumerate(channel_mult[:2]):
-            for _ in range(num_res_blocks):
+            for _ in range(num_res_blocks[level]):
                 resblk = GraphResBlock(
                         ch,
                         time_embed_dim,
@@ -601,7 +601,7 @@ class UNet3DModel(nn.Module):
             input_block_chans.append(ch)
 
         for level, mult in enumerate(channel_mult[2:]):
-            for _ in range(num_res_blocks):
+            for _ in range(num_res_blocks[level + 2]):
                 resblk = ResBlock(
                         ch,
                         time_embed_dim,
@@ -643,7 +643,7 @@ class UNet3DModel(nn.Module):
         )
 
         for level, mult in list(enumerate(channel_mult[2:]))[::-1]:
-            for i in range(num_res_blocks + 1):
+            for i in range(num_res_blocks[level + 2] + 1):
                 ich = input_block_chans.pop()
                 resblk = ResBlock(
                         ch + ich,
@@ -656,10 +656,10 @@ class UNet3DModel(nn.Module):
                     )
                 self.conv_ups.append(resblk)
                 ch = model_channels * mult
-                if level and i == num_res_blocks:
+                if level and i == num_res_blocks[level + 2]:
                     upsample = ConvUpsample(ch, use_conv = True, dims=dims)
                     self.conv_ups.append(upsample)
-                if level == 0 and i == num_res_blocks:
+                if level == 0 and i == num_res_blocks[level + 2]:
                     self.predict.append(self._make_predict_module(ch, 1))
                     d += 1
                     upsample = GraphUpsample(ch, ch, n_edge_type, avg_degree, d-1)
@@ -667,7 +667,7 @@ class UNet3DModel(nn.Module):
 
 
         for level, mult in list(enumerate(channel_mult[:2]))[::-1]:
-            for i in range(num_res_blocks + 1):
+            for i in range(num_res_blocks[level] + 1):
                 ich = input_block_chans.pop()
                 resblk = GraphResBlock(
                         ch + ich,
@@ -683,7 +683,7 @@ class UNet3DModel(nn.Module):
                     )
                 self.graph_ups.append(resblk)
                 ch = model_channels * mult
-                if level and i == num_res_blocks:
+                if level and i == num_res_blocks[level]:
                     d += 1
                     self.predict.append(self._make_predict_module(ch, 1))
                     upsample = GraphUpsample(ch, ch, n_edge_type, avg_degree, d-1)
@@ -719,7 +719,7 @@ class UNet3DModel(nn.Module):
         self.middle_block.apply(convert_module_to_f32)
         self.output_blocks.apply(convert_module_to_f32)
 
-    def forward(self, x_small, x_feature, doctree_in, doctree_out, timesteps1 = None, timesteps2 = None, context = None, y = None, **kwargs):
+    def forward(self, x_small, x_feature, doctree_in, doctree_out, timesteps1 = None, timesteps2 = None, class_label = None, **kwargs):
         """
         Apply the model to an input batch.
         :param x: an [N x C x ...] Tensor of inputs.
@@ -728,9 +728,11 @@ class UNet3DModel(nn.Module):
         :param y: an [N] Tensor of labels, if class-conditional.
         :return: an [N x C x ...] Tensor of outputs.
         """
-        assert (y is not None) == (
+        assert (class_label is not None) == (
             self.num_classes is not None
-        ), "must specify y if and only if the model is class-conditional"
+        ), "must specify class label if and only if the model is class-conditional"
+
+        print(self.num_classes)
 
         emb = []
 
@@ -744,8 +746,11 @@ class UNet3DModel(nn.Module):
         emb = torch.cat(emb, dim = 1)
 
         if self.num_classes is not None:
-            assert y.shape == (doctree_in.batch_size,)
-            emb = emb + self.label_emb(y)
+            if x_small != None:
+                assert class_label.shape == (x_small.shape[0],)
+            elif x_feature != None:
+                assert class_label.shape == (doctree_in.batch_size,)
+            emb = emb + self.label_emb(class_label)
 
         d = self.input_depth
 

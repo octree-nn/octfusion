@@ -238,7 +238,7 @@ class SDFusionModel(BaseModel):
 
         output = self.df(x_feature = noised_feature, doctree = self.doctree_in, t = noise_level)
 
-        self.loss = F.mse_loss(output, self.input_data)
+        self.loss = F.mse_loss(output, noise)
 
 
     def get_sampling_timesteps(self, batch, device, steps):
@@ -247,7 +247,7 @@ class SDFusionModel(BaseModel):
         times = torch.stack((times[:, :-1], times[:, 1:]), dim=0)
         times = times.unbind(dim=-1)
         return times
-
+    
 
     @torch.no_grad()
     def uncond_withdata_small(self, data, split_path, category = 'airplane', ema = True, ddim_steps = 200, ddim_eta = 0., save_index = 0):
@@ -290,23 +290,20 @@ class SDFusionModel(BaseModel):
             log_snr = self.log_snr(time)
             log_snr_next = self.log_snr(time_next)
 
-            alpha, _ = log_snr_to_alpha_sigma(log_snr)
+            alpha, sigma = log_snr_to_alpha_sigma(log_snr)
             alpha_next, sigma_next = log_snr_to_alpha_sigma(log_snr_next)
 
             noise_cond = log_snr
 
             if ema:
-                feature_start = self.ema_df(x_feature = noised_feature, doctree = doctree_small, t = noise_cond)
+                pred_noise = self.ema_df(x_feature = noised_feature, doctree = doctree_small, t = noise_cond)
             else:
-                feature_start = self.df(x_feature = noised_feature, doctree = doctree_small, t = noise_cond)
+                pred_noise = self.df(x_feature = noised_feature, doctree = doctree_small, t = noise_cond)
 
-            # print(feature_start.max(), feature_start.min())
+            feature_start = (noised_feature - sigma * pred_noise) / alpha.clamp(min=1e-8)
 
-            c = -expm1(log_snr - log_snr_next)
-            mean = alpha_next * (noised_feature * (1 - c) / alpha + c * feature_start)
-            variance = (sigma_next ** 2) * c
-            noised_feature = mean + torch.sqrt(variance) * torch.randn_like(noised_feature)
-
+            noised_feature = feature_start * alpha_next + pred_noise * sigma_next
+            
         samples = noised_feature
         print(samples.max())
         print(samples.min())
@@ -316,6 +313,7 @@ class SDFusionModel(BaseModel):
         self.output = self.autoencoder_module.decode_code(samples, doctree_small)
         self.get_sdfs(self.output['neural_mpu'], batch_size, bbox = None)
         self.export_mesh(f'{category}_mesh', save_index)
+
 
 
     def logits2voxel(self, logits, octree):

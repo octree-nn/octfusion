@@ -16,11 +16,13 @@ class DiffusionUNet(nn.Module):
         self.diffusion_net = UNet3DModel(**unet_params)
         self.conditioning_key = conditioning_key # default for lsun_bedrooms
 
-    def forward(self, x_small, x_feature, doctree_in, doctree_out, t1, t2 = None, c_concat: list = None, c_crossattn: list = None):
+    def forward(self, x_small, x_feature, doctree_in, doctree_out, t1, t2 = None, class_label = None, c_concat: list = None, c_crossattn: list = None):
         # x: should be latent code. shape: (bs X z_dim X d X h X w)
 
         if self.conditioning_key == 'None':
             out = self.diffusion_net(x_small, x_feature, doctree_in, doctree_out, timesteps1 = t1, timesteps2 = t2)
+        elif self.conditioning_key == 'class':
+            out = self.diffusion_net(x_small, x_feature, doctree_in, doctree_out, timesteps1 = t1, timesteps2 = t2, class_label = class_label)
         elif self.conditioning_key == 'concat':
             xc = torch.cat([x] + c_concat, dim=1)
             out = self.diffusion_net(xc, t1)
@@ -32,9 +34,6 @@ class DiffusionUNet(nn.Module):
             cc = torch.cat(c_crossattn, 1)
             out = self.diffusion_net(xc, t1, context=cc)
             # import pdb; pdb.set_trace()
-        elif self.conditioning_key == 'adm':
-            cc = c_crossattn[0]
-            out = self.diffusion_net(x, doctree_in, doctree_out, t1, y=cc)
         else:
             raise NotImplementedError()
 

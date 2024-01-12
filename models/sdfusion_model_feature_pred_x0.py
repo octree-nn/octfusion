@@ -97,7 +97,7 @@ class SDFusionModel(BaseModel):
             self.ema_updater = EMA(self.ema_rate)
             self.reset_parameters()
             set_requires_grad(self.ema_df, False)
-        
+
         self.noise_schedule = 'linear'
         if self.noise_schedule == "linear":
             self.log_snr = beta_linear_log_snr
@@ -105,7 +105,7 @@ class SDFusionModel(BaseModel):
             self.log_snr = alpha_cosine_log_snr
         else:
             raise ValueError(f'invalid noise schedule {self.noise_schedule}')
-    
+
         # init vqvae
 
         self.autoencoder = load_dualoctree(conf = vq_conf, ckpt = opt.vq_ckpt, opt = opt)
@@ -128,7 +128,7 @@ class SDFusionModel(BaseModel):
             if self.isTrain:
                 self.optimizers = [self.optimizer]
             # self.schedulers = [self.scheduler]
-                
+
 
         # setup renderer
         if 'snet' in opt.dataset_mode:
@@ -227,7 +227,7 @@ class SDFusionModel(BaseModel):
         noise_level = self.log_snr(times)
 
         alpha, sigma = log_snr_to_alpha_sigma(noise_level)
-        
+
         noised_input_feature = self.input_feature.clone()
 
         batch_id = self.doctree_in.batch_id(depth = self.large_depth)
@@ -240,7 +240,7 @@ class SDFusionModel(BaseModel):
             noised_input_feature[batch_id == i] += sigma_i
 
         output = self.df(x_feature = noised_input_feature, doctree = self.doctree_in, t = noise_level)
-        
+
         self.loss = F.mse_loss(output, self.input_feature)
 
 
@@ -259,15 +259,15 @@ class SDFusionModel(BaseModel):
             self.ema_df.eval()
         else:
             self.df.eval()
-        
+
         if data != None:
             self.set_input(data)
             octree_small = self.split2octree_small(self.split_small)
             octree_large = self.split2octree_large(octree_small, self.split_large)
 
-            self.export_octree(octree_large, depth = self.large_depth, save_dir = f'{category}_hr', index = save_index)
-            doctree_large = dual_octree.DualOctree(octree_large)
-            doctree_large.post_processing_for_docnn()
+        self.export_octree(octree_large, depth = self.large_depth, save_dir = f'{category}_hr', index = save_index)
+        doctree_large = dual_octree.DualOctree(octree_large)
+        doctree_large.post_processing_for_docnn()
 
         batch_size = doctree_large.batch_size
 
