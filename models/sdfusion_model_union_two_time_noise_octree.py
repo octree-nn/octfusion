@@ -262,6 +262,7 @@ class SDFusionModel(BaseModel):
             noised_split_small = alpha1 * self.split_small + sigma1 * noise
 
             noised_octree = self.split2octree_small(noised_split_small)
+            print(noised_octree.depth)
 
             noised_doctree = dual_octree.DualOctree(noised_octree)
             noised_doctree.post_processing_for_docnn()

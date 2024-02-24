@@ -419,7 +419,7 @@ def render_sdf(mesh_renderer, sdf, level=0.02, color=None, render_imsize=256, re
 
     return rendered_im
 
-def render_sdf_dualoctree(mesh_renderer, sdfs, level=0.02, bbmin=-0.9, bbmax=0.9, mesh_scale=1.0, color=None, render_imsize=256, render_all=True):
+def render_sdf_dualoctree(mesh_renderer, sdfs, level=0., bbmin=-0.9, bbmax=0.9, mesh_scale=1.0, color=None, render_imsize=256, render_all=True):
     # device='cuda'
     device=sdfs.device
     bs = sdfs.shape[0]

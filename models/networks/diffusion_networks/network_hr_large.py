@@ -6,7 +6,7 @@ import torch.nn as nn
 
 from einops import rearrange, repeat
 
-from .graph_unet_feature_lr import UNet3DModel
+from .ocnn_unet_hr_large import UNet3DModel
 
 class DiffusionUNet(nn.Module):
     def __init__(self, unet_params, conditioning_key=None):
@@ -16,11 +16,11 @@ class DiffusionUNet(nn.Module):
         self.diffusion_net = UNet3DModel(**unet_params)
         self.conditioning_key = conditioning_key # default for lsun_bedrooms
 
-    def forward(self, x_feature, doctree, t, c_concat: list = None, c_crossattn: list = None):
+    def forward(self, x_large, octree, t, c_concat: list = None, c_crossattn: list = None):
         # x: should be latent code. shape: (bs X z_dim X d X h X w)
 
         if self.conditioning_key == 'None':
-            out = self.diffusion_net(x_feature, doctree, timesteps = t)
+            out = self.diffusion_net(x_large, octree, timesteps = t)
         elif self.conditioning_key == 'concat':
             xc = torch.cat([x] + c_concat, dim=1)
             out = self.diffusion_net(xc, t1)

@@ -26,7 +26,7 @@ from utils.distributed import (
 import torch
 from utils.visualizer import Visualizer
 
-def train_main_worker(opt, model, train_loader, test_loader, test_loader_for_eval, visualizer, device):
+def train_main_worker(opt, model, train_loader, test_loader, visualizer):
 
     if get_rank() == 0:
         cprint('[*] Start training. name: %s' % opt.name, 'blue')
@@ -36,9 +36,6 @@ def train_main_worker(opt, model, train_loader, test_loader, test_loader_for_eva
 
     epoch_length = len(train_loader)
     print('The epoch length is', epoch_length)
-
-    # get n_epochs here
-    # opt.total_iters = 100000000
 
     total_iters = epoch_length * opt.epochs
     start_iter = opt.start_iter
@@ -79,8 +76,12 @@ def train_main_worker(opt, model, train_loader, test_loader, test_loader_for_eva
 
                 # eval
 
-                # model.inference(batch_size = 4)
+                model.inference(data, phase = 'train')
                 # visualizer.display_current_results(model.get_current_visuals(), iter_i, phase='train')
+
+                test_data = next(test_dg)
+                model.inference(test_data, phase = 'test')
+                # visualizer.display_current_results(model.get_current_visuals(), iter_i, phase='test')
 
                 # torch.cuda.empty_cache()
 
@@ -97,20 +98,13 @@ def train_main_worker(opt, model, train_loader, test_loader, test_loader_for_eva
                 cur_name = f'steps-{iter_ip1}'
                 model.save(cur_name, iter_ip1)
 
-            # eval every 3000 steps
-            if iter_ip1 % opt.save_steps_freq == 0:
-                metrics = model.eval_metrics(test_loader_for_eval, global_step=iter_ip1)
-                # visualizer.print_current_metrics(epoch, metrics, phase='test')
-                visualizer.print_current_metrics(iter_ip1, metrics, phase='test')
-                # print(metrics)
-
                 cprint(f'[*] End of steps %d \t Time Taken: %d sec \n%s' %
                     (
                         iter_ip1,
                         time.time() - iter_start_time,
                         os.path.abspath( os.path.join(opt.logs_dir, opt.name) )
                     ), 'blue', attrs=['bold']
-                    )
+                )
 
             if iter_i % epoch_length == epoch_length - 1:
                 print('Finish One Epoch!')
@@ -136,7 +130,7 @@ if __name__ == "__main__":
     from datetime import datetime
     opt.exp_time = datetime.now().strftime('%Y-%m-%dT%H-%M')
 
-    train_loader, test_loader, test_loader_for_eval = config_dataloader(opt)
+    train_loader, test_loader = config_dataloader(opt)
     # train_dl, test_dl, test_dl_for_eval = CreateDataLoader(opt)
     train_ds, test_ds = train_loader.dataset, test_loader.dataset
 
@@ -162,8 +156,8 @@ if __name__ == "__main__":
     if get_rank() == 0:
         expr_dir = '%s/%s' % (opt.logs_dir, opt.name)
         model_f = inspect.getfile(model.__class__)
-        diffusion_f = inspect.getfile(model.df.__class__)
-        unet_f = inspect.getfile(model.df.diffusion_net.__class__)
+        diffusion_f = inspect.getfile(model.df_module.__class__)
+        unet_f = inspect.getfile(model.df_module.diffusion_net.__class__)
         dset_f = inspect.getfile(train_ds.__class__)
         sh_f = 'train_sdfusion_snet.sh'
         train_f = 'train.py'
@@ -180,7 +174,6 @@ if __name__ == "__main__":
         os.system(f'cp {dset_f} {dsetf_out}')
         os.system(f'cp {sh_f} {sh_out}')
         os.system(f'cp {train_f} {train_out}')
-
         if opt.vq_cfg is not None:
             vq_cfg = opt.vq_cfg
             cfg_out = os.path.join(expr_dir, os.path.basename(vq_cfg))
@@ -191,4 +184,4 @@ if __name__ == "__main__":
             cfg_out = os.path.join(expr_dir, os.path.basename(df_cfg))
             os.system(f'cp {df_cfg} {cfg_out}')
 
-    train_main_worker(opt, model, train_loader, test_loader, test_loader_for_eval, visualizer, device)
+    train_main_worker(opt, model, train_loader, test_loader, visualizer)

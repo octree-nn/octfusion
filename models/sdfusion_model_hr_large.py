@@ -17,7 +17,7 @@ import ocnn
 from ocnn.nn import octree2voxel, octree_pad
 from ocnn.octree import Octree, Points
 from models.networks.dualoctree_networks import dual_octree
-from models.networks.dualoctree_networks.modules_v1 import split_align_reverse, doctree_align_reverse
+from models.networks.diffusion_networks.modules import octree_align
 
 import torch
 import torch.nn.functional as F
@@ -28,8 +28,7 @@ import torchvision.utils as vutils
 import torchvision.transforms as transforms
 
 from models.base_model import BaseModel
-from models.networks.diffusion_networks.network_feature_lr import DiffusionUNet
-from models.model_utils import load_dualoctree
+from models.networks.diffusion_networks.network_hr_large import DiffusionUNet
 from models.networks.diffusion_networks.ldm_diffusion_util import *
 
 from models.networks.diffusion_networks.samplers.ddim_new import DDIMSampler
@@ -45,7 +44,7 @@ TRUNCATED_TIME = 0.7
 
 class SDFusionModel(BaseModel):
     def name(self):
-        return 'SDFusion-Model-Union-Two-Times'
+        return 'SDFusion-Model'
 
     def initialize(self, opt):
         BaseModel.initialize(self, opt)
@@ -54,6 +53,11 @@ class SDFusionModel(BaseModel):
         self.device = opt.device
         self.gradient_clip_val = 1.
         self.start_iter = opt.start_iter
+
+        if self.isTrain:
+            self.log_dir = os.path.join(opt.logs_dir, opt.name)
+            self.train_dir = os.path.join(self.log_dir, 'train_images')
+            self.test_dir = os.path.join(self.log_dir, 'test_images')
 
 
         ######## START: Define Networks ########
@@ -67,18 +71,16 @@ class SDFusionModel(BaseModel):
         self.vq_conf = vq_conf
         self.solver = self.vq_conf.solver
 
-        self.input_depth = self.vq_conf.model.depth
-        self.small_depth = self.vq_conf.model.depth_stop
-        self.full_depth = self.vq_conf.model.full_depth
-
-        self.noise_threshold = 0.15
+        self.input_depth = self.vq_conf.model.depth          # 9
+        self.large_depth = self.vq_conf.model.depth_stop     # 8
+        self.small_depth = self.vq_conf.model.small_depth    # 6
+        self.full_depth = self.vq_conf.model.full_depth      # 4
 
         # init diffusion networks
         df_model_params = df_conf.model.params
         unet_params = df_conf.unet.params
         self.conditioning_key = df_model_params.conditioning_key
-        self.num_timesteps = df_model_params.timesteps
-
+        self.thres = 0.5
         if self.conditioning_key == 'adm':
             self.num_classes = unet_params.num_classes
         elif self.conditioning_key == 'None':
@@ -107,10 +109,6 @@ class SDFusionModel(BaseModel):
             self.log_snr = alpha_cosine_log_snr
         else:
             raise ValueError(f'invalid noise schedule {self.noise_schedule}')
-
-        # init vqvae
-
-        self.autoencoder = load_dualoctree(conf = vq_conf, ckpt = opt.vq_ckpt, opt = opt)
 
         ######## END: Define Networks ########
 
@@ -146,11 +144,15 @@ class SDFusionModel(BaseModel):
         if self.opt.distributed:
             self.make_distributed(opt)
             self.df_module = self.df.module
-            self.autoencoder_module = self.autoencoder.module
 
         else:
             self.df_module = self.df
-            self.autoencoder_module = self.autoencoder
+
+        self.ddim_steps = 200
+        if self.opt.debug == "1":
+            # NOTE: for debugging purpose
+            self.ddim_steps = 7
+        cprint(f'[*] setting ddim_steps={self.ddim_steps}', 'blue')
 
     def reset_parameters(self):
         self.ema_df.load_state_dict(self.df.state_dict())
@@ -158,15 +160,6 @@ class SDFusionModel(BaseModel):
     def make_distributed(self, opt):
         self.df = nn.parallel.DistributedDataParallel(
             self.df,
-            device_ids=[opt.local_rank],
-            output_device=opt.local_rank,
-            broadcast_buffers=False,
-            find_unused_parameters=True,
-        )
-        if opt.sync_bn:
-            self.autoencoder = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.autoencoder)
-        self.autoencoder = nn.parallel.DistributedDataParallel(
-            self.autoencoder,
             device_ids=[opt.local_rank],
             output_device=opt.local_rank,
             broadcast_buffers=False,
@@ -204,7 +197,6 @@ class SDFusionModel(BaseModel):
     def switch_eval(self):
         self.df.eval()
 
-
     # check: ddpm.py, line 871 forward
     # check: p_losses
     # check: q_sample, apply_mode
@@ -215,9 +207,6 @@ class SDFusionModel(BaseModel):
 
         c = None
 
-        with torch.no_grad():
-            self.input_data, self.doctree_in = self.autoencoder_module.extract_code(self.octree_in)
-
         batch_size = self.batch_size
 
         times = torch.zeros((batch_size,), device = self.device).float().uniform_(0,1)
@@ -225,20 +214,20 @@ class SDFusionModel(BaseModel):
 
         alpha, sigma = log_snr_to_alpha_sigma(noise_level)
 
-        noised_feature = self.input_data.clone()
+        noised_split_large = self.split_large.clone()
 
-        batch_id = self.doctree_in.batch_id(depth = self.small_depth)
-        noise = torch.randn_like(self.input_data, device = self.device)
+        batch_id = self.octree_in.batch_id(depth = self.small_depth)
+        noise_large = torch.randn_like(self.split_large)
 
         for i in range(batch_size):
-            noised_feature[batch_id == i] *= alpha[i]
-            noise_i = noise[batch_id == i]
+            noised_split_large[batch_id == i] *= alpha[i]
+            noise_i = noise_large[batch_id == i]
             sigma_i = sigma[i] * noise_i
-            noised_feature[batch_id == i] += sigma_i
+            noised_split_large[batch_id == i] += sigma_i
 
-        output = self.df(x_feature = noised_feature, doctree = self.doctree_in, t = noise_level)
+        output = self.df(x_large = noised_split_large, octree = self.octree_in, t = noise_level)
 
-        self.loss = F.mse_loss(output, self.input_data)
+        self.loss = F.mse_loss(output, self.split_large)
 
 
     def get_sampling_timesteps(self, batch, device, steps):
@@ -249,43 +238,31 @@ class SDFusionModel(BaseModel):
         return times
 
 
+    # check: ddpm.py, log_images(). line 1317~1327
     @torch.no_grad()
-    def uncond_withdata_small(self, data, split_path, category = 'airplane', ema = True, ddim_steps = 200, ddim_eta = 0., save_index = 0):
+    def inference(self, data, ema = False, ddim_steps=200, ddim_eta=0., phase = 'train'):
 
         if ema:
             self.ema_df.eval()
         else:
             self.df.eval()
 
-        if data != None:
+        self.set_input(data)
 
-            self.set_input(data)
-
-            octree_small = self.split2octree_small(self.split_small)
-        
-        elif split_path != None:
-            split_small = torch.load(split_path)
-            split_small = split_small.to(self.device)
-            octree_small = self.split2octree_small(split_small)
-
+        octree_small = self.split2octree_small(self.split_small)
         batch_size = octree_small.batch_size
 
-        self.export_octree(octree_small, self.small_depth, save_dir = f'{category}_lr', index = save_index)
+        octree_num = octree_small.nnum[self.small_depth]
+        noised_large = torch.randn((octree_num, self.split_channel), device = self.device)
 
-        doctree_small = dual_octree.DualOctree(octree_small)
-        doctree_small.post_processing_for_docnn()
+        large_time_pairs = self.get_sampling_timesteps(
+            batch_size, device=self.device, steps=ddim_steps)
 
-        doctree_small_num = doctree_small.total_num
-        noised_feature = torch.randn((doctree_small_num, self.code_channel), device = self.device)
+        x_large_start = None
 
-        feature_time_pairs = self.get_sampling_timesteps(
-            1, device=self.device, steps=ddim_steps)
+        large_iter = tqdm(large_time_pairs, desc='large stage sampling loop time step')
 
-        feature_start = None
-
-        feature_iter = tqdm(feature_time_pairs, desc='large sampling loop time step')
-
-        for time, time_next in feature_iter:
+        for time, time_next in large_iter:
 
             log_snr = self.log_snr(time)
             log_snr_next = self.log_snr(time_next)
@@ -296,39 +273,101 @@ class SDFusionModel(BaseModel):
             noise_cond = log_snr
 
             if ema:
-                feature_start = self.ema_df(x_feature = noised_feature, doctree = doctree_small, t = noise_cond)
+                x_large_start = self.ema_df(x_large = noised_large, octree = octree_small, t = noise_cond)
             else:
-                feature_start = self.df(x_feature = noised_feature, doctree = doctree_small, t = noise_cond)
+                x_large_start = self.df(x_large = noised_large, octree = octree_small, t = noise_cond)
 
-            # print(feature_start.max(), feature_start.min())
+            if time[0] < TRUNCATED_TIME:
+                x_large_start.sign_()
 
             c = -expm1(log_snr - log_snr_next)
-            mean = alpha_next * (noised_feature * (1 - c) / alpha + c * feature_start)
+            c, alpha, alpha_next, sigma_next = c[0], alpha[0], alpha_next[0], sigma_next[0]
+            mean = alpha_next * (noised_large * (1 - c) / alpha + c * x_large_start)
             variance = (sigma_next ** 2) * c
-            noised_feature = mean + torch.sqrt(variance) * torch.randn_like(noised_feature)
+            noised_large = mean + torch.sqrt(variance) * torch.randn_like(noised_large)
 
-        samples = noised_feature
-        print(samples.max())
-        print(samples.min())
-        print(samples.mean())
-        print(samples.std())
+        split_large = noised_large
 
-        self.output = self.autoencoder_module.decode_code(samples, doctree_small)
-        self.get_sdfs(self.output['neural_mpu'], batch_size, bbox = None)
-        self.export_mesh(f'{category}_mesh', save_index)
+        print(split_large.max(), split_large.min())
+
+        octree_large = self.split2octree_large(octree_small, split_large)
+
+        if phase == 'train':
+            self.export_octree(octree_large, self.large_depth, save_dir = self.train_dir)
+
+        elif phase == 'test':
+            self.export_octree(octree_large, self.large_depth, save_dir = self.test_dir)
+
+        self.df.train()
 
 
-    def logits2voxel(self, logits, octree):
+    @torch.no_grad()
+    def uncond(self, data, split_path, category = 'airplane', ema = False, ddim_steps=200, ddim_eta=0., save_index = 0):
 
-        logit_full = logits[self.full_depth]
-        logit_full_p1 = logits[self.full_depth + 1]
-        logit_full_p1 = logit_full_p1.reshape(-1, 8)
-        total_logits = torch.zeros((len(logit_full), 8), device = self.device) - 1
-        total_logits[logit_full > 0] = logit_full_p1
-        x_start = octree2voxel(total_logits, octree = octree, depth = self.full_depth)
-        x_start = x_start.permute(0,4,1,2,3).contiguous()
+        if ema:
+            self.ema_df.eval()
 
-        return x_start
+        else:
+            self.df.eval()
+
+        if data != None:
+
+            self.set_input(data)
+            octree_small = self.split2octree_small(self.split_small)
+
+        elif split_path != None:
+            split_small = torch.load(split_path)
+            split_small = split_small.to(self.device)
+            octree_small = self.split2octree_small(split_small)
+
+        batch_size = octree_small.batch_size
+
+        octree_num = octree_small.nnum[self.small_depth]
+        noised_large = torch.randn((octree_num, self.split_channel), device = self.device)
+
+        large_time_pairs = self.get_sampling_timesteps(
+            batch_size, device=self.device, steps=ddim_steps)
+
+        x_large_start = None
+
+        large_iter = tqdm(large_time_pairs, desc='large stage sampling loop time step')
+
+        for time, time_next in large_iter:
+
+            log_snr = self.log_snr(time)
+            log_snr_next = self.log_snr(time_next)
+
+            alpha, _ = log_snr_to_alpha_sigma(log_snr)
+            alpha_next, sigma_next = log_snr_to_alpha_sigma(log_snr_next)
+
+            noise_cond = log_snr
+
+            if ema:
+                x_large_start = self.ema_df(x_large = noised_large, octree = octree_small, t = noise_cond)
+            else:
+                x_large_start = self.df(x_large = noised_large, octree = octree_small, t = noise_cond)
+
+            if time[0] < TRUNCATED_TIME:
+                x_large_start.sign_()
+
+            c = -expm1(log_snr - log_snr_next)
+            c, alpha, alpha_next, sigma_next = c[0], alpha[0], alpha_next[0], sigma_next[0]
+            mean = alpha_next * (noised_large * (1 - c) / alpha + c * x_large_start)
+            variance = (sigma_next ** 2) * c
+            noised_large = mean + torch.sqrt(variance) * torch.randn_like(noised_large)
+
+        split_large = noised_large
+
+        print(split_large.max(), split_large.min())
+
+        octree_large = self.split2octree_large(octree_small, split_large)
+
+        self.export_octree(octree_large, self.large_depth, save_dir = f'{category}_large_octree', index = save_index)
+
+        save_dir = f'{category}_split_large'
+        if not os.path.exists(save_dir): os.makedirs(save_dir)
+        torch.save(split_large, os.path.join(save_dir, f'{save_index}.pth'))
+
 
     def octree2split_small(self, octree):
 
@@ -377,6 +416,7 @@ class SDFusionModel(BaseModel):
         nempty_mask_p1 = discrete_split[b,:,x,y,z]
         nempty_mask_p1 = nempty_mask_p1.reshape(-1)
         label_p1 = nempty_mask_p1.long()
+
         octree_out.octree_split(label_p1, self.full_depth + 1)
         octree_out.octree_grow(self.full_depth + 2)
         octree_out.depth += 1
@@ -491,13 +531,13 @@ class SDFusionModel(BaseModel):
     def get_current_errors(self):
 
         ret = OrderedDict([
-            ('loss', self.loss.data),
+            ('diffusion loss', self.loss.data),
         ])
 
         if hasattr(self, 'loss_gamma'):
             ret['gamma'] = self.loss_gamma.data
 
-        return ret, "feature"
+        return ret, "large"
 
     def get_current_visuals(self):
 

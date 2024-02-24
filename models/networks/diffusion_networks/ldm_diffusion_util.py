@@ -360,7 +360,7 @@ def voxel2mesh(voxel, threshold=0.4, use_vertex_normal: bool = False):
         return trimesh.Trimesh(vertices=verts, faces=faces, vertex_normals=vertex_normals)
     else:
         return trimesh.Trimesh(vertices=verts, faces=faces)
-    
+
 
 def _voxel2mesh(voxels, threshold=0.5):
 

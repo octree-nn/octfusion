@@ -16,11 +16,11 @@ class DiffusionUNet(nn.Module):
         self.diffusion_net = UNet3DModel(**unet_params)
         self.conditioning_key = conditioning_key # default for lsun_bedrooms
 
-    def forward(self, x_small, t, c_concat: list = None, c_crossattn: list = None):
+    def forward(self, x_small, t, self_cond, c_concat: list = None, c_crossattn: list = None):
         # x: should be latent code. shape: (bs X z_dim X d X h X w)
 
         if self.conditioning_key == 'None':
-            out = self.diffusion_net(x_small, timesteps = t)
+            out = self.diffusion_net(x_small, timesteps = t, x_self_cond = self_cond)
         elif self.conditioning_key == 'concat':
             xc = torch.cat([x] + c_concat, dim=1)
             out = self.diffusion_net(xc, t1)

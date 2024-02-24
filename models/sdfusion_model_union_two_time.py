@@ -317,9 +317,9 @@ class SDFusionModel(BaseModel):
             noise_cond2 = self.log_snr(time2)
 
             if ema:
-                x_start_small = self.ema_df(x_small = noised_split_small, x_large = None, doctree_in = None, t1 = noise_cond1, t2 = noise_cond2)
+                x_start_small = self.ema_df(x_small = noised_split_small, x_feature = None, doctree_in = None, t1 = noise_cond1, t2 = noise_cond2)
             else:
-                x_start_small = self.df(x_small = noised_split_small, x_large = None, x_feature = None, doctree_in = None, t1 = noise_cond1, t2 = noise_cond2)
+                x_start_small = self.df(x_small = noised_split_small, x_feature = None, doctree_in = None, t1 = noise_cond1, t2 = noise_cond2)
 
             if time1[0] < TRUNCATED_TIME:
                 x_start_small.sign_()

@@ -732,8 +732,6 @@ class UNet3DModel(nn.Module):
             self.num_classes is not None
         ), "must specify class label if and only if the model is class-conditional"
 
-        print(self.num_classes)
-
         emb = []
 
         timesteps = [timesteps1, timesteps2]
@@ -791,9 +789,6 @@ class UNet3DModel(nn.Module):
                 h = module(h)
 
             hs.append(h)
-
-        # for tensor in hs:
-        #     print(tensor.shape)
 
         h = self.middle_block1(h, emb)
         h = self.middle_block2(h, emb)

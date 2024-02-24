@@ -22,17 +22,17 @@ category_5_to_label = {
     'rifle': 4,
 }
 
-category_5_to_num = {'airplane' : 3236, 'car': 5996,  'chair': 5422, 'table': 6807, 'rifle': 1897}
+category_5_to_num = {'airplane' : 2831, 'car': 5247,  'chair': 4744, 'table': 5956, 'rifle': 1660}
 
-category = 'airplane'
+category = 'rifle'
 label = category_5_to_label[category]
 total_num = category_5_to_num[category]
 
 # initialize SDFusion model
-# model = 'sdfusion_union_two_time'
-model = 'sdfusion_union_two_time_noise_octree'
+model = 'sdfusion_union_two_time'
+# model = 'sdfusion_union_two_time_noise_octree'
 df_cfg = 'configs/sdfusion_snet_2t.yaml'
-ckpt_path = f'Tencent/{category}/df_steps-396000-noise-octree-two-t.pth'
+ckpt_path = f'Tencent/{category}/df_steps-234000.pth'
 
 vq_cfg = "configs/shapenet_vae_2t_eval.yaml"
 vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.pth'
@@ -42,10 +42,10 @@ opt.init_model_args(model = model, df_cfg = df_cfg, ckpt_path=ckpt_path, vq_cfg 
 opt.init_dset_args(dataset_mode=dset, category = category)
 SDFusion = create_model(opt)
 
-train_loader, test_loader, test_loader_for_eval = config_dataloader(opt)
-total_num = len(train_loader)
-test_dg = get_data_generator(test_loader)
-train_dg = get_data_generator(train_loader)
+# train_loader, test_loader, test_loader_for_eval = config_dataloader(opt)
+# total_num = len(train_loader)
+# test_dg = get_data_generator(test_loader)
+# train_dg = get_data_generator(train_loader)
 
 ngen = 1
 ddim_steps = 200

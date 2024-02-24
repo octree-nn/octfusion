@@ -12,23 +12,20 @@ def get_data_generator(loader):
         for data in loader:
             yield data
 
-def config_dataloader(opt, disable_train_data=False):
+def config_dataloader(opt):
     dualoctree_conf = OmegaConf.load(opt.vq_cfg)
     flags_train, flags_test = dualoctree_conf.data.train, dualoctree_conf.data.test
     flags_train.filelist = os.path.join(flags_train.filelist, f'train_{opt.category}.txt')
     flags_test.filelist = os.path.join(flags_test.filelist, f'test_{opt.category}.txt')
-    if not disable_train_data and not flags_train.disable:
-      train_loader = get_dataloader(opt,flags_train, drop_last = True)
+
+    train_loader = get_dataloader(opt,flags_train, drop_last = False)
 
     if not flags_test.disable:
       test_loader = get_dataloader(opt,flags_test, drop_last = False)
 
-    if not flags_test.disable:
-      test_loader_for_eval = get_dataloader(opt,flags_test, eval = True, drop_last = False)
+    return train_loader, test_loader
 
-    return train_loader, test_loader, test_loader_for_eval
-
-def get_dataloader(opt, flags, eval = False, drop_last = True):
+def get_dataloader(opt, flags, drop_last = False):
   dataset, collate_fn = get_dataset(flags)
 
   if opt.distributed:
@@ -36,13 +33,8 @@ def get_dataloader(opt, flags, eval = False, drop_last = True):
   else:
     sampler = InfSampler(dataset, shuffle=flags.shuffle)
 
-  if eval==False:
-    data_loader = torch.utils.data.DataLoader(
-        dataset, batch_size=flags.batch_size, num_workers=flags.num_workers,
-        sampler=sampler, collate_fn=collate_fn, pin_memory=True, drop_last = drop_last)
-  else:
-    data_loader = torch.utils.data.DataLoader(
-      dataset, batch_size=max(int(flags.batch_size // 2), 1), num_workers=flags.num_workers,
+  data_loader = torch.utils.data.DataLoader(
+      dataset, batch_size=flags.batch_size, num_workers=flags.num_workers,
       sampler=sampler, collate_fn=collate_fn, pin_memory=True, drop_last = drop_last)
 
   return data_loader

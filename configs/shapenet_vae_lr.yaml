@@ -7,12 +7,11 @@ model:
   name: graph_vae
 
   channel: 4
-  depth: &depth 9
+  depth: &depth 8
   nout: 4
   depth_out: *depth
   full_depth: &full_depth 4
-  depth_stop: 8
-  small_depth: 6
+  depth_stop: 6
   bottleneck: 4
   resblock_type: basic
   code_channel: 16
@@ -43,9 +42,8 @@ data:
     load_sdf: False
     load_code: False
     load_occu: False
-    batch_size: &batch_size 1
-    points_scale: &points_scale 1.0
-    shuffle: False
+    batch_size: &batch_size 4
+    shuffle: True
     # num_workers: 0
 
     point_scale: 0.5
@@ -73,7 +71,6 @@ data:
     location: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/dataset_256
     filelist: *filelist
     batch_size: *batch_size
-    points_scale: *points_scale
     load_sdf: False
     load_code: False
     load_occu: False

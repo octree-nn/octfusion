@@ -11,40 +11,20 @@ def create_model(opt):
         from models.sdfusion_model import SDFusionModel
         model = SDFusionModel()
 
-    elif opt.model == 'sdfusion_new':
-        from models.sdfusion_model_new import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_LAS':
-        from models.sdfusion_model_LAS import SDFusionModel
-        model = SDFusionModel()
-
     elif opt.model == 'sdfusion_small':
         from models.sdfusion_model_small import SDFusionModel
         model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_large':
-        from models.sdfusion_model_large import SDFusionModel
+    
+    elif opt.model == 'sdfusion_lr_feature':
+        from models.sdfusion_model_lr_feature import SDFusionModel
         model = SDFusionModel()
 
-    elif opt.model == 'sdfusion_large_pred_x0':
-        from models.sdfusion_model_large_pred_x0 import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_feature_lr_pred_x0':
-        from models.sdfusion_model_feature_lr_pred_x0 import SDFusionModel
+    elif opt.model == 'sdfusion_hr_large':
+        from models.sdfusion_model_hr_large import SDFusionModel
         model = SDFusionModel()
     
-    elif opt.model == 'sdfusion_feature_lr_pred_noise':
-        from models.sdfusion_model_feature_lr_pred_noise import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_feature':
-        from models.sdfusion_model_feature import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_feature_pred_x0':
-        from models.sdfusion_model_feature_pred_x0 import SDFusionModel
+    elif opt.model == 'sdfusion_hr_feature':
+        from models.sdfusion_model_hr_feature import SDFusionModel
         model = SDFusionModel()
 
     elif opt.model == 'sdfusion_union_two_time':

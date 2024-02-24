@@ -2,7 +2,7 @@ from utils.render_utils import generate_image_for_fid
 import trimesh
 import os
 
-category = "airplane"
+category = "chair"
 
 snc_category_to_synth_id_13 = {
     'airplane': '02691156',
@@ -24,11 +24,11 @@ snc_category_to_synth_id_13 = {
 synth_id = snc_category_to_synth_id_13[category]
 # filelist = f'/data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/filelist/train_{category}.txt'
 
-fid_root = f'./fid_{category}_uncond'
+fid_root = f'./fid_{category}_uncond_2t'
 
 os.makedirs(fid_root, exist_ok=True)
 
-mesh_dir = f'{category}_mesh'
+mesh_dir = f'{category}_mesh_2t'
 
 # with open(filelist) as fid:
 #     lines = fid.readlines()

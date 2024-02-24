@@ -26,8 +26,7 @@ class TransformShape:
 
     self.point_sample_num = 3000
     self.sdf_sample_num = 5000
-    self.first_points_scale = 0.5  # the points are in [-0.5, 0.5]
-    self.second_points_scale = flags.points_scale
+    self.points_scale = 0.5  # the points are in [-0.5, 0.5]
     self.noise_std = 0.005
 
   def points2octree(self, points: Points):
@@ -35,21 +34,10 @@ class TransformShape:
     octree.build_octree(points)
     return octree
 
-  def points2voxel(self, points):
-    scale = 2 ** (self.depth - 1)
-    points = (points + 1.0) * scale
-    x, y, z = points[:, 0], points[:, 1], points[:, 2]
-    x ,y, z = x.long(), y.long(), z.long()
-    voxel_size = 2 ** self.depth
-    voxel = torch.zeros([voxel_size, voxel_size, voxel_size]).long()
-    voxel[x,y,z] = 1
-    return voxel
-
   def process_points_cloud(self, sample):
     # get the input
     points, normals = sample['points'], sample['normals']
-    points = points / self.first_points_scale  # scale to [-1.0, 1.0]
-    points = points * self.second_points_scale
+    points = points / self.points_scale  # scale to [-1.0, 1.0]
     
     # transform points to octree
     points_gt = Points(points = torch.from_numpy(points).float(),normals = torch.from_numpy(normals).float())
@@ -61,9 +49,6 @@ class TransformShape:
     sdf = sample['sdf']
     grad = sample['grad']
     points = sample['points'] / self.points_scale  # to [-1, 1]
-
-    points = points * self.second_points_scale
-    sdf = sdf * self.second_points_scale
 
     rand_idx = np.random.choice(points.shape[0], size=self.sdf_sample_num)
     points = torch.from_numpy(points[rand_idx]).float()

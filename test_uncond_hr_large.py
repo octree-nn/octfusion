@@ -22,18 +22,18 @@ category_5_to_label = {
     'rifle': 4,
 }
 
-category_5_to_num = {'airplane' : 2831, 'car': 5247,  'chair': 4744, 'table': 5956, 'rifle': 1660}
+category_5_to_num = {'airplane' : 2831, 'car': 5247, 'chair': 4744, 'table': 5956, 'rifle': 1660}
 
-category = 'rifle'
+category = 'chair'
 label = category_5_to_label[category]
 total_num = category_5_to_num[category]
 
 # initialize SDFusion model
-model = 'sdfusion_large_pred_x0'
-df_cfg = 'configs/sdfusion_snet_1t.yaml'
-ckpt_path = f'Tencent/{category}/df_steps-117000-large-pred-x0-linear.pth'
+model = 'sdfusion_hr_large'
+df_cfg = 'configs/sdfusion_snet_hr_large.yaml'
+ckpt_path = f'Tencent/{category}/df_steps-hr-large.pth'
 
-vq_cfg = "configs/shapenet_vae_1t_eval.yaml"
+vq_cfg = "configs/shapenet_vae_hr.yaml"
 vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth'
 
 dset="snet"
@@ -41,21 +41,11 @@ opt.init_model_args(model = model, df_cfg = df_cfg, ckpt_path=ckpt_path, vq_cfg 
 opt.init_dset_args(dataset_mode=dset, category = category)
 SDFusion = create_model(opt)
 
-train_loader, test_loader, test_loader_for_eval = config_dataloader(opt)
-# total_num = len(test_loader)
-total_num = len(train_loader)
-test_dg = get_data_generator(test_loader)
-train_dg = get_data_generator(train_loader)
-
 ngen = 1
 ddim_steps = 200
 ddim_eta = 0.
-
-split_dir = 'split_small'
+split_dir = f'{category}_split_small'
 
 for i in range(total_num):
-    seed_everything(i)
-    train_data = next(train_dg)
-    test_data = next(test_dg)
-    split_path = os.path.join(split_dir, f'noised_split_small_{i}.pth')
-    SDFusion.uncond(data = test_data, split_path = None, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
+    split_path = os.path.join(split_dir, f'{i}.pth')
+    SDFusion.uncond(data = None, split_path = split_path, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)

@@ -44,8 +44,7 @@ data:
     load_code: False
     load_occu: False
     batch_size: &batch_size 1
-    points_scale: &points_scale 1.0
-    shuffle: False
+    shuffle: True
     # num_workers: 0
 
     point_scale: 0.5
@@ -73,7 +72,6 @@ data:
     location: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/dataset_256
     filelist: *filelist
     batch_size: *batch_size
-    points_scale: *points_scale
     load_sdf: False
     load_code: False
     load_occu: False
