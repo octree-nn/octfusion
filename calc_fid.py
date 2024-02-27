@@ -16,7 +16,7 @@ category = 'chair'
 synth_id = category_to_snc_synth_id[category]
 
 # synthesis_path = f'fid_{category}_uncond'
-synthesis_path = '/data/checkpoints/xiongbj/OctFusion-Union/fid_chair_uncond_2t'
+synthesis_path = '/data/checkpoints/xiongbj/OctFusion-Union/fid_chair_uncond_3t'
 dataset_path = f'/data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/fid_images/{category}'
 
 views1 = os.listdir(synthesis_path)
