@@ -354,6 +354,24 @@ def create_full_octree(depth, full_depth,batch_size, device):
     octree.depth = full_depth
     return octree
 
+def voxel2fulloctree(voxel: torch.Tensor, depth ,batch_size, device, nempty: bool = False):
+  r''' Converts the input feature to the full-voxel-based representation.
+
+  Args:
+    voxel (torch.Tensor): batch_size, channel, num, num, num
+    depth (int): The depth of current octree.
+    nempty (bool): If True, :attr:`data` only contains the features of non-empty
+        octree nodes.
+  '''
+  channel = voxel.shape[1]
+  octree = create_full_octree(depth = depth, full_depth = depth, batch_size = batch_size, device = device)
+  x, y, z, b = octree.xyzb(depth, nempty)
+  key = octree.key(depth, nempty)
+  data = voxel.new_zeros(key.shape[0], channel)
+  data = voxel[b,:, x,y,z]
+
+  return data
+
 def voxel2mesh(voxel, threshold=0.4, use_vertex_normal: bool = False):
     verts, faces, vertex_normals = _voxel2mesh(voxel, threshold)
     if use_vertex_normal:

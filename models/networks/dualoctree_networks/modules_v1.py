@@ -474,6 +474,7 @@ def doctree_align(value, key, query):
   out[found] = value[idx[found]]
   return out
 
+
 def split_align_reverse(value, key, query, out=None):
   # out-of-bound
   out_of_bound = query > key[-1]
@@ -487,22 +488,5 @@ def split_align_reverse(value, key, query, out=None):
     out_shape[0] = key.shape[0]
 
     out = torch.zeros(out_shape, device=key.device) - 1
-  out[idx[found]] = value[found]
-  return out
-
-
-def doctree_align_reverse(value, key, query, out=None):
-  # out-of-bound
-  out_of_bound = query > key[-1]
-  query[out_of_bound] = -1
-
-  idx = torch.searchsorted(key, query)
-  found = key[idx] == query
-
-  if out == None:
-    out_shape = list(value.shape)
-    out_shape[0] = key.shape[0]
-
-    out = torch.zeros(out_shape, device=key.device)
   out[idx[found]] = value[found]
   return out

@@ -5,8 +5,8 @@ DATE_WITH_TIME=`date "+%Y-%m-%dT%H-%M-%S"`
 logs_dir='logs_home'
 
 ### set gpus ###
-gpu_ids=2          # single-gpu
-# gpu_ids=2,3        # multi-gpu
+# gpu_ids=0          # single-gpu
+gpu_ids=0,1        # multi-gpu
 
 if [ ${#gpu_ids} -gt 1 ]; then
     # specify these two if multi-gpu
@@ -31,21 +31,21 @@ ckpt_num=10
 
 ### model stuff ###
 note="release"
-model='sdfusion_hr_feature'
-df_cfg='configs/sdfusion_snet_hr_feature.yaml'
-ckpt="logs_home/2024-02-01T17-12-18-sdfusion_hr_feature-snet-im_5-LR1e-4-release/ckpt/df_steps-latest.pth"
+model='sdfusion_union_two_time_noise_octree'
+df_cfg='configs/sdfusion_snet_union_2t.yaml'
+# ckpt="logs_home/2024-02-01T17-12-18-sdfusion_hr_feature-snet-im_5-LR1e-4-release/ckpt/df_steps-latest.pth"
 
 vq_model="GraphVAE"
-vq_cfg='configs/shapenet_vae_hr.yaml'
-vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth"
-# vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.pth"
+vq_cfg='configs/shapenet_vae_lr.yaml'
+# vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth"
+vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.pth"
 
 ####################
 
 ### dataset stuff ###
 dataset_mode='snet'
 dataroot="data"
-category='im_5'
+category='airplane'
 
 #####################
 

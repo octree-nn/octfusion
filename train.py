@@ -63,10 +63,10 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
 
         if get_rank() == 0:
             if iter_i % opt.print_freq == 0:
-                errors, stage_flag = model.get_current_errors()
+                errors = model.get_current_errors()
 
                 t = (time.time() - iter_start_time) / opt.batch_size
-                visualizer.print_current_errors(iter_i, errors, stage_flag, t)
+                visualizer.print_current_errors(iter_i, errors, t)
 
             # display every n batches
             if iter_i % opt.display_freq == 0:
@@ -76,12 +76,10 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
 
                 # eval
 
-                model.inference(data, phase = 'train')
-                # visualizer.display_current_results(model.get_current_visuals(), iter_i, phase='train')
+                # model.inference(data, phase = 'train')
 
-                test_data = next(test_dg)
-                model.inference(test_data, phase = 'test')
-                # visualizer.display_current_results(model.get_current_visuals(), iter_i, phase='test')
+                # test_data = next(test_dg)
+                # model.inference(test_data, phase = 'test')
 
                 # torch.cuda.empty_cache()
 
@@ -156,20 +154,17 @@ if __name__ == "__main__":
     if get_rank() == 0:
         expr_dir = '%s/%s' % (opt.logs_dir, opt.name)
         model_f = inspect.getfile(model.__class__)
-        diffusion_f = inspect.getfile(model.df_module.__class__)
-        unet_f = inspect.getfile(model.df_module.diffusion_net.__class__)
+        unet_f = inspect.getfile(model.df_module.__class__)
         dset_f = inspect.getfile(train_ds.__class__)
         sh_f = 'train_sdfusion_snet.sh'
         train_f = 'train.py'
         cprint(f'[*] saving model and dataset files: {model_f}, {dset_f}', 'blue')
         modelf_out = os.path.join(expr_dir, os.path.basename(model_f))
-        diffusionf_out = os.path.join(expr_dir, os.path.basename(diffusion_f))
         unetf_out = os.path.join(expr_dir, os.path.basename(unet_f))
         dsetf_out = os.path.join(expr_dir, os.path.basename(dset_f))
         sh_out = os.path.join(expr_dir, os.path.basename(sh_f))
         train_out = os.path.join(expr_dir, os.path.basename(train_f))
         os.system(f'cp {model_f} {modelf_out}')
-        os.system(f'cp {diffusion_f} {diffusionf_out}')
         os.system(f'cp {unet_f} {unetf_out}')
         os.system(f'cp {dset_f} {dsetf_out}')
         os.system(f'cp {sh_f} {sh_out}')

@@ -57,7 +57,6 @@ def get_sample_number_for_metric(data_class, metrics= "fid"):
     return n_sam
 
 
-
 def scale_to_unit_sphere(mesh, evaluate_metric = False):
   if isinstance(mesh, trimesh.Scene):
     mesh = mesh.dump().sum()
