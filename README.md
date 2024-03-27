@@ -18,6 +18,8 @@ We recommend using [`conda`](https://www.anaconda.com/products/distribution) to 
 conda create -n sdfusion python=3.8 -y && conda activate sdfusion
 conda install pytorch==1.9.0 torchvision==0.10.0 torchaudio==0.9.0 cudatoolkit=11.3 -c pytorch -c conda-forge -y
 conda install -c fvcore -c iopath -c conda-forge fvcore iopath -y
+git clone https://github.com/facebookresearch/pytorch3d.git
+cd pytorch3d && pip3 install -e .   \or
 conda install pytorch3d -c pytorch3d
 
 pip3 install ocnn h5py joblib termcolor scipy einops tqdm matplotlib opencv-python PyMCubes imageio trimesh omegaconf tensorboard notebook numpy tqdm yacs scipy plyfile tensorboard scikit-image trimesh wget mesh2sdf setuptools matplotlib
