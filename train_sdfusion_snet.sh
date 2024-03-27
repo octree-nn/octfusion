@@ -31,9 +31,9 @@ ckpt_num=10
 
 ### model stuff ###
 note="release"
-model='sdfusion_union_two_time_noise_octree'
-df_cfg='configs/sdfusion_snet_union_2t.yaml'
-# ckpt="logs_home/2024-02-01T17-12-18-sdfusion_hr_feature-snet-im_5-LR1e-4-release/ckpt/df_steps-latest.pth"
+model='sdfusion_lr_feature'
+df_cfg='configs/sdfusion_snet_lr_feature.yaml'
+# ckpt="df_steps-latest.pth"
 
 vq_model="GraphVAE"
 vq_cfg='configs/shapenet_vae_lr.yaml'
@@ -45,7 +45,7 @@ vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.p
 ### dataset stuff ###
 dataset_mode='snet'
 dataroot="data"
-category='airplane'
+category='im_5'
 
 #####################
 

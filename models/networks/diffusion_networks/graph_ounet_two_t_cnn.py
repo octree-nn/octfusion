@@ -80,6 +80,62 @@ class TimestepEmbedSequential(nn.Sequential, TimestepBlock):  # 这个类的作�
         return x
 
 
+class ConvDownsample(nn.Module):
+    """
+    A downsampling layer with an optional convolution.
+    :param channels: channels in the inputs and outputs.
+    :param use_conv: a bool determining if a convolution is applied.
+    :param dims: determines if the signal is 1D, 2D, or 3D. If 3D, then
+                 downsampling occurs in the inner-two dimensions.
+    """
+
+    def __init__(self, channels, use_conv, dims=2, out_channels=None,padding=1):
+        super().__init__()
+        self.channels = channels
+        self.out_channels = out_channels or channels
+        self.use_conv = use_conv
+        self.dims = dims
+        stride = 2
+        if use_conv:
+            self.op = conv_nd(
+                dims, self.channels, self.out_channels, 3, stride=stride, padding=padding
+            )
+        else:
+            assert self.channels == self.out_channels
+            self.op = avg_pool_nd(dims, kernel_size=stride, stride=stride)
+
+    def forward(self, x):
+        assert x.shape[1] == self.channels
+        return self.op(x)
+
+
+class ConvUpsample(nn.Module):
+    """
+    An upsampling layer with an optional convolution.
+    :param channels: channels in the inputs and outputs.
+    :param use_conv: a bool determining if a convolution is applied.
+    :param dims: determines if the signal is 1D, 2D, or 3D. If 3D, then
+                 upsampling occurs in the inner-two dimensions.
+    """
+
+    def __init__(self, channels, use_conv, dims=2, out_channels=None, padding=1):
+        super().__init__()
+        self.channels = channels
+        self.out_channels = out_channels or channels
+        self.use_conv = use_conv
+        self.dims = dims
+        if use_conv:
+            self.conv = conv_nd(dims, self.channels, self.out_channels, 3, padding=padding)
+
+    def forward(self, x):
+        assert x.shape[1] == self.channels
+        x = F.interpolate(x, scale_factor=2, mode="nearest")
+        if self.use_conv:
+            x = self.conv(x)
+        return x
+
+
+
 class Downsample(torch.nn.Module):
 
   def __init__(self, channels):
@@ -277,6 +333,102 @@ class GraphResBlock(TimestepBlock):
         return self.skip_connection(x) + h
 
 
+class ResBlock(TimestepBlock):
+    """
+    A residual block that can optionally change the number of channels.
+    :param channels: the number of input channels.
+    :param emb_channels: the number of timestep embedding channels.
+    :param dropout: the rate of dropout.
+    :param out_channels: if specified, the number of out channels.
+    :param use_conv: if True and out_channels is specified, use a spatial
+        convolution instead of a smaller 1x1 convolution to change the
+        channels in the skip connection.
+    :param dims: determines if the signal is 1D, 2D, or 3D.
+    :param use_checkpoint: if True, use gradient checkpointing on this module.
+    :param up: if True, use this block for upsampling.
+    :param down: if True, use this block for downsampling.
+    """
+
+    def __init__(
+        self,
+        channels,
+        emb_channels,
+        dropout,
+        out_channels=None,
+        use_conv=False,
+        use_scale_shift_norm=False,
+        dims=2,
+        use_checkpoint=False,
+        up=False,
+        down=False,
+    ):
+        super().__init__()
+        self.channels = channels
+        self.emb_channels = emb_channels
+        self.dropout = dropout
+        self.out_channels = out_channels or channels
+        self.use_conv = use_conv
+        self.use_checkpoint = use_checkpoint
+        self.use_scale_shift_norm = use_scale_shift_norm
+
+        self.in_layers = nn.Sequential(
+            voxelnormalization(channels),
+            nn.SiLU(),
+            conv_nd(dims, channels, self.out_channels, 3, padding=1),
+        )
+
+        self.emb_layers = nn.Sequential(
+            nn.SiLU(),
+            linear(
+                emb_channels,
+                2 * self.out_channels if use_scale_shift_norm else self.out_channels,
+            ),
+        )
+        self.out_layers = nn.Sequential(
+            voxelnormalization(self.out_channels),
+            nn.SiLU(),
+            nn.Dropout(p=dropout),
+            zero_module(
+                conv_nd(dims, self.out_channels, self.out_channels, 3, padding=1)
+            ),
+        )
+
+        if self.out_channels == channels:
+            self.skip_connection = nn.Identity()
+        elif use_conv:
+            self.skip_connection = conv_nd(dims, channels, self.out_channels, 3, padding=1)
+        else:
+            self.skip_connection = conv_nd(dims, channels, self.out_channels, 1)
+
+    def forward(self, x, emb):
+        """
+        Apply the block to a Tensor, conditioned on a timestep embedding.
+        :param x: an [N x C x ...] Tensor of features.
+        :param emb: an [N x emb_channels] Tensor of timestep embeddings.
+        :return: an [N x C x ...] Tensor of outputs.
+        """
+        return checkpoint(
+            self._forward, (x, emb), self.parameters(), self.use_checkpoint
+        )
+
+
+    def _forward(self, x, emb):
+        h = self.in_layers(x)
+        emb_out = self.emb_layers(emb).type(h.dtype)
+        while len(emb_out.shape) < len(h.shape):
+            emb_out = emb_out[..., None]
+        if self.use_scale_shift_norm:
+            out_norm, out_rest = self.out_layers[0], self.out_layers[1:]
+            scale, shift = torch.chunk(emb_out, 2, dim=1)
+            h = out_norm(h) * (1 + scale) + shift
+            h = out_rest(h)
+        else:
+            h = h + emb_out
+            h = self.out_layers(h)
+        return self.skip_connection(x) + h
+
+
+
 class UNet3DModel(nn.Module):
     """
     The full UNet model with attention and timestep embedding.
@@ -396,22 +548,23 @@ class UNet3DModel(nn.Module):
         if self.num_classes is not None:
             self.label_emb = nn.Embedding(self.num_classes, time_embed_dim)
 
+        self.graph_downs = nn.ModuleList([])
+        self.conv_downs = nn.ModuleList([])
+
+        self.conv_ups = nn.ModuleList([])
+        self.graph_ups = nn.ModuleList([])
+
         d = self.input_depth
 
-        self.input_blocks = nn.ModuleList(
-           [
-              GraphConv(self.in_feature_channels, model_channels, n_edge_type, avg_degree, self.input_depth - 1, use_bias = True)
-           ]
-        )
+        self.graph_downs.append(GraphConv(self.in_feature_channels, model_channels, n_edge_type, avg_degree, self.input_depth - 1, use_bias = True))
 
         small_channels = model_channels * channel_mult[1]
-        self.small_emb = GraphConv(self.in_split_channels, small_channels, n_edge_type, avg_degree, self.full_depth - 1, use_bias = True)
+        self.small_emb = conv_nd(dims, self.in_split_channels, small_channels, 3, padding=1)
 
-        self._feature_size = model_channels
         input_block_chans = [model_channels]
         ch = model_channels
 
-        for level, mult in enumerate(channel_mult):
+        for level, mult in enumerate(channel_mult[:2]):
             for _ in range(self.num_res_blocks[level]):
                 resblk = GraphResBlock(
                         ch,
@@ -426,51 +579,84 @@ class UNet3DModel(nn.Module):
                         use_scale_shift_norm=use_scale_shift_norm,
                     )
                 ch = mult * model_channels
-                self.input_blocks.append(resblk)
-                self._feature_size += ch
+                self.graph_downs.append(resblk)
                 input_block_chans.append(ch)
 
-            if level != len(channel_mult) - 1:
-                d -= 1
-                self.input_blocks.append(
-                       GraphDownsample(ch, ch,n_edge_type, avg_degree, d-1)
+            out_ch = ch
+            d -= 1
+            self.graph_downs.append(
+                    GraphDownsample(ch, out_ch,n_edge_type, avg_degree, d-1)
+                )
+            ch = out_ch
+            input_block_chans.append(ch)
+
+        for level, mult in enumerate(channel_mult[2:]):
+            for _ in range(num_res_blocks[level + 2]):
+                resblk = ResBlock(
+                        ch,
+                        time_embed_dim,
+                        dropout,
+                        out_channels=mult * model_channels,
+                        dims = dims,
+                        use_checkpoint = use_checkpoint,
+                        use_scale_shift_norm = use_scale_shift_norm,
+                    )
+                ch = mult * model_channels
+                self.conv_downs.append(resblk)
+                input_block_chans.append(ch)
+
+            if level != len(channel_mult[2:]) - 1:
+                self.conv_downs.append(
+                       ConvDownsample(ch, use_conv = True, dims=dims)
                     )
                 input_block_chans.append(ch)
-                self._feature_size += ch
 
 
-        self.middle_block1 = GraphResBlock(
+        self.middle_block1 = ResBlock(
             ch,
             time_embed_dim,
             dropout,
-            out_channels = None,
-            n_edge_type = n_edge_type,
-            avg_degree = avg_degree,
-            n_node_type = d - 1,
-            dims=dims,
-            use_checkpoint = self.use_checkpoint,
-            use_scale_shift_norm=use_scale_shift_norm,
+            out_channels = ch,
+            dims = dims,
+            use_checkpoint = use_checkpoint,
+            use_scale_shift_norm = use_scale_shift_norm,
         )
 
-
-        self.middle_block2 = GraphResBlock(
+        self.middle_block2 = ResBlock(
             ch,
             time_embed_dim,
             dropout,
-            out_channels = None,
-            n_edge_type = n_edge_type,
-            avg_degree = avg_degree,
-            n_node_type = d - 1,
-            dims=dims,
-            use_checkpoint = self.use_checkpoint,
-            use_scale_shift_norm=use_scale_shift_norm,
+            out_channels = ch,
+            dims = dims,
+            use_checkpoint = use_checkpoint,
+            use_scale_shift_norm = use_scale_shift_norm,
         )
 
-        self._feature_size += ch
+        for level, mult in list(enumerate(channel_mult[2:]))[::-1]:
+            for i in range(num_res_blocks[level + 2] + 1):
+                ich = input_block_chans.pop()
+                resblk = ResBlock(
+                        ch + ich,
+                        time_embed_dim,
+                        dropout,
+                        out_channels=model_channels * mult,
+                        dims = dims,
+                        use_checkpoint = use_checkpoint,
+                        use_scale_shift_norm = use_scale_shift_norm,
+                    )
+                self.conv_ups.append(resblk)
+                ch = model_channels * mult
+                if level and i == num_res_blocks[level + 2]:
+                    upsample = ConvUpsample(ch, use_conv = True, dims=dims)
+                    self.conv_ups.append(upsample)
+                if level == 0 and i == num_res_blocks[level + 2]:
+                    self.predict = self._make_predict_module(ch, small_channels)
+                    d += 1
+                    upsample = GraphUpsample(ch, ch, n_edge_type, avg_degree, d-1)
+                    self.conv_ups.append(upsample)
 
-        self.output_blocks = nn.ModuleList([])
-        for level, mult in list(enumerate(channel_mult))[::-1]:
-            for i in range(self.num_res_blocks[level] + 1):
+        for level, mult in list(enumerate(channel_mult[:2]))[::-1]:
+            for i in range(num_res_blocks[level] + 1):
                 ich = input_block_chans.pop()
                 resblk = GraphResBlock(
                         ch + ich,
@@ -481,20 +667,15 @@ class UNet3DModel(nn.Module):
                         avg_degree = avg_degree,
                         n_node_type = d - 1,
                         dims=dims,
-                        use_checkpoint = self.use_checkpoint,
+                        use_checkpoint=use_checkpoint,
                         use_scale_shift_norm=use_scale_shift_norm,
                     )
-                self.output_blocks.append(resblk)
+                self.graph_ups.append(resblk)
                 ch = model_channels * mult
-                if level and i == self.num_res_blocks[level]:
-                    if d == self.full_depth:
-                        self.predict = self._make_predict_module(ch, small_channels)
+                if level and i == num_res_blocks[level]:
                     d += 1
                     upsample = GraphUpsample(ch, ch, n_edge_type, avg_degree, d-1)
-                    self.output_blocks.append(upsample)
-                self._feature_size += ch
-
-        # self.tanh = nn.Tanh()
+                    self.graph_ups.append(upsample)
 
         self.end_norm_small = normalization(small_channels)
         self.end_small = nn.SiLU()
@@ -550,10 +731,8 @@ class UNet3DModel(nn.Module):
         emb = torch.cat(emb, dim = 1)
 
         if self.num_classes is not None:
-            if x_small != None:
-                assert class_label.shape == (x_small.shape[0],)
-            elif x_feature != None:
-                assert class_label.shape == (doctree_in.batch_size,)
+            assert class_label.shape == (x_small.shape[0],)
+            assert class_label.shape == (doctree_in.batch_size,)
             emb = emb + self.label_emb(class_label)
 
         d = self.input_depth
@@ -562,7 +741,7 @@ class UNet3DModel(nn.Module):
 
         h = x_feature
 
-        for module in self.input_blocks:
+        for module in self.graph_downs:
             if isinstance(module, GraphConv):
                 h = module(h, doctree_in, d)
             elif isinstance(module, GraphResBlock):
@@ -575,9 +754,21 @@ class UNet3DModel(nn.Module):
 
             hs.append(h)
 
+        hs.pop()
 
-        h = self.middle_block1(h, emb, doctree_in, d)
-        h = self.middle_block2(h, emb, doctree_in, d)
+        h = octree2voxel(data = h, octree = doctree_in.octree, depth = d)
+        h = h.permute(0,4,1,2,3).contiguous()
+        hs.append(h)
+
+        for module in self.conv_downs:
+            if isinstance(module, ResBlock):
+                h = module(h, emb)
+            elif isinstance(module, ConvDownsample):
+                h = module(h)
+            hs.append(h)
+
+        h = self.middle_block1(h, emb)
+        h = self.middle_block2(h, emb)
 
         update_octree = doctree_out == None
 
@@ -586,38 +777,52 @@ class UNet3DModel(nn.Module):
             doctree_out = dual_octree.DualOctree(octree_out)
             doctree_out.post_processing_for_docnn()
 
-        for module in self.output_blocks:
+        for module in self.conv_ups:
+
+            if isinstance(module, ResBlock):
+                h = torch.cat([h, hs.pop()], dim=1)
+                h = module(h, emb)
+
+            elif isinstance(module, ConvUpsample):
+                h = module(h)
+
+            elif isinstance(module, GraphUpsample):
+                h = voxel2fulloctree(voxel = h, depth = d, batch_size = doctree_out.batch_size, device = doctree_out.device)
+
+                output_small = self.predict(h)
+
+                output_small = self.end_small(self.end_norm_small(output_small, doctree_out, d))
+                output_small = self.out_small(output_small, doctree_out, d)
+
+                if update_octree:
+                    discrete_split = copy.deepcopy(output_small)
+                    discrete_split[discrete_split > 0] = 1
+                    discrete_split[discrete_split < 0] = 0
+
+                    label = (discrete_split.sum(dim=1) > 0).long()
+                    octree_out.octree_split(label, d)
+                    octree_out.octree_grow(d + 1)
+                    octree_out.depth += 1
+                    label_p1 = discrete_split[label > 0].reshape(-1).long()
+                    octree_out.octree_split(label_p1, d + 1)
+                    octree_out.octree_grow(d + 2)
+                    octree_out.depth += 1
+                    doctree_out = dual_octree.DualOctree(octree_out)
+                    doctree_out.post_processing_for_docnn()
+
+                h = module(h, doctree_out, d)
+                d += 1
+
+        for module in self.graph_ups:
             if isinstance(module, GraphResBlock):
                 skip = doctree_align(hs.pop(), doctree_in.graph[d]['keyd'], doctree_out.graph[d]['keyd'])
                 h = torch.cat([h, skip], dim=1)
                 h = module(h, emb, doctree_out, d)
             elif isinstance(module, GraphUpsample):
-                if d == self.full_depth:
-                    output_small = self.predict(h)
-                    # logits = self.tanh(logits[d])
-                    # logits = logits.squeeze()
-
-                    output_small = self.end_small(self.end_norm_small(output_small, doctree_out, d))
-                    output_small = self.out_small(output_small, doctree_out, d)
-
-                    if update_octree:
-                        discrete_split = copy.deepcopy(output_small)
-                        discrete_split[discrete_split > 0] = 1
-                        discrete_split[discrete_split < 0] = 0
-
-                        label = (discrete_split.sum(dim=1) > 0).long()
-                        octree_out.octree_split(label, d)
-                        octree_out.octree_grow(d + 1)
-                        octree_out.depth += 1
-                        label_p1 = discrete_split[label > 0].reshape(-1).long()
-                        octree_out.octree_split(label_p1, d + 1)
-                        octree_out.octree_grow(d + 2)
-                        octree_out.depth += 1
-                        doctree_out = dual_octree.DualOctree(octree_out)
-                        doctree_out.post_processing_for_docnn()
 
                 h = module(h, doctree_out, d)
                 d += 1
+
 
         output_feature = self.end_feature(self.end_norm_feature(h, doctree_out, d))
 

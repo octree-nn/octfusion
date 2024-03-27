@@ -76,10 +76,10 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
 
                 # eval
 
-                # model.inference(data, phase = 'train')
+                model.inference(data, phase = 'train')
 
-                # test_data = next(test_dg)
-                # model.inference(test_data, phase = 'test')
+                test_data = next(test_dg)
+                model.inference(test_data, phase = 'test')
 
                 # torch.cuda.empty_cache()
 

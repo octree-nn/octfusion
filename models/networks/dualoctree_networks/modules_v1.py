@@ -14,6 +14,7 @@ import torch.utils.checkpoint
 # import torch_geometric.nn
 
 from .utils.scatter import scatter_mean
+from ocnn.octree import key2xyz, xyz2key
 
 from ocnn.octree import Octree
 from ocnn.utils import scatter_add
@@ -475,18 +476,58 @@ def doctree_align(value, key, query):
   return out
 
 
-def split_align_reverse(value, key, query, out=None):
-  # out-of-bound
-  out_of_bound = query > key[-1]
-  query[out_of_bound] = -1
+def doctree_align_average(input_data, source_doctree, target_doctree, depth):
+  batch_size = source_doctree.batch_size
+  channel = input_data.shape[1]
+  size = 2 ** depth
 
-  idx = torch.searchsorted(key, query)
-  found = key[idx] == query
+  full_vox = torch.zeros(batch_size, channel, size, size, size).to(source_doctree.device)
 
-  if out == None:
-    out_shape = list(value.shape)
-    out_shape[0] = key.shape[0]
+  full_depth = source_doctree.full_depth
 
-    out = torch.zeros(out_shape, device=key.device) - 1
-  out[idx[found]] = value[found]
-  return out
+  start = 0
+
+  for i in range(full_depth, depth):
+    empty_mask = source_doctree.octree.children[i] < 0
+    key = source_doctree.octree.keys[i]
+    key = key[empty_mask]
+    length = len(key)
+    data_i = input_data[start: start + length]
+    start = start + length
+    scale = 2 ** (depth - i)
+    x, y, z, b = key2xyz(key)
+    n = x.shape[0]
+    for j in range(n):
+      full_vox[b[j], :, x[j] * scale: (x[j] + 1) * scale, y[j] * scale: (y[j] + 1) * scale, z[j] * scale: (z[j] + 1) * scale] = data_i[j].view(channel, 1, 1, 1).expand(channel, scale, scale, scale)
+
+  key = source_doctree.octree.keys[depth]
+  data_i = input_data[start:]
+  assert data_i.shape[0] == len(key)
+  x, y, z, b = key2xyz(key)
+  full_vox[b, :, x, y, z] = data_i
+
+  total_num = target_doctree.total_num
+  output_data = torch.zeros(total_num, channel).to(target_doctree.device)
+
+  start = 0
+
+  for i in range(full_depth, depth):
+    empty_mask = target_doctree.octree.children[i] < 0
+    key = target_doctree.octree.keys[i]
+    key = key[empty_mask]
+    length = len(key)
+    data_i = output_data[start: start + length]
+    start = start + length
+    scale = 2 ** (depth - i)
+    x, y, z, b = key2xyz(key)
+    n = x.shape[0]
+    for j in range(n):
+      data_i[j] = full_vox[b[j], :, x[j] * scale: (x[j] + 1) * scale, y[j] * scale: (y[j] + 1) * scale, z[j] * scale: (z[j] + 1) * scale].mean()
+
+  key = target_doctree.octree.keys[depth]
+  data_i = output_data[start:]
+  assert data_i.shape[0] == len(key)
+  x, y, z, b = key2xyz(key)
+  data_i = full_vox[b, :, x, y, z]
+
+  return output_data

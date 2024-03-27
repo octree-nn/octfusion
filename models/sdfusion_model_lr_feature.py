@@ -51,6 +51,11 @@ class SDFusionModel(BaseModel):
         self.gradient_clip_val = 1.
         self.start_iter = opt.start_iter
 
+        if self.isTrain:
+            self.log_dir = os.path.join(opt.logs_dir, opt.name)
+            self.train_dir = os.path.join(self.log_dir, 'train_images')
+            self.test_dir = os.path.join(self.log_dir, 'test_images')
+
 
         ######## START: Define Networks ########
         assert opt.df_cfg is not None
@@ -247,7 +252,7 @@ class SDFusionModel(BaseModel):
 
     # check: ddpm.py, log_images(). line 1317~1327
     @torch.no_grad()
-    def inference(self, data, ema = False, ddim_steps=200, ddim_eta=0.):
+    def inference(self, data, ema = False, ddim_steps=200, ddim_eta=0., phase = ""):
 
         if ema:
             self.ema_df.eval()
@@ -304,6 +309,12 @@ class SDFusionModel(BaseModel):
         # decode z
         self.output = self.autoencoder_module.decode_code(samples, doctree_small)
         self.get_sdfs(self.output['neural_mpu'], batch_size, bbox = None)
+
+        if phase == 'train':
+            self.export_mesh(self.train_dir)
+
+        elif phase == 'test':
+            self.export_mesh(self.test_dir)
 
         self.df.train()
 
@@ -369,6 +380,8 @@ class SDFusionModel(BaseModel):
 
         print(samples.max())
         print(samples.min())
+        print(samples.mean())
+        print(samples.std())
 
         # decode z
         self.output = self.autoencoder_module.decode_code(samples, doctree_small)
@@ -482,7 +495,7 @@ class SDFusionModel(BaseModel):
 
         self.sdfs = calc_sdf(neural_mpu, batch_size, size = self.solver.resolution, bbmin = self.bbmin, bbmax = self.bbmax)
 
-    def export_mesh(self, save_dir, index, level = 0):
+    def export_mesh(self, save_dir, index = 0, level = 0):
         if not os.path.exists(save_dir): os.makedirs(save_dir)
         ngen = self.sdfs.shape[0]
         size = self.solver.resolution
@@ -543,7 +556,7 @@ class SDFusionModel(BaseModel):
         if hasattr(self, 'loss_gamma'):
             ret['gamma'] = self.loss_gamma.data
 
-        return ret, "feature"
+        return ret
 
     def get_current_visuals(self):
 

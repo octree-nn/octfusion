@@ -37,7 +37,7 @@ data:
     distort: False
 
     # data loading
-    location: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/dataset_256
+    location: &location /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/dataset_256
     filelist: &filelist /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/filelist
     load_sdf: False
     load_code: False
@@ -68,7 +68,7 @@ data:
     distort: False
 
     # data loading
-    location: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/dataset_256
+    location: *location
     filelist: *filelist
     batch_size: *batch_size
     load_sdf: False

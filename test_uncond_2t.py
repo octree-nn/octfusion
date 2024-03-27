@@ -1,5 +1,5 @@
 import os
-gpu_ids = 1
+gpu_ids = 0
 os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_ids}"
 
 import torch.backends.cudnn as cudnn
@@ -32,7 +32,7 @@ total_num = category_5_to_num[category]
 model = 'sdfusion_union_two_time_noise_octree'
 df_cfg = 'configs/sdfusion_snet_union_2t.yaml'
 # ckpt_path = f'Tencent/{category}/df_steps-234000.pth'
-ckpt_path = 'logs_home/2024-03-09T12-15-56-sdfusion_union_two_time_noise_octree-snet-airplane-LR1e-4-release/ckpt/df_steps-latest.pth'
+ckpt_path = 'logs_home/continue-2024-03-17T21-01-37-sdfusion_union_two_time_noise_octree-snet-airplane-LR1e-4-release/ckpt/df_steps-latest.pth'
 
 vq_cfg = "configs/shapenet_vae_lr.yaml"
 vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.pth'
@@ -48,7 +48,7 @@ ddim_eta = 0.
 
 for i in range(total_num):
     seed_everything(i)
-    SDFusion.uncond(batch_size=ngen, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
+    SDFusion.uncond_twostep(batch_size=ngen, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
 
     # SDFusion.uncond_withdata_small(data = None, split_path = split_path, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
     # SDFusion.uncond_withdata_large(train_data, steps=ddim_steps, category = category, ema = True, index = i)

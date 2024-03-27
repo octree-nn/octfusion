@@ -1,5 +1,5 @@
 import os
-gpu_ids = 2
+gpu_ids = 1
 os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_ids}"
 
 import torch.backends.cudnn as cudnn
@@ -24,7 +24,7 @@ category_5_to_label = {
 
 category_5_to_num = {'airplane' : 2831, 'car': 5247, 'chair': 4744, 'table': 5956, 'rifle': 1660}
 
-category = 'chair'
+category = 'rifle'
 label = category_5_to_label[category]
 total_num = category_5_to_num[category]
 
