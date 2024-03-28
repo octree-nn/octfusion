@@ -24,7 +24,7 @@ from torch import nn, optim
 from torch.special import expm1
 
 from models.base_model import BaseModel
-from models.networks.diffusion_networks.network_feature import DiffusionUNet
+from models.networks.diffusion_networks.graph_unet_feature import UNet3DModel
 from models.model_utils import load_dualoctree
 from models.networks.diffusion_networks.ldm_diffusion_util import *
 
@@ -84,7 +84,7 @@ class SDFusionModel(BaseModel):
             self.num_classes = unet_params.num_classes
         elif self.conditioning_key == 'None':
             self.num_classes = 1
-        self.df = DiffusionUNet(unet_params, conditioning_key=self.conditioning_key)
+        self.df = UNet3DModel(unet_params)
         self.df.to(self.device)
 
         # record z_shape
@@ -292,8 +292,6 @@ class SDFusionModel(BaseModel):
                 feature_start = self.ema_df(x_feature = noised_feature, doctree = doctree_small, t = noise_cond)
             else:
                 feature_start = self.df(x_feature = noised_feature, doctree = doctree_small, t = noise_cond)
-
-            # print(feature_start.max(), feature_start.min())
 
             c = -expm1(log_snr - log_snr_next)
             c, alpha, alpha_next, sigma_next = c[0], alpha[0], alpha_next[0], sigma_next[0]

@@ -44,7 +44,7 @@ TRUNCATED_TIME = 0.7
 
 class SDFusionModel(BaseModel):
     def name(self):
-        return 'SDFusion-Model-Union-Three-Times'
+        return 'SDFusion-Model-Small'
 
     def initialize(self, opt):
         BaseModel.initialize(self, opt)
@@ -296,6 +296,70 @@ class SDFusionModel(BaseModel):
         save_dir = f'{category}_split_small'
         if not os.path.exists(save_dir): os.makedirs(save_dir)
         torch.save(noised_split_small, os.path.join(f'{category}_split_small', f'{save_index}.pth'))
+
+    @torch.no_grad()
+    def uncond_interp(self, batch_size = 16, category = 'airplane', ema = True, ddim_steps = 200, ddim_eta = 0., truncated_index: float = 0.0, save_index = 0):
+
+        def slerp(z1, z2, alpha):
+            theta = torch.acos(torch.sum(z1 * z2) / (torch.norm(z1) * torch.norm(z2)))
+            return (
+                torch.sin((1 - alpha) * theta) / torch.sin(theta) * z1
+                + torch.sin(alpha * theta) / torch.sin(theta) * z2
+            )
+
+        if ema:
+            self.ema_df.eval()
+        else:
+            self.df.eval()
+
+        shape = (batch_size, *self.z_shape)
+
+        small_time_pairs = self.get_sampling_timesteps(
+            batch_size, device=self.device, steps=ddim_steps)
+
+        noised_split_small1 = torch.randn(shape, device = self.device)
+        noised_split_small2 = torch.randn(shape, device = self.device)
+
+        interp = torch.arange(0.0, 1.01, 0.1).to(self.device)
+
+        for i in range(interp.size(0)):
+            noised_split_small = slerp(noised_split_small1, noised_split_small2, interp[i])
+
+            x_start_small = None
+
+            small_iter = tqdm(small_time_pairs, desc='small sampling loop time step')
+
+            for time, time_next in small_iter:
+
+                log_snr = self.log_snr(time)
+                log_snr_next = self.log_snr(time_next)
+                log_snr, log_snr_next = map(
+                    partial(right_pad_dims_to, noised_split_small), (log_snr, log_snr_next))
+
+                alpha, sigma = log_snr_to_alpha_sigma(log_snr)
+                alpha_next, sigma_next = log_snr_to_alpha_sigma(log_snr_next)
+
+                noise_cond = self.log_snr(time)
+
+                if ema:
+                    x_start_small = self.ema_df(noised_split_small, noise_cond, x_start_small)
+                else:
+                    x_start_small = self.df(noised_split_small, noise_cond, x_start_small)
+
+                if time[0] < TRUNCATED_TIME:
+                    x_start_small.sign_()
+
+                pred_noise = (noised_split_small - alpha * x_start_small) / \
+                    sigma.clamp(min=1e-8)
+
+                noised_split_small = x_start_small * alpha_next + pred_noise * sigma_next
+
+            print(noised_split_small.max(), noised_split_small.min())
+
+            noised_octree_small = self.split2octree_small(noised_split_small)
+
+            self.export_octree(noised_octree_small, self.input_depth, save_dir = f'{category}_small_octree_{save_index}', index = i)
+
 
     def octree2split_small(self, octree):
 
