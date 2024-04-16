@@ -26,4 +26,10 @@ def collate_func(batch):
     if key in output:
       output[key] = torch.cat(output[key], dim=0)
 
+  if 'split_small' in output:
+    output['split_small'] = torch.stack(output['split_small'])
+
+  if 'split_large' in output:
+    output['split_large'] = torch.cat(output['split_large'], dim = 0)
+
   return output

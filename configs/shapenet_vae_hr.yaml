@@ -38,12 +38,14 @@ data:
     distort: False
 
     # data loading
-    location: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/dataset_256
-    filelist: &filelist /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/filelist
-    load_sdf: False
-    load_code: False
-    load_occu: False
-    batch_size: &batch_size 1
+    location: &location /data/xiongbj/ShapeNet/dataset_256
+    filelist: &filelist /data/xiongbj/ShapeNet/filelist
+    load_pointcloud: &load_pointcloud False
+    load_split_small: &load_split_small True
+    load_split_large: &load_split_large True
+    load_sdf: &load_sdf False
+    load_occu: &load_occu False
+    batch_size: &batch_size 8
     shuffle: True
     # num_workers: 0
 
@@ -69,12 +71,14 @@ data:
     distort: False
 
     # data loading
-    location: /data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/dataset_256
+    location: *location
     filelist: *filelist
     batch_size: *batch_size
-    load_sdf: False
-    load_code: False
-    load_occu: False
+    load_pointcloud: *load_pointcloud
+    load_split_small: *load_split_small
+    load_split_large: *load_split_large
+    load_sdf: *load_sdf
+    load_occu: *load_occu
     shuffle: False
     # num_workers: 0
 

@@ -38,7 +38,7 @@ class TransformShape:
     # get the input
     points, normals = sample['points'], sample['normals']
     points = points / self.points_scale  # scale to [-1.0, 1.0]
-    
+
     # transform points to octree
     points_gt = Points(points = torch.from_numpy(points).float(),normals = torch.from_numpy(normals).float())
     points_gt.clip(min=-1, max=1)
@@ -74,7 +74,15 @@ class TransformShape:
     return {'pos': xyz, 'sdf': sdf, 'grad': grad}
 
   def __call__(self, sample, idx):
-    output = self.process_points_cloud(sample['point_cloud'])
+    output = {}
+    if self.flags.load_pointcloud:
+      output = self.process_points_cloud(sample['point_cloud'])
+
+    if self.flags.load_split_small:
+      output['split_small'] = sample['split_small']
+
+    if self.flags.load_split_large:
+      output['split_large'] = sample['split_large']
 
     # sample ground truth sdfs
     if self.flags.load_sdf:
@@ -95,15 +103,35 @@ class TransformShape:
 
 
 class ReadFile:
-  def __init__(self, load_sdf=False, load_occu=False):
+  def __init__(self, load_pointcloud = True, load_split_small = False, load_split_large = False, load_sdf=False, load_occu=False):
+    self.load_pointcloud = load_pointcloud
+    self.load_split_small = load_split_small
+    self.load_split_large = load_split_large
     self.load_occu = load_occu
     self.load_sdf = load_sdf
 
   def __call__(self, filename):
-    filename_pc = os.path.join(filename, 'pointcloud.npz')
-    raw = np.load(filename_pc)
-    point_cloud = {'points': raw['points'], 'normals': raw['normals']}
-    output = {'point_cloud': point_cloud}
+    output = {}
+
+    if self.load_pointcloud:
+      filename_pc = os.path.join(filename, 'pointcloud.npz')
+      raw = np.load(filename_pc)
+      point_cloud = {'points': raw['points'], 'normals': raw['normals']}
+      output['point_cloud'] = point_cloud
+
+    if self.load_split_small:
+      filename_split_small = os.path.join(filename, 'split_small.pth')
+      raw = torch.load(filename_split_small, map_location = 'cpu')
+      output['split_small'] = raw
+
+    if self.load_split_large:
+      filename_split_large = os.path.join(filename, 'split_large.pth')
+      try:
+        raw = torch.load(filename_split_large, map_location = 'cpu')
+      except:
+        print('Error!!')
+        print(filename)
+      output['split_large'] = raw
 
     if self.load_occu:
       filename_occu = os.path.join(filename, 'points.npz')
@@ -121,7 +149,7 @@ class ReadFile:
 
 def get_shapenet_dataset(flags):
   transform = TransformShape(flags)
-  read_file = ReadFile(flags.load_sdf, flags.load_occu)
+  read_file = ReadFile(flags.load_pointcloud, flags.load_split_small, flags.load_split_large, flags.load_sdf, flags.load_occu)
   dataset = Dataset(flags.location, flags.filelist, transform,
                     read_file=read_file, in_memory=flags.in_memory)
   return dataset, collate_func

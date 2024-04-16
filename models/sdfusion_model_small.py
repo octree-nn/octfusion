@@ -27,7 +27,7 @@ import torchvision.utils as vutils
 import torchvision.transforms as transforms
 
 from models.base_model import BaseModel
-from models.networks.diffusion_networks.network_small import DiffusionUNet
+from models.networks.diffusion_networks.graph_unet_small import UNet3DModel
 from models.model_utils import load_dualoctree
 from models.networks.diffusion_networks.ldm_diffusion_util import *
 
@@ -41,6 +41,14 @@ from utils.util_3d import init_mesh_renderer, render_sdf, render_sdf_dualoctree
 from utils.util_dualoctree import calc_sdf
 
 TRUNCATED_TIME = 0.7
+
+category_5_to_label = {
+    'airplane': 0,
+    'car': 1,
+    'chair': 2,
+    'table': 3,
+    'rifle': 4,
+}
 
 class SDFusionModel(BaseModel):
     def name(self):
@@ -81,7 +89,8 @@ class SDFusionModel(BaseModel):
             self.num_classes = unet_params.num_classes
         elif self.conditioning_key == 'None':
             self.num_classes = 1
-        self.df = DiffusionUNet(unet_params, conditioning_key=self.conditioning_key)
+
+        self.df = UNet3DModel(**unet_params)
         self.df.to(self.device)
 
         # record z_shape
@@ -165,7 +174,6 @@ class SDFusionModel(BaseModel):
             device_ids=[opt.local_rank],
             output_device=opt.local_rank,
             broadcast_buffers=False,
-            find_unused_parameters = True,
         )
         if opt.sync_bn:
             self.autoencoder = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.autoencoder)
@@ -174,31 +182,14 @@ class SDFusionModel(BaseModel):
             device_ids=[opt.local_rank],
             output_device=opt.local_rank,
             broadcast_buffers=False,
-            find_unused_parameters = False,
         )
 
     ############################ START: init diffusion params ############################
 
-    def batch_to_cuda(self, batch):
-        def points2octree(points):
-            octree = ocnn.octree.Octree(depth = self.input_depth, full_depth = self.full_depth)
-            octree.build_octree(points)
-            return octree
-
-        points = [pts.cuda(non_blocking=True) for pts in batch['points']]
-        octrees = [points2octree(pts) for pts in points]
-        octree = ocnn.octree.merge_octrees(octrees)
-        octree.construct_all_neigh()
-        batch['octree_in'] = octree
-
-        batch['split_small'] = self.octree2split_small(batch['octree_in'])
-
     def set_input(self, input=None):
-        self.batch_to_cuda(input)
-        self.split_small = input['split_small']
-        self.octree_in = input['octree_in']
-        self.batch_size = self.octree_in.batch_size
-        self.label = input['label']
+        self.split_small = input['split_small'].to(self.device)
+        self.batch_size = self.split_small.shape[0]
+        self.label = input['label'].to(self.device)
 
     def switch_train(self):
         self.df.train()
@@ -225,8 +216,8 @@ class SDFusionModel(BaseModel):
         self_cond = None
         if random() < 0.5:
             with torch.no_grad():
-                self_cond = self.df(x_small = noised_split_small, t = noise_level, self_cond = self_cond)
-        pred = self.df(x_small = noised_split_small, t = noise_level, self_cond = self_cond)
+                self_cond = self.df(x = noised_split_small, timesteps = noise_level, self_cond = self_cond, label = self.label)
+        pred = self.df(x = noised_split_small, timesteps = noise_level, self_cond = self_cond, label = self.label)
 
         self.loss = F.mse_loss(pred, self.split_small)
 
@@ -237,6 +228,10 @@ class SDFusionModel(BaseModel):
         times = torch.stack((times[:, :-1], times[:, 1:]), dim=0)
         times = times.unbind(dim=-1)
         return times
+
+    @torch.no_grad()
+    def inference(self, data, ema = False, ddim_steps=200, ddim_eta=0., phase = ""):
+        pass
 
     @torch.no_grad()
     def uncond(self, batch_size=16, category = 'airplane', ema = True, ddim_steps = 200, ddim_eta = 0., truncated_index: float = 0.0, save_index = 0):
@@ -252,6 +247,10 @@ class SDFusionModel(BaseModel):
             batch_size, device=self.device, steps=ddim_steps)
 
         noised_split_small = torch.randn(shape, device = self.device)
+
+        label = torch.zeros(batch_size).to(self.device)
+        label += category_5_to_label[category]
+        label = label.long()
 
         x_start_small = None
 
@@ -270,9 +269,9 @@ class SDFusionModel(BaseModel):
             noise_cond = self.log_snr(time)
 
             if ema:
-                x_start_small = self.ema_df(noised_split_small, noise_cond, x_start_small)
+                x_start_small = self.ema_df(noised_split_small, noise_cond, x_start_small, label = label)
             else:
-                x_start_small = self.df(noised_split_small, noise_cond, x_start_small)
+                x_start_small = self.df(noised_split_small, noise_cond, x_start_small, label = label)
 
             if time[0] < TRUNCATED_TIME:
                 x_start_small.sign_()
@@ -291,11 +290,11 @@ class SDFusionModel(BaseModel):
 
         noised_octree_small = self.split2octree_small(noised_split_small)
 
-        self.export_octree(noised_octree_small, self.input_depth, save_dir = f'{category}_small_octree', index = save_index)
+        self.export_octree(noised_octree_small, self.input_depth, save_dir = f'{category}_small_octree_cond', index = save_index)
 
-        save_dir = f'{category}_split_small'
+        save_dir = f'{category}_split_small_cond'
         if not os.path.exists(save_dir): os.makedirs(save_dir)
-        torch.save(noised_split_small, os.path.join(f'{category}_split_small', f'{save_index}.pth'))
+        torch.save(noised_split_small, os.path.join(save_dir, f'{save_index}.pth'))
 
     @torch.no_grad()
     def uncond_interp(self, batch_size = 16, category = 'airplane', ema = True, ddim_steps = 200, ddim_eta = 0., truncated_index: float = 0.0, save_index = 0):
@@ -358,8 +357,12 @@ class SDFusionModel(BaseModel):
 
             noised_octree_small = self.split2octree_small(noised_split_small)
 
-            self.export_octree(noised_octree_small, self.input_depth, save_dir = f'{category}_small_octree_{save_index}', index = i)
+            self.export_octree(noised_octree_small, self.input_depth, save_dir = f'interpolation/{category}_small_octree_{save_index}', index = i)
 
+            save_dir = os.path.join('interpolation', f'{category}_split_small_{save_index}')
+
+            os.makedirs(save_dir, exist_ok = True)
+            torch.save(noised_split_small, os.path.join(save_dir, f'{i}.pth'))
 
     def octree2split_small(self, octree):
 
@@ -495,7 +498,7 @@ class SDFusionModel(BaseModel):
         if hasattr(self, 'loss_gamma'):
             ret['gamma'] = self.loss_gamma.data
 
-        return ret, 'small'
+        return ret
 
     def get_current_visuals(self):
 

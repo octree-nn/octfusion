@@ -1,5 +1,5 @@
 import os
-gpu_ids = 0
+gpu_ids = 4
 os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_ids}"
 
 import torch.backends.cudnn as cudnn
@@ -22,17 +22,16 @@ category_5_to_label = {
     'rifle': 4,
 }
 
-category_5_to_num = {'airplane' : 2831, 'car': 5247,  'chair': 4744, 'table': 5956, 'rifle': 1660}
+category_5_to_num = {'airplane' : 2831, 'car': 5247, 'chair': 4744, 'table': 5956, 'rifle': 1660}
 
 category = 'airplane'
 label = category_5_to_label[category]
 total_num = category_5_to_num[category]
 
 # initialize SDFusion model
-model = 'sdfusion_union_two_time_noise_octree'
-df_cfg = 'configs/sdfusion_snet_union_2t.yaml'
-# ckpt_path = f'Tencent/{category}/df_steps-234000.pth'
-ckpt_path = 'logs_home/continue-2024-03-17T21-01-37-sdfusion_union_two_time_noise_octree-snet-airplane-LR1e-4-release/ckpt/df_steps-latest.pth'
+model = 'sdfusion_lr_feature'
+df_cfg = 'configs/sdfusion_snet_lr_feature.yaml'
+ckpt_path = 'logs_home/2024-04-10T14-32-25-sdfusion_lr_feature-snet-airplane-LR1e-4-release/ckpt/df_steps-latest.pth'
 
 vq_cfg = "configs/shapenet_vae_lr.yaml"
 vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.pth'
@@ -43,12 +42,21 @@ opt.init_dset_args(dataset_mode=dset, category = category)
 SDFusion = create_model(opt)
 
 ngen = 1
-ddim_steps = 50
+ddim_steps = 200
 ddim_eta = 0.
+uncond_split_dir = f'{category}_split_small'
 
-for i in range(total_num):
-    seed_everything(i)
-    SDFusion.uncond_twostep(batch_size=ngen, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
+text_cond = 'rocking_chair'
+cond_split_dir = f'text_cond_results/{text_cond}/split'
 
-    # SDFusion.uncond_withdata_small(data = None, split_path = split_path, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
-    # SDFusion.uncond_withdata_large(train_data, steps=ddim_steps, category = category, ema = True, index = i)
+sketch_cond_split_dir = f'/data/xiongbj/OctFusion-Cascade/sketch_cond_results/split/{category}'
+
+split_dir = sketch_cond_split_dir
+
+all_splits = os.listdir(split_dir)
+
+for split in all_splits:
+    seed_everything(0)
+    split_path = os.path.join(split_dir, split)
+    index = int(split[:-4])
+    SDFusion.uncond(data = None, split_path = split_path, category = category, suffix = 'sketch_cond', ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = index)

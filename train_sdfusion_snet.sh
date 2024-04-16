@@ -6,14 +6,14 @@ logs_dir='logs_home'
 
 ### set gpus ###
 # gpu_ids=0          # single-gpu
-gpu_ids=0,1        # multi-gpu
+gpu_ids=6,7        # multi-gpu
 
 if [ ${#gpu_ids} -gt 1 ]; then
     # specify these two if multi-gpu
     # NGPU=2
     # NGPU=3
     NGPU=2
-    PORT=11769
+    PORT=11767
     echo "HERE"
 fi
 ################
@@ -33,7 +33,7 @@ ckpt_num=10
 note="release"
 model='sdfusion_lr_feature'
 df_cfg='configs/sdfusion_snet_lr_feature.yaml'
-# ckpt="df_steps-latest.pth"
+ckpt="logs_home/2024-04-15T15-28-56-sdfusion_lr_feature-snet-table-LR1e-4-release/ckpt/df_steps-latest.pth"
 
 vq_model="GraphVAE"
 vq_cfg='configs/shapenet_vae_lr.yaml'
@@ -45,12 +45,12 @@ vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.p
 ### dataset stuff ###
 dataset_mode='snet'
 dataroot="data"
-category='im_5'
+category='table'
 
 #####################
 
 ### display & log stuff ###
-display_freq=500
+display_freq=5000
 print_freq=25
 save_steps_freq=3000
 ###########################

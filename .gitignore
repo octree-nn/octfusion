@@ -27,6 +27,7 @@ qual_logs*/
 # data
 data
 demo_data/
+*results*/
 *airplane*/
 *chair*/
 *table*/

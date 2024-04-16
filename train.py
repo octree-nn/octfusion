@@ -59,7 +59,8 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
         model.set_input(data)
         model.optimize_parameters()
 
-        # nBatches_has_trained += opt.batch_size
+        # if torch.isnan(model.loss).any() == True:
+        #     break
 
         if get_rank() == 0:
             if iter_i % opt.print_freq == 0:

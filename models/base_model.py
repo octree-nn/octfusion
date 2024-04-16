@@ -14,58 +14,23 @@ def create_model(opt):
     elif opt.model == 'sdfusion_small':
         from models.sdfusion_model_small import SDFusionModel
         model = SDFusionModel()
-    
+
     elif opt.model == 'sdfusion_lr_feature':
         from models.sdfusion_model_lr_feature import SDFusionModel
+        model = SDFusionModel()
+
+    elif opt.model == 'sdfusion_lr_feature_5':
+        from models.sdfusion_model_lr_feature_5 import SDFusionModel
         model = SDFusionModel()
 
     elif opt.model == 'sdfusion_hr_large':
         from models.sdfusion_model_hr_large import SDFusionModel
         model = SDFusionModel()
-    
+
     elif opt.model == 'sdfusion_hr_feature':
         from models.sdfusion_model_hr_feature import SDFusionModel
         model = SDFusionModel()
 
-    elif opt.model == 'sdfusion_union_two_time':
-        from models.sdfusion_model_union_two_time import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_union_two_time_noise_octree':
-        from models.sdfusion_model_union_two_time_noise_octree import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_union_three_time':
-        from models.sdfusion_model_union_three_time import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_union_three_time_pred_x0':
-        from models.sdfusion_model_union_three_time_pred_x0 import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_union_three_time_pred_noise':
-        from models.sdfusion_model_union_three_time_pred_noise import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_union_three_time_noise_octree':
-        from models.sdfusion_model_union_three_time_noise_octree import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_union_four_time':
-        from models.sdfusion_model_union_four_time import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion-txt2shape':
-        from models.sdfusion_txt2shape_model import SDFusionText2ShapeModel
-        model = SDFusionText2ShapeModel()
-
-    elif opt.model == 'sdfusion-img2shape':
-        from models.sdfusion_img2shape_model import SDFusionImage2ShapeModel
-        model = SDFusionImage2ShapeModel()
-
-    elif opt.model == 'sdfusion-mm2shape':
-        from models.sdfusion_mm_model import SDFusionMultiModal2ShapeModel
-        model = SDFusionMultiModal2ShapeModel()
 
     else:
         raise ValueError("Model [%s] not recognized." % opt.model)

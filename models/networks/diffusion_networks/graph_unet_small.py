@@ -224,7 +224,6 @@ class UNet3DModel(nn.Module):
         in_channels,
         model_channels,
         out_channels,
-        num_res_blocks,
         attention_resolutions,
         dropout=0,
         channel_mult=(1, 2, 4, 8),
@@ -254,7 +253,6 @@ class UNet3DModel(nn.Module):
         self.in_channels = in_channels
         self.model_channels = model_channels
         self.out_channels = out_channels
-        self.num_res_blocks = num_res_blocks
         self.attention_resolutions = attention_resolutions
         self.dropout = dropout
         self.channel_mult = channel_mult
@@ -347,7 +345,7 @@ class UNet3DModel(nn.Module):
         self.out = conv_nd(dims, model_channels, out_channels, 3, padding=1)
 
 
-    def forward(self, x, timesteps=None, x_self_cond=None, context=None, y=None,**kwargs):
+    def forward(self, x, timesteps=None, x_self_cond=None, label = None, context=None, **kwargs):
         """
         Apply the model to an input batch.
         :param x: an [N x C x ...] Tensor of inputs.
@@ -356,9 +354,9 @@ class UNet3DModel(nn.Module):
         :param y: an [N] Tensor of labels, if class-conditional.
         :return: an [N x C x ...] Tensor of outputs.
         """
-        assert (y is not None) == (
+        assert (label is not None) == (
             self.num_classes is not None
-        ), "must specify y if and only if the model is class-conditional"
+        ), "must specify label if and only if the model is class-conditional"
 
         x_self_cond = default(x_self_cond, lambda: torch.zeros_like(x))
         x = torch.cat((x, x_self_cond), dim=1)
@@ -368,8 +366,8 @@ class UNet3DModel(nn.Module):
         emb = self.time_emb(self.time_pos_emb(timesteps))
 
         if self.num_classes is not None:
-            assert y.shape == (x.shape[0],)
-            emb = emb + self.label_emb(y)
+            assert label.shape == (x.shape[0],)
+            emb = emb + self.label_emb(label)
 
         for resnet, self_attn, downsample in self.downs:
             x = resnet(x, emb)

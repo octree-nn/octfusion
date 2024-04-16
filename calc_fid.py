@@ -1,7 +1,7 @@
 import torch
 from cleanfid import fid
 import os
-gpu_ids = 0
+gpu_ids = 4
 os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_ids}"
 
 snc_synth_id_to_category_5 = {
@@ -12,12 +12,12 @@ snc_synth_id_to_category_5 = {
 
 category_to_snc_synth_id = {v:k for (k,v) in snc_synth_id_to_category_5.items()}
 
-category = 'chair'
+category = 'car'
 synth_id = category_to_snc_synth_id[category]
 
 # synthesis_path = f'fid_{category}_uncond'
-synthesis_path = '/data/checkpoints/xiongbj/OctFusion-Union/fid_chair_uncond_3t'
-dataset_path = f'/data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/fid_images/{category}'
+synthesis_path = f'/data/xiongbj/OctFusion-Cascade/fid_{category}_uncond_2t'
+dataset_path = f'/data/xiongbj/ShapeNet/fid_images/{category}'
 
 views1 = os.listdir(synthesis_path)
 views2 = os.listdir(dataset_path)

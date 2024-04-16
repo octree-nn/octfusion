@@ -80,11 +80,7 @@ class SDFusionModel(BaseModel):
         self.conditioning_key = df_model_params.conditioning_key
         self.num_timesteps = df_model_params.timesteps
 
-        if self.conditioning_key == 'adm':
-            self.num_classes = unet_params.num_classes
-        elif self.conditioning_key == 'None':
-            self.num_classes = 1
-        self.df = UNet3DModel(unet_params)
+        self.df = UNet3DModel(**unet_params)
         self.df.to(self.device)
 
         # record z_shape
@@ -162,7 +158,6 @@ class SDFusionModel(BaseModel):
             device_ids=[opt.local_rank],
             output_device=opt.local_rank,
             broadcast_buffers=False,
-            find_unused_parameters=True,
         )
         if opt.sync_bn:
             self.autoencoder = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.autoencoder)
@@ -171,7 +166,6 @@ class SDFusionModel(BaseModel):
             device_ids=[opt.local_rank],
             output_device=opt.local_rank,
             broadcast_buffers=False,
-            find_unused_parameters = False,
         )
 
     ############################ START: init diffusion params ############################
@@ -237,9 +231,11 @@ class SDFusionModel(BaseModel):
             sigma_i = sigma[i] * noise_i
             noised_feature[batch_id == i] += sigma_i
 
-        output = self.df(x_feature = noised_feature, doctree = self.doctree_in, t = noise_level)
+        output = self.df(x_feature = noised_feature, doctree = self.doctree_in, timesteps = noise_level)
 
-        self.loss = F.mse_loss(output, self.input_data)
+        self.loss = F.mse_loss(output, noise)
+
+        # self.loss = F.mse_loss(output, self.input_data)
 
 
     def get_sampling_timesteps(self, batch, device, steps):
@@ -252,7 +248,7 @@ class SDFusionModel(BaseModel):
 
     # check: ddpm.py, log_images(). line 1317~1327
     @torch.no_grad()
-    def inference(self, data, ema = False, ddim_steps=200, ddim_eta=0., phase = ""):
+    def inference(self, data, ema = False, ddim_steps=200, ddim_eta=0., phase = "", is_pred_noise = True):
 
         if ema:
             self.ema_df.eval()
@@ -272,7 +268,7 @@ class SDFusionModel(BaseModel):
         noised_feature = torch.randn((doctree_small_num, self.code_channel), device = self.device)
 
         feature_time_pairs = self.get_sampling_timesteps(
-            4, device=self.device, steps=ddim_steps)
+            batch_size, device=self.device, steps=ddim_steps)
 
         feature_start = None
 
@@ -283,21 +279,34 @@ class SDFusionModel(BaseModel):
             log_snr = self.log_snr(time)
             log_snr_next = self.log_snr(time_next)
 
-            alpha, _ = log_snr_to_alpha_sigma(log_snr)
+            alpha, sigma = log_snr_to_alpha_sigma(log_snr)
             alpha_next, sigma_next = log_snr_to_alpha_sigma(log_snr_next)
 
             noise_cond = log_snr
 
-            if ema:
-                feature_start = self.ema_df(x_feature = noised_feature, doctree = doctree_small, t = noise_cond)
-            else:
-                feature_start = self.df(x_feature = noised_feature, doctree = doctree_small, t = noise_cond)
+            if is_pred_noise:
+                if ema:
+                    pred_noise = self.ema_df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
+                else:
+                    pred_noise = self.df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
 
-            c = -expm1(log_snr - log_snr_next)
-            c, alpha, alpha_next, sigma_next = c[0], alpha[0], alpha_next[0], sigma_next[0]
-            mean = alpha_next * (noised_feature * (1 - c) / alpha + c * feature_start)
-            variance = (sigma_next ** 2) * c
-            noised_feature = mean + torch.sqrt(variance) * torch.randn_like(noised_feature)
+                alpha, sigma, alpha_next, sigma_next = alpha[0], sigma[0], alpha_next[0], sigma_next[0]
+
+                feature_start = (noised_feature - pred_noise * sigma) / alpha.clamp(min=1e-8)
+
+                noised_feature = feature_start * alpha_next + pred_noise * sigma_next
+
+            else:
+                if ema:
+                    feature_start = self.ema_df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
+                else:
+                    feature_start = self.df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
+
+                c = -expm1(log_snr - log_snr_next)
+                c, alpha, alpha_next, sigma_next = c[0], alpha[0], alpha_next[0], sigma_next[0]
+                mean = alpha_next * (noised_feature * (1 - c) / alpha + c * feature_start)
+                variance = (sigma_next ** 2) * c
+                noised_feature = mean + torch.sqrt(variance) * torch.randn_like(noised_feature)
 
         samples = noised_feature
 
@@ -316,9 +325,8 @@ class SDFusionModel(BaseModel):
 
         self.df.train()
 
-
     @torch.no_grad()
-    def uncond(self, data, split_path, category = 'airplane', suffix = 'mesh_2t', ema = False, ddim_steps=200, ddim_eta=0., save_index = 0):
+    def uncond(self, data, split_path, category = 'airplane', suffix = 'mesh_2t', ema = False, ddim_steps=200, ddim_eta=0., clean = False, save_index = 0):
 
         if ema:
             self.ema_df.eval()
@@ -356,23 +364,21 @@ class SDFusionModel(BaseModel):
             log_snr = self.log_snr(time)
             log_snr_next = self.log_snr(time_next)
 
-            alpha, _ = log_snr_to_alpha_sigma(log_snr)
+            alpha, sigma = log_snr_to_alpha_sigma(log_snr)
             alpha_next, sigma_next = log_snr_to_alpha_sigma(log_snr_next)
 
             noise_cond = log_snr
 
             if ema:
-                feature_start = self.ema_df(x_feature = noised_feature, doctree = doctree_small, t = noise_cond)
+                pred_noise = self.ema_df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
             else:
-                feature_start = self.df(x_feature = noised_feature, doctree = doctree_small, t = noise_cond)
+                pred_noise = self.df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
 
-            # print(feature_start.max(), feature_start.min())
+            alpha, sigma, alpha_next, sigma_next = alpha[0], sigma[0], alpha_next[0], sigma_next[0]
 
-            c = -expm1(log_snr - log_snr_next)
-            c, alpha, alpha_next, sigma_next = c[0], alpha[0], alpha_next[0], sigma_next[0]
-            mean = alpha_next * (noised_feature * (1 - c) / alpha + c * feature_start)
-            variance = (sigma_next ** 2) * c
-            noised_feature = mean + torch.sqrt(variance) * torch.randn_like(noised_feature)
+            feature_start = (noised_feature - pred_noise * sigma) / alpha.clamp(min=1e-8)
+
+            noised_feature = feature_start * alpha_next + pred_noise * sigma_next
 
         samples = noised_feature
 
@@ -384,7 +390,7 @@ class SDFusionModel(BaseModel):
         # decode z
         self.output = self.autoencoder_module.decode_code(samples, doctree_small)
         self.get_sdfs(self.output['neural_mpu'], batch_size, bbox = None)
-        self.export_mesh(save_dir = f'{category}_{suffix}', index = save_index)
+        self.export_mesh(save_dir = f'{category}_{suffix}', index = save_index, clean = clean)
 
 
     def octree2split_small(self, octree):
@@ -493,12 +499,10 @@ class SDFusionModel(BaseModel):
 
         self.sdfs = calc_sdf(neural_mpu, batch_size, size = self.solver.resolution, bbmin = self.bbmin, bbmax = self.bbmax)
 
-    def export_mesh(self, save_dir, index = 0, level = 0):
+    def export_mesh(self, save_dir, index = 0, level = 0, clean = False):
         if not os.path.exists(save_dir): os.makedirs(save_dir)
         ngen = self.sdfs.shape[0]
         size = self.solver.resolution
-        bbmin = self.bbmin
-        bbmax = self.bbmax
         mesh_scale=self.vq_conf.data.test.point_scale
         for i in range(ngen):
             filename = os.path.join(save_dir, f'{i}.obj')
@@ -513,9 +517,18 @@ class SDFusionModel(BaseModel):
             if vtx.size == 0 or faces.size == 0:
                 print('Warning from marching cubes: Empty mesh!')
                 return
-            vtx = vtx * ((bbmax - bbmin) / size) + bbmin   # [0,sz]->[bbmin,bbmax]  把vertex放缩到[bbmin, bbmax]之间
+            vtx = vtx * ((self.bbmax - self.bbmin) / size) + self.bbmin   # [0,sz]->[bbmin,bbmax]  把vertex放缩到[bbmin, bbmax]之间
             vtx = vtx * mesh_scale
             mesh = trimesh.Trimesh(vtx, faces)  # 利用Trimesh创建mesh并存储为obj文件。
+            if clean:
+                components = mesh.split(only_watertight=False)
+                bbox = []
+                for c in components:
+                    bbmin = c.vertices.min(0)
+                    bbmax = c.vertices.max(0)
+                    bbox.append((bbmax - bbmin).max())
+                max_component = np.argmax(bbox)
+                mesh = components[max_component]
             mesh.export(filename)
 
     @torch.no_grad()
