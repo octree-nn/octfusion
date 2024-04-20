@@ -13,7 +13,7 @@ if [ ${#gpu_ids} -gt 1 ]; then
     # NGPU=2
     # NGPU=3
     NGPU=2
-    PORT=11767
+    PORT=11770
     echo "HERE"
 fi
 ################
@@ -31,13 +31,12 @@ ckpt_num=10
 
 ### model stuff ###
 note="release"
-model='sdfusion_lr_feature'
-df_cfg='configs/sdfusion_snet_lr_feature.yaml'
-ckpt="logs_home/2024-04-15T15-28-56-sdfusion_lr_feature-snet-table-LR1e-4-release/ckpt/df_steps-latest.pth"
+model='sdfusion_lr_feature_5'
+df_cfg='configs/sdfusion_snet_lr_feature_5.yaml'
+ckpt="logs_home/2024-04-15T15-29-52-sdfusion_lr_feature_5-snet-im_5-LR1e-4-release/ckpt/df_steps-latest.pth"
 
 vq_model="GraphVAE"
 vq_cfg='configs/shapenet_vae_lr.yaml'
-# vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth"
 vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.pth"
 
 ####################
@@ -45,7 +44,7 @@ vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.p
 ### dataset stuff ###
 dataset_mode='snet'
 dataroot="data"
-category='table'
+category='im_5'
 
 #####################
 

@@ -2,7 +2,7 @@ from utils.render_utils import generate_image_for_fid
 import trimesh
 import os
 
-category = "car"
+category = "table"
 
 snc_category_to_synth_id_13 = {
     'airplane': '02691156',

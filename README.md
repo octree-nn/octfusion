@@ -23,6 +23,8 @@ cd pytorch3d && pip3 install -e .   \or
 conda install pytorch3d -c pytorch3d
 
 pip3 install ocnn h5py joblib termcolor scipy einops tqdm matplotlib opencv-python PyMCubes imageio trimesh omegaconf tensorboard notebook numpy tqdm yacs scipy plyfile tensorboard scikit-image trimesh wget mesh2sdf setuptools matplotlib
+
+pip3 install pyrr pyglet pyrender
 ```
 
 # Usage

@@ -1,5 +1,5 @@
 import os
-gpu_ids = 4
+gpu_ids = 5
 os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_ids}"
 
 import torch.backends.cudnn as cudnn
@@ -31,7 +31,7 @@ total_num = category_5_to_num[category]
 # initialize SDFusion model
 model = 'sdfusion_lr_feature'
 df_cfg = 'configs/sdfusion_snet_lr_feature.yaml'
-ckpt_path = 'logs_home/2024-04-12T16-51-20-sdfusion_lr_feature-snet-table-LR1e-4-release/ckpt/df_steps-576000.pth'
+ckpt_path = 'logs_home/2024-04-16T01-11-14-sdfusion_lr_feature-snet-table-LR1e-4-release/ckpt/df_steps-latest.pth'
 
 vq_cfg = "configs/shapenet_vae_lr.yaml"
 vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.pth'
