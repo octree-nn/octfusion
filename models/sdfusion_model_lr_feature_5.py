@@ -39,6 +39,14 @@ from utils.util_dualoctree import calc_sdf
 
 TRUNCATED_TIME = 0.7
 
+category_5_to_label = {
+    'airplane': 0,
+    'car': 1,
+    'chair': 2,
+    'table': 3,
+    'rifle': 4,
+}
+
 class SDFusionModel(BaseModel):
     def name(self):
         return 'SDFusion-Model-Union-Two-Times'
@@ -339,10 +347,14 @@ class SDFusionModel(BaseModel):
         doctree_small_num = doctree_small.total_num
         noised_feature = torch.randn((doctree_small_num, self.code_channel), device = self.device)
 
-        feature_time_pairs = self.get_sampling_timesteps(
-            batch_size, device=self.device, steps=ddim_steps)
+        label = torch.zeros(batch_size).to(self.device)
+        label += category_5_to_label[category]
+        label = label.long()
 
         feature_start = None
+
+        feature_time_pairs = self.get_sampling_timesteps(
+            batch_size, device=self.device, steps=ddim_steps)
 
         feature_iter = tqdm(feature_time_pairs, desc='feature stage sampling loop time step')
 
@@ -357,9 +369,9 @@ class SDFusionModel(BaseModel):
             noise_cond = log_snr
 
             if ema:
-                pred_noise = self.ema_df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
+                pred_noise = self.ema_df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond, label = label)
             else:
-                pred_noise = self.df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
+                pred_noise = self.df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond, label = label)
 
             alpha, sigma, alpha_next, sigma_next = alpha[0], sigma[0], alpha_next[0], sigma_next[0]
 
