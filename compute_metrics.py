@@ -9,34 +9,48 @@ import os
 import argparse
 import trimesh.sample
 import numpy as np
+import torch
 from tqdm import tqdm
 from scipy.spatial import cKDTree
 
+def distChamfer(a, b):
+    x, y = a, b
+    bs, num_points, points_dim = x.size()
+    xx = torch.bmm(x, x.transpose(2, 1))
+    yy = torch.bmm(y, y.transpose(2, 1))
+    zz = torch.bmm(x, y.transpose(2, 1))
+    diag_ind = torch.arange(0, num_points).to(a).long()
+    rx = xx[:, diag_ind, diag_ind].unsqueeze(1).expand_as(xx)
+    ry = yy[:, diag_ind, diag_ind].unsqueeze(1).expand_as(yy)
+    P = (rx.transpose(2, 1) + ry - 2 * zz)
+    return P.min(1)[0], P.min(2)[0]
+
+try:
+    from metrics.StructuralLosses.nn_distance import nn_distance
+    def distChamferCUDA(x, y):
+        return nn_distance(x, y)
+except Exception as e:
+    print(str(e))
+    print("distChamferCUDA not available; fall back to slower version.")
+    def distChamferCUDA(x, y):
+        return distChamfer(x, y)
 
 
-def compute_metrics(filename_ref, filename_pred, num_samples=30000):
-  mesh_ref = trimesh.load(filename_ref)
-  points_ref, idx_ref = trimesh.sample.sample_surface(mesh_ref, num_samples)
-  normals_ref = mesh_ref.face_normals[idx_ref]
-  # points_ref, normals_ref = read_ply(filename_ref)
+def compute_metrics(sample_pcs, ref_pcs, batch_size):
 
-  mesh_pred = trimesh.load(filename_pred)
-  points_pred, idx_pred = trimesh.sample.sample_surface(mesh_pred, num_samples)
-  normals_pred = mesh_pred.face_normals[idx_pred]
+  N_ref = ref_pcs.shape[0]
+  cd_lst = []
+  for ref_b_start in range(0, N_ref, batch_size):
+    ref_b_end = min(N_ref, ref_b_start + batch_size)
+    ref_batch = ref_pcs[ref_b_start:ref_b_end]
 
-  kdtree_a = cKDTree(points_ref)
-  dist_a, idx_a = kdtree_a.query(points_pred)
-  chamfer_a = np.mean(dist_a)
-  dot_a = np.sum(normals_pred * normals_ref[idx_a], axis=1)
-  angle_a = np.mean(np.arccos(dot_a) * (180.0 / np.pi))
-  consist_a = np.mean(np.abs(dot_a))
-
-  kdtree_b = cKDTree(points_pred)
-  dist_b, idx_b = kdtree_b.query(points_ref)
-  chamfer_b = np.mean(dist_b)
-  dot_b = np.sum(normals_ref * normals_pred[idx_b], axis=1)
-  angle_b = np.mean(np.arccos(dot_b) * (180 / np.pi))
-  consist_b = np.mean(np.abs(dot_b))
-
-  return chamfer_a, chamfer_b, angle_a, angle_b, consist_a, consist_b
-
+    batch_size_ref = ref_batch.size(0)
+    sample_batch_exp = sample_pcs.view(1, -1, 3).expand(batch_size_ref, -1, -1)
+    sample_batch_exp = sample_batch_exp.contiguous()
+    dl, dr = distChamferCUDA(sample_batch_exp, ref_batch)
+    cd = (dl.mean(dim=1) + dr.mean(dim=1)).view(1, -1)
+    cd_lst.append(cd)
+  
+  cd_lst = torch.cat(cd_lst, dim=1)
+  
+  return cd_lst

@@ -31,9 +31,9 @@ ckpt_num=10
 
 ### model stuff ###
 note="release"
-model='sdfusion_lr_feature'
-df_cfg='configs/sdfusion_snet_lr_feature.yaml'
-ckpt="logs_home/2024-04-16T01-11-14-sdfusion_lr_feature-snet-table-LR1e-4-release/ckpt/df_steps-latest.pth"
+model='sdfusion_lr_feature_5'
+df_cfg='configs/sdfusion_snet_lr_feature_5.yaml'
+ckpt="logs_home/2024-04-20T11-29-48-sdfusion_lr_feature_5-snet-im_5-LR1e-4-release/ckpt/df_steps-latest.pth"
 
 vq_model="GraphVAE"
 vq_cfg='configs/shapenet_vae_lr.yaml'
@@ -44,7 +44,7 @@ vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.p
 ### dataset stuff ###
 dataset_mode='snet'
 dataroot="data"
-category='table'
+category='im_5'
 
 #####################
 

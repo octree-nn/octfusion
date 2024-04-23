@@ -22,7 +22,7 @@ def distChamfer(a, b):
 
 # Import CUDA version of approximate EMD, from https://github.com/zekunhao1995/pcgan-pytorch/
 try:
-    from StructuralLosses.nn_distance import nn_distance
+    from .StructuralLosses.nn_distance import nn_distance
     def distChamferCUDA(x, y):
         return nn_distance(x, y)
 except Exception as e:
@@ -53,7 +53,7 @@ def emd_approx(x, y):
 
 
 try:
-    from StructuralLosses.match_cost import match_cost
+    from .StructuralLosses.match_cost import match_cost
     def emd_approx_cuda(sample, ref):
         B, N, N_ref = sample.size(0), sample.size(1), ref.size(1)
         assert N == N_ref, "Not sure what would EMD do in this case"

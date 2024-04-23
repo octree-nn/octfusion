@@ -1,32 +1,45 @@
 import os
 import sys
 from compute_metrics import compute_metrics
+import trimesh
+import numpy as np
+import torch
+import pickle
 
-num_samples = 10000
+num_samples = 2048
 
-input_obj = 'rifle_lr/15.obj'
+input_obj = 'chair_mesh_2t/0.obj'
 
-train_dataset = 'rifle_lr_gt'
+def normalize_pc_to_unit_shpere(points):
+    centroid = (np.max(points, axis=0) + np.min(points, axis=0))/2
+    points -= centroid
+    distances = np.linalg.norm(points, axis=1)
+    points /= np.max(distances)
+    return points
 
-train_meshes = os.listdir(train_dataset)
+mesh = trimesh.load(input_obj, force='mesh')
+points, idx = trimesh.sample.sample_surface(mesh, num_samples)
+points = points.astype(np.float32)
 
-chamfer_min = sys.maxsize
+points = normalize_pc_to_unit_shpere(points)
 
-res = []
+points = torch.from_numpy(points)
+points = points.cuda().to(torch.float32)
 
-for index, mesh in enumerate(train_meshes):
-    print(index, mesh)
-    mesh_path = os.path.join(train_dataset, mesh)
-    filename_ref = mesh_path
-    filename_gen = input_obj
-    metrics = compute_metrics(filename_ref, filename_gen, num_samples)
-    chamfer_a, chamfer_b = metrics[0], metrics[1]
-    chamfer = 0.5 * (chamfer_a + chamfer_b)
-    if len(res) < 5: res.append([chamfer, mesh])
-    else:
-        res.sort()
-        if chamfer < res[-1][0]:
-            res[-1] = [chamfer, mesh]
+sample_pc = points
 
-res.sort()
-print(res)
+ref_pcs = torch.load('chair_train_ref_pcs.pth')
+ref_pcs = ref_pcs.cuda().to(torch.float32)
+
+cd = compute_metrics(sample_pc, ref_pcs, batch_size = 256)
+
+with open('name.pkl', 'rb') as file:
+    name = pickle.load(file)
+
+k = 3
+
+sorted_values, sorted_indices = torch.topk(cd.view(-1), k, largest=False)
+
+print(name[sorted_indices[0].item()])
+print(name[sorted_indices[1].item()])
+print(name[sorted_indices[2].item()])

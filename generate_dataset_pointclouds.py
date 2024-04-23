@@ -4,8 +4,8 @@ import numpy as np
 from tqdm import tqdm
 
 filelist = '/data/xiongbj/ShapeNet/filelist/test_chair.txt'
-mesh_dataset = '/data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/mesh_256'
-pointcloud_path = '/data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/test_pointclouds'
+mesh_dataset = '/data/xiongbj/ShapeNet/mesh'
+pointcloud_path = '/data/xiongbj/ShapeNet/test_pointclouds'
 
 def scale_to_unit_sphere(mesh):
     if isinstance(mesh, trimesh.Scene):
@@ -19,7 +19,7 @@ def sample_pts_from_mesh(mesh_path, output_path):
 
     num_samples = 2048
     mesh = trimesh.load(mesh_path, force='mesh')
-    mesh = scale_to_unit_sphere(mesh)
+    # mesh = scale_to_unit_sphere(mesh)
     points = mesh.sample(count = num_samples)
 
     np.save(output_path, points.astype(np.float32))
@@ -35,6 +35,6 @@ if __name__ == '__main__':
         category = filename.split('/')[0]
         category_path = os.path.join(pointcloud_path, category)
         if not os.path.exists(category_path): os.makedirs(category_path)
-        mesh_path = os.path.join(mesh_dataset, filename + '.obj')
+        mesh_path = os.path.join(mesh_dataset, filename, 'model.obj')
         output_path = os.path.join(pointcloud_path, filename + '.npy')
         sample_pts_from_mesh(mesh_path, output_path)

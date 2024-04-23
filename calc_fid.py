@@ -12,11 +12,14 @@ snc_synth_id_to_category_5 = {
 
 category_to_snc_synth_id = {v:k for (k,v) in snc_synth_id_to_category_5.items()}
 
-category = 'table'
+category = 'airplane'
+cond = True
 synth_id = category_to_snc_synth_id[category]
 
-# synthesis_path = f'fid_{category}_uncond'
-synthesis_path = f'/data/xiongbj/OctFusion-Cascade/fid_{category}_uncond_2t'
+if cond:
+    synthesis_path = f'/data/xiongbj/OctFusion-Cascade/fid_{category}_cond_2t'
+else:
+    synthesis_path = f'/data/xiongbj/OctFusion-Cascade/fid_{category}_uncond_2t'
 dataset_path = f'/data/xiongbj/ShapeNet/fid_images/{category}'
 
 views1 = os.listdir(synthesis_path)
