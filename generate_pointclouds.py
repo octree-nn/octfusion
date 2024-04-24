@@ -19,7 +19,7 @@ def sample_pts_from_mesh(mesh_folder, output_folder):
     print('-> Run sample_pts_from_mesh.')
     num_samples = 2048
     filenames = os.listdir(mesh_folder)
-    for mesh_name in tqdm(filenames[:1356]):
+    for mesh_name in tqdm(filenames[:2000]):
         mesh_path = os.path.join(mesh_folder, mesh_name)
         mesh = trimesh.load(mesh_path, force='mesh')
         # mesh: trimesh.Trimesh = scale_to_unit_sphere(mesh)

@@ -33,7 +33,7 @@ ckpt_num=10
 note="release"
 model='sdfusion_lr_feature_5'
 df_cfg='configs/sdfusion_snet_lr_feature_5.yaml'
-ckpt="logs_home/2024-04-20T11-29-48-sdfusion_lr_feature_5-snet-im_5-LR1e-4-release/ckpt/df_steps-latest.pth"
+ckpt="logs_home/2024-04-23T11-14-25-sdfusion_lr_feature_5-snet-im_5-LR1e-4-release/ckpt/df_steps-latest.pth"
 
 vq_model="GraphVAE"
 vq_cfg='configs/shapenet_vae_lr.yaml'

@@ -6,9 +6,12 @@ import numpy as np
 import torch
 import pickle
 
+gpu_ids = 3
+os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_ids}"
+
 num_samples = 2048
 
-input_obj = 'chair_mesh_2t/0.obj'
+input_obj = 'chair_mesh_2t/4165.obj'
 
 def normalize_pc_to_unit_shpere(points):
     centroid = (np.max(points, axis=0) + np.min(points, axis=0))/2

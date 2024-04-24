@@ -22,10 +22,6 @@ snc_category_to_synth_id_13 = {
     'vessel': '04530566',
 }
 
-
-synth_id = snc_category_to_synth_id_13[category]
-# filelist = f'/data/checkpoints/xiongbj/DualOctreeGNN-Pytorch-HR/data/ShapeNet/filelist/train_{category}.txt'
-
 if cond:
     fid_root = f'./fid_{category}_cond_2t'
 else:
