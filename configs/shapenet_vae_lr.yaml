@@ -39,8 +39,8 @@ data:
     # data loading
     location: &location /data/xiongbj/ShapeNet/dataset_256
     filelist: &filelist /data/xiongbj/ShapeNet/filelist
-    load_octree: &load_octree True
-    load_pointcloud: &load_pointcloud False
+    load_octree: &load_octree False
+    load_pointcloud: &load_pointcloud True
     load_split_small: &load_split_small False
     load_split_large: &load_split_large False
     load_sdf: &load_sdf False

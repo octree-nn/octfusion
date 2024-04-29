@@ -54,7 +54,6 @@ split_dir = uncond_split_dir
 
 all_splits = os.listdir(split_dir)
 
-
 for i in range(total_num):
     seed_everything(0)
     split_path = os.path.join(split_dir, f'{i}.pth')

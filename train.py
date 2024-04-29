@@ -28,44 +28,29 @@ from utils.util import seed_everything
 import torch
 from utils.visualizer import Visualizer
 
-def generate(opt, model, train_loader, test_loader, visualizer):
+category_5_to_num = {'airplane' : 2831, 'car': 5247, 'chair': 4744, 'table': 5956, 'rifle': 1660}
 
-    if get_rank() == 0:
-        cprint('[*] Start training. name: %s' % opt.name, 'blue')
-
-    train_dg = get_data_generator(train_loader)
-    test_dg = get_data_generator(test_loader)
-
-    epoch_length = len(train_loader)
-    print('The total train length is', epoch_length)
-
-    epoch = 0
-
-    total_iters = epoch_length * opt.epochs
+def generate(opt, model):
 
     # get n_epochs here
-    # opt.total_iters = 100000000
+    total_iters = 100000000
     pbar = tqdm(total=total_iters)
+
+    category = opt.category
+    uncond_split_dir = f'{category}_split_small'
+    cond_split_dir = f'{category}_split_small_cond'
+
+    split_dir = uncond_split_dir
+
+    total_num = category_5_to_num[category]
 
     for iter_i in range(total_iters):
 
-        opt.iter_i = iter_i
-
-        if get_rank() == 0:
-            visualizer.reset()
-
-        data = next(test_dg)
-        data['iter_num'] = iter_i
-        data['epoch'] = epoch
-        model.set_input(data)
-        model.batch_size = 1
-        now_iter = iter_i * get_world_size() + get_rank()
-        seed_everything(now_iter + opt.seed)
-        result_index = [str(now_iter * model.batch_size + i) for i in range(model.batch_size)]
-        print(result_index)
-        if int(result_index[-1]) >= 1660:
-            break
-        model.uncond(data = data, split_path = None, category = 'rifle', suffix = 'mesh_test', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = result_index)
+        result_index = iter_i * get_world_size() + get_rank()
+        split_path = os.path.join(split_dir, f'{result_index}.pth')
+        seed_everything(0)
+        if result_index >= total_num: break
+        model.uncond(data = None, split_path = split_path, category = category, suffix = 'mesh_ablation', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = result_index)
         pbar.update(1)
 
 
@@ -226,4 +211,4 @@ if __name__ == "__main__":
     if opt.mode == 'train':
         train_main_worker(opt, model, train_loader, test_loader, visualizer)
     if opt.mode == 'generate':
-        generate(opt, model, train_loader, test_loader, visualizer)
+        generate(opt, model)

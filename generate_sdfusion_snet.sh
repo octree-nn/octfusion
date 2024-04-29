@@ -13,7 +13,7 @@ if [ ${#gpu_ids} -gt 1 ]; then
     # NGPU=2
     # NGPU=3
     NGPU=2
-    PORT=11767
+    PORT=11768
     echo "HERE"
 fi
 ################
