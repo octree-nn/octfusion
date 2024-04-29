@@ -23,8 +23,51 @@ from utils.distributed import (
     get_world_size,
 )
 
+from utils.util import seed_everything
+
 import torch
 from utils.visualizer import Visualizer
+
+def generate(opt, model, train_loader, test_loader, visualizer):
+
+    if get_rank() == 0:
+        cprint('[*] Start training. name: %s' % opt.name, 'blue')
+
+    train_dg = get_data_generator(train_loader)
+    test_dg = get_data_generator(test_loader)
+
+    epoch_length = len(train_loader)
+    print('The total train length is', epoch_length)
+
+    epoch = 0
+
+    total_iters = epoch_length * opt.epochs
+
+    # get n_epochs here
+    # opt.total_iters = 100000000
+    pbar = tqdm(total=total_iters)
+
+    for iter_i in range(total_iters):
+
+        opt.iter_i = iter_i
+
+        if get_rank() == 0:
+            visualizer.reset()
+
+        data = next(test_dg)
+        data['iter_num'] = iter_i
+        data['epoch'] = epoch
+        model.set_input(data)
+        model.batch_size = 1
+        now_iter = iter_i * get_world_size() + get_rank()
+        seed_everything(now_iter + opt.seed)
+        result_index = [str(now_iter * model.batch_size + i) for i in range(model.batch_size)]
+        print(result_index)
+        if int(result_index[-1]) >= 1660:
+            break
+        model.uncond(data = data, split_path = None, category = 'rifle', suffix = 'mesh_test', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = result_index)
+        pbar.update(1)
+
 
 def train_main_worker(opt, model, train_loader, test_loader, visualizer):
 
@@ -42,7 +85,8 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
 
     epoch = start_iter // epoch_length
 
-    pbar = tqdm(total=total_iters)
+    # pbar = tqdm(total=total_iters)
+    pbar = tqdm(range(start_iter, total_iters))
 
     iter_start_time = time.time()
     for iter_i in range(start_iter, total_iters):
@@ -101,7 +145,7 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
                     (
                         iter_ip1,
                         time.time() - iter_start_time,
-                        os.path.abspath( os.path.join(opt.logs_dir, opt.name) )
+                        os.path.abspath(os.path.join(opt.logs_dir, opt.name))
                     ), 'blue', attrs=['bold']
                 )
 
@@ -179,5 +223,7 @@ if __name__ == "__main__":
             df_cfg = opt.df_cfg
             cfg_out = os.path.join(expr_dir, os.path.basename(df_cfg))
             os.system(f'cp {df_cfg} {cfg_out}')
-
-    train_main_worker(opt, model, train_loader, test_loader, visualizer)
+    if opt.mode == 'train':
+        train_main_worker(opt, model, train_loader, test_loader, visualizer)
+    if opt.mode == 'generate':
+        generate(opt, model, train_loader, test_loader, visualizer)

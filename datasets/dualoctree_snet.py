@@ -75,6 +75,10 @@ class TransformShape:
 
   def __call__(self, sample, idx):
     output = {}
+
+    if self.flags.load_octree:
+      output['octree_in'] = sample['octree_in']
+
     if self.flags.load_pointcloud:
       output = self.process_points_cloud(sample['point_cloud'])
 
@@ -103,7 +107,8 @@ class TransformShape:
 
 
 class ReadFile:
-  def __init__(self, load_pointcloud = True, load_split_small = False, load_split_large = False, load_sdf=False, load_occu=False):
+  def __init__(self, load_octree = True, load_pointcloud = False, load_split_small = False, load_split_large = False, load_sdf=False, load_occu=False):
+    self.load_octree = load_octree
     self.load_pointcloud = load_pointcloud
     self.load_split_small = load_split_small
     self.load_split_large = load_split_large
@@ -112,6 +117,12 @@ class ReadFile:
 
   def __call__(self, filename):
     output = {}
+
+    if self.load_octree:
+      octree_path = os.path.join(filename, 'octree.pth')
+      raw = torch.load(octree_path)
+      octree_in = raw['octree_in']
+      output['octree_in'] = octree_in
 
     if self.load_pointcloud:
       filename_pc = os.path.join(filename, 'pointcloud.npz')
@@ -149,7 +160,7 @@ class ReadFile:
 
 def get_shapenet_dataset(flags):
   transform = TransformShape(flags)
-  read_file = ReadFile(flags.load_pointcloud, flags.load_split_small, flags.load_split_large, flags.load_sdf, flags.load_occu)
+  read_file = ReadFile(flags.load_octree, flags.load_pointcloud, flags.load_split_small, flags.load_split_large, flags.load_sdf, flags.load_occu)
   dataset = Dataset(flags.location, flags.filelist, transform,
                     read_file=read_file, in_memory=flags.in_memory)
   return dataset, collate_func

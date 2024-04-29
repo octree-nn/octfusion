@@ -56,7 +56,6 @@ all_splits = os.listdir(split_dir)
 
 
 for i in range(total_num):
-    if i <= 657: continue
     seed_everything(0)
     split_path = os.path.join(split_dir, f'{i}.pth')
     SDFusion.uncond(data = None, split_path = split_path, category = category, suffix = 'mesh_2t', ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, clean = False, save_index = i)

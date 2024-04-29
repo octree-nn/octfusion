@@ -1,7 +1,7 @@
 import torch
 from cleanfid import fid
 import os
-gpu_ids = 4
+gpu_ids = 7
 os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_ids}"
 
 snc_synth_id_to_category_5 = {
@@ -12,7 +12,7 @@ snc_synth_id_to_category_5 = {
 
 category_to_snc_synth_id = {v:k for (k,v) in snc_synth_id_to_category_5.items()}
 
-category = 'airplane'
+category = 'table'
 cond = True
 synth_id = category_to_snc_synth_id[category]
 
@@ -25,10 +25,14 @@ dataset_path = f'/data/xiongbj/ShapeNet/fid_images/{category}'
 views1 = os.listdir(synthesis_path)
 views2 = os.listdir(dataset_path)
 
+views1 = sorted(views1, key=lambda item:int(item[5:]))
+views2 = sorted(views2, key=lambda item:int(item[5:]))
+
 assert len(views1) == len(views2)
 num_views = len(views1)
 
 fid_sum = 0
+fid_dict = {}
 
 for i, (view1, view2) in enumerate(zip(views1, views2)):
     assert view1 == view2
@@ -36,9 +40,12 @@ for i, (view1, view2) in enumerate(zip(views1, views2)):
     view2_path = os.path.join(dataset_path, view2)
     fid_value = fid.compute_fid(view1_path, view2_path, batch_size = 128)
     fid_sum += fid_value
+    fid_dict[view1] = fid_value
     print(f'Finish {i} th view')
     print(f'The FID of {i} th view is {fid_value}')
 
 fid_ave = fid_sum / num_views
 
 print('FID Value:', fid_ave)
+for k, v in fid_dict.items():
+    print(k, v)

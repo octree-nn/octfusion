@@ -498,31 +498,31 @@ class UNet3DModel(nn.Module):
                 input_block_chans.append(ch)
                 self._feature_size += ch
 
-        self.middle_block1 = GraphResBlock(
-            ch,
-            time_embed_dim,
-            dropout,
-            out_channels = None,
-            n_edge_type = n_edge_type,
-            avg_degree = avg_degree,
-            n_node_type = d - 1,
-            dims=dims,
-            use_checkpoint=use_checkpoint,
-            use_scale_shift_norm=use_scale_shift_norm,
-        )
+        # self.middle_block1 = GraphResBlock(
+        #     ch,
+        #     time_embed_dim,
+        #     dropout,
+        #     out_channels = None,
+        #     n_edge_type = n_edge_type,
+        #     avg_degree = avg_degree,
+        #     n_node_type = d - 1,
+        #     dims=dims,
+        #     use_checkpoint=use_checkpoint,
+        #     use_scale_shift_norm=use_scale_shift_norm,
+        # )
 
-        self.middle_block2 = GraphResBlock(
-            ch,
-            time_embed_dim,
-            dropout,
-            out_channels = None,
-            n_edge_type = n_edge_type,
-            avg_degree = avg_degree,
-            n_node_type = d - 1,
-            dims=dims,
-            use_checkpoint=use_checkpoint,
-            use_scale_shift_norm=use_scale_shift_norm,
-        )
+        # self.middle_block2 = GraphResBlock(
+        #     ch,
+        #     time_embed_dim,
+        #     dropout,
+        #     out_channels = None,
+        #     n_edge_type = n_edge_type,
+        #     avg_degree = avg_degree,
+        #     n_node_type = d - 1,
+        #     dims=dims,
+        #     use_checkpoint=use_checkpoint,
+        #     use_scale_shift_norm=use_scale_shift_norm,
+        # )
 
         self._feature_size += ch
 
@@ -608,8 +608,8 @@ class UNet3DModel(nn.Module):
 
             hs.append(h)
 
-        h = self.middle_block1(h, emb, doctree, d)
-        h = self.middle_block2(h, emb, doctree, d)
+        # h = self.middle_block1(h, emb, doctree, d)
+        # h = self.middle_block2(h, emb, doctree, d)
 
         for module in self.output_blocks:
             if isinstance(module, GraphResBlock):

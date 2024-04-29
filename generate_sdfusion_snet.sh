@@ -6,7 +6,7 @@ logs_dir='logs_home'
 
 ### set gpus ###
 # gpu_ids=0          # single-gpu
-gpu_ids=4,5        # multi-gpu
+gpu_ids=6,7        # multi-gpu
 
 if [ ${#gpu_ids} -gt 1 ]; then
     # specify these two if multi-gpu
@@ -27,13 +27,14 @@ epochs=500
 batch_size=64
 ema_rate=0.999
 ckpt_num=10
+isTrain='False'
 ####################
 
 ### model stuff ###
 note="release"
 model='sdfusion_lr_feature'
 df_cfg='configs/sdfusion_snet_lr_feature.yaml'
-ckpt="logs_home/2024-04-28T13-26-14-sdfusion_lr_feature-snet-airplane-LR1e-4-release/ckpt/df_steps-latest.pth"
+ckpt="logs_home/2024-04-28T11-43-41-sdfusion_lr_feature-snet-rifle-LR1e-4-release/ckpt/df_steps-latest.pth"
 
 vq_model="GraphVAE"
 vq_cfg='configs/shapenet_vae_lr.yaml'
@@ -44,7 +45,8 @@ vq_ckpt="saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.p
 ### dataset stuff ###
 dataset_mode='snet'
 dataroot="data"
-category='airplane'
+category='rifle'
+mode='generate'
 
 #####################
 
@@ -73,7 +75,7 @@ if [ $debug = 1 ]; then
     name="DEBUG-${name}"
 fi
 
-cmd="train.py --name ${name} --logs_dir ${logs_dir} --gpu_ids ${gpu_ids} \
+cmd="train.py --name ${name} --logs_dir ${logs_dir} --gpu_ids ${gpu_ids} --isTrain ${isTrain}  --mode ${mode} \
             --lr ${lr} --epochs ${epochs}  --min_lr ${min_lr} --warmup_epochs ${warmup_epochs} --update_learning_rate ${update_learning_rate} --ema_rate ${ema_rate} \
             --model ${model} --df_cfg ${df_cfg} --ckpt_num ${ckpt_num} --category ${category} \
             --vq_model ${vq_model} --vq_cfg ${vq_cfg} --vq_ckpt ${vq_ckpt} \

@@ -54,22 +54,21 @@ class Visualizer():
         if self.isTrain:
             # self.log_dir = os.path.join(opt.checkpoints_dir, opt.name)
             self.log_dir = os.path.join(opt.logs_dir, opt.name)
-        else:
-            self.log_dir = os.path.join(opt.results_dir, opt.name)
 
-        self.train_img_dir = os.path.join(self.log_dir, 'train_images')
-        self.test_img_dir = os.path.join(self.log_dir, 'test_images')
+            self.train_img_dir = os.path.join(self.log_dir, 'train_images')
+            self.test_img_dir = os.path.join(self.log_dir, 'test_images')
+
         self.name = opt.name
         self.opt = opt
 
     def setup_io(self):
 
-        print('[*] create image directory:\n%s...' % os.path.abspath(self.train_img_dir) )
-        print('[*] create image directory:\n%s...' % os.path.abspath(self.test_img_dir) )
-        util.mkdirs([self.train_img_dir, self.test_img_dir])
-        # self.log_name = os.path.join(opt.checkpoints_dir, opt.name, 'loss_log.txt')
-
         if self.isTrain:
+            print('[*] create image directory:\n%s...' % os.path.abspath(self.train_img_dir) )
+            print('[*] create image directory:\n%s...' % os.path.abspath(self.test_img_dir) )
+            util.mkdirs([self.train_img_dir, self.test_img_dir])
+            # self.log_name = os.path.join(opt.checkpoints_dir, opt.name, 'loss_log.txt')
+            
             self.log_name = os.path.join(self.log_dir, 'loss_log.txt')
             # with open(self.log_name, "a") as log_file:
             with open(self.log_name, "w") as log_file:

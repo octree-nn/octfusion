@@ -15,11 +15,23 @@ def scale_to_unit_sphere(mesh):
     vertices /= np.max(distances)
     return trimesh.Trimesh(vertices=vertices, faces=mesh.faces)
 
+
+def scale_to_unit_cube(mesh, padding=0.0):
+    if isinstance(mesh, trimesh.Scene):
+        mesh = mesh.dump().sum()
+
+    vertices = mesh.vertices - mesh.bounding_box.centroid
+    vertices *= 2 / np.max(mesh.bounding_box.extents) * (1 - padding)
+
+    return trimesh.Trimesh(vertices=vertices, faces=mesh.faces)
+
+
 def sample_pts_from_mesh(mesh_path, output_path):
 
     num_samples = 2048
     mesh = trimesh.load(mesh_path, force='mesh')
-    # mesh = scale_to_unit_sphere(mesh)
+    mesh = scale_to_unit_cube(mesh)
+
     points = mesh.sample(count = num_samples)
 
     np.save(output_path, points.astype(np.float32))

@@ -171,16 +171,18 @@ class SDFusionModel(BaseModel):
     ############################ START: init diffusion params ############################
 
     def batch_to_cuda(self, batch):
-        def points2octree(points):
-            octree = ocnn.octree.Octree(depth = self.input_depth, full_depth = self.full_depth)
-            octree.build_octree(points)
-            return octree
+        # def points2octree(points):
+        #     octree = ocnn.octree.Octree(depth = self.input_depth, full_depth = self.full_depth)
+        #     octree.build_octree(points)
+        #     return octree
 
-        points = [pts.cuda(non_blocking=True) for pts in batch['points']]
-        octrees = [points2octree(pts) for pts in points]
-        octree = ocnn.octree.merge_octrees(octrees)
-        octree.construct_all_neigh()
-        batch['octree_in'] = octree
+        # points = [pts.cuda(non_blocking=True) for pts in batch['points']]
+        # octrees = [points2octree(pts) for pts in points]
+        # octree = ocnn.octree.merge_octrees(octrees)
+        # octree.construct_all_neigh()
+        # batch['octree_in'] = octree
+
+        batch['octree_in'] = batch['octree_in'].cuda()
 
         batch['split_small'] = self.octree2split_small(batch['octree_in'])
         batch['split_large'] = self.octree2split_large(batch['octree_in'])

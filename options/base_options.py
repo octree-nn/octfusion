@@ -14,6 +14,16 @@ from utils.distributed import (
     synchronize,
 )
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 class BaseOptions():
     def __init__(self):
         self.parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -85,7 +95,7 @@ class BaseOptions():
             self.initialize()
 
         self.opt = self.parser.parse_args()
-        self.opt.isTrain = self.isTrain   # train or test
+        self.opt.isTrain = str2bool(self.opt.isTrain)
 
         if self.opt.isTrain:
             self.opt.phase = 'train'

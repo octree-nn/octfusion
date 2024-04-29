@@ -19,7 +19,6 @@ for index, point in enumerate(points):
     print(index, point)
     point_path = os.path.join(pc_path, point)
     point_numpy = np.load(point_path)
-    point_numpy = normalize_pc_to_unit_shpere(point_numpy)
     pcs.append(torch.from_numpy(point_numpy))
 
 pcs = torch.stack(pcs, dim = 0)
