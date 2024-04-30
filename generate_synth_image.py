@@ -4,9 +4,9 @@ import os
 from multiprocessing import Pool, current_process
 from tqdm import tqdm
 
-category = "table"
+category = "airplane"
 
-cond = True
+cond = False
 
 snc_category_to_synth_id_13 = {
     'airplane': '02691156',
@@ -25,16 +25,16 @@ snc_category_to_synth_id_13 = {
 }
 
 if cond:
-    fid_root = f'./fid_{category}_cond_2t'
+    fid_root = f'/mnt/sdc/weist/code/OctFusion-Union-Color/logs/{category}_union/cascade_pretrain_linear_noise_res221_chan124_bs2/fid_images'
 else:
-    fid_root = f'./fid_{category}_uncond_2t'
+    fid_root = f'/mnt/sdc/weist/code/OctFusion-Union-Color/logs/{category}_union/cascade_pretrain_linear_noise_res221_chan124_bs2/fid_images'
 
 os.makedirs(fid_root, exist_ok=True)
 
 if cond:
-    mesh_dir = f'{category}_mesh_2t_cond'
+    mesh_dir = f'/mnt/sdc/weist/code/OctFusion-Union-Color/logs/{category}_union/cascade_pretrain_linear_noise_res221_chan124_bs2/results'
 else:
-    mesh_dir = f'{category}_mesh_2t'
+    mesh_dir = f'/mnt/sdc/weist/code/OctFusion-Union-Color/logs/{category}_union/cascade_pretrain_linear_noise_res221_chan124_bs2/results'
 
 meshes = os.listdir(mesh_dir)
 

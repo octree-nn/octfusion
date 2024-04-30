@@ -335,75 +335,6 @@ class SDFusionModel(BaseModel):
             noised_split_small = mean + torch.sqrt(variance) * noise
         return noised_split_small
     
-    # check: ddpm.py, log_images(). line 1317~1327
-    @torch.no_grad()
-    def inference(self, data, ema = False, ddim_steps=200, ddim_eta=0., phase = "", is_pred_noise = True):
-
-        if ema:
-            self.ema_df.eval()
-
-        else:
-            self.df.eval()
-        
-        if phase == "train":
-            self.set_input(data)
-        else:
-            self.split_small = self.uncond_octree(ema, ddim_steps)
-
-        octree_small = self.split2octree_small(self.split_small)
-        batch_size = octree_small.batch_size
-
-        doctree_small = dual_octree.DualOctree(octree_small)
-        doctree_small.post_processing_for_docnn()
-
-        doctree_small_num = doctree_small.total_num
-        noised_feature = torch.randn((doctree_small_num, self.code_channel), device = self.device)
-
-        feature_time_pairs = self.get_sampling_timesteps(
-            batch_size, device=self.device, steps=ddim_steps)
-
-        feature_start = None
-
-        feature_iter = tqdm(feature_time_pairs, desc='feature stage sampling loop time step')
-
-        for time, time_next in feature_iter:
-
-            log_snr = self.log_snr(time)
-            log_snr_next = self.log_snr(time_next)
-
-            alpha, sigma = log_snr_to_alpha_sigma(log_snr)
-            alpha_next, sigma_next = log_snr_to_alpha_sigma(log_snr_next)
-
-            noise_cond = log_snr
-
-            if ema:
-                pred_noise = self.ema_df(x_hr = noised_feature, doctree = doctree_small, timesteps = noise_cond)
-            else:
-                pred_noise = self.df(x_hr = noised_feature, doctree = doctree_small, timesteps = noise_cond)
-
-            alpha, sigma, alpha_next, sigma_next = alpha[0], sigma[0], alpha_next[0], sigma_next[0]
-
-            feature_start = (noised_feature - pred_noise * sigma) / alpha.clamp(min=1e-8)
-
-            noised_feature = feature_start * alpha_next + pred_noise * sigma_next
-
-        samples = noised_feature
-
-        print(samples.max())
-        print(samples.min())
-
-        # decode z
-        self.output = self.autoencoder_module.decode_code(samples, doctree_small)
-        self.get_sdfs(self.output['neural_mpu'], batch_size, bbox = None)
-
-        if phase == 'train':
-            self.export_mesh(self.train_dir)
-
-        elif phase == 'test':
-            self.export_mesh(self.test_dir)
-
-        self.df.train()
-
     @torch.no_grad()
     def uncond(self, data, split_path, category = 'airplane', suffix = 'mesh_2t', ema = False, ddim_steps=200, ddim_eta=0., clean = False, save_index = 0):
 
@@ -414,14 +345,17 @@ class SDFusionModel(BaseModel):
             self.df.eval()
 
         if data != None:
-
             self.set_input(data)
-            octree_small = self.split2octree_small(self.split_small)
-
+            split_small = self.split_small
         elif split_path != None:
             split_small = torch.load(split_path)
             split_small = split_small.to(self.device)
-            octree_small = self.split2octree_small(split_small)
+        else:
+            split_small = self.uncond_octree(ema = ema, ddim_steps = ddim_steps)
+        octree_small = self.split2octree_small(split_small)
+
+        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, suffix)
+        self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
 
         batch_size = octree_small.batch_size
 
@@ -469,7 +403,7 @@ class SDFusionModel(BaseModel):
         # decode z
         self.output = self.autoencoder_module.decode_code(samples, doctree_small)
         self.get_sdfs(self.output['neural_mpu'], batch_size, bbox = None)
-        self.export_mesh(save_dir = f'{category}_{suffix}', index = save_index, clean = clean)
+        self.export_mesh(save_dir = save_dir, index = save_index, clean = clean)
 
 
     def octree2split_small(self, octree):
@@ -565,7 +499,7 @@ class SDFusionModel(BaseModel):
             if batch_size == 1:
                 mesh.export(os.path.join(save_dir, f'{index}.obj'))
             else:
-                mesh.export(os.path.join(save_dir, f'{i}.obj'))
+                mesh.export(os.path.join(save_dir, f'{index + i}.obj'))
 
 
     def get_sdfs(self, neural_mpu, batch_size, bbox):
@@ -584,7 +518,7 @@ class SDFusionModel(BaseModel):
         size = self.solver.resolution
         mesh_scale=self.vq_conf.data.test.point_scale
         for i in range(ngen):
-            filename = os.path.join(save_dir, f'{i}.obj')
+            filename = os.path.join(save_dir, f'{index + i}.obj')
             if ngen == 1:
                 filename = os.path.join(save_dir, f'{index}.obj')
             sdf_value = self.sdfs[i].cpu().numpy()
@@ -629,7 +563,7 @@ class SDFusionModel(BaseModel):
 
     def optimize_parameters(self):
 
-        self.set_requires_grad([self.df], requires_grad=True)
+        self.set_requires_grad([self.df.unet_hr], requires_grad=True)
 
         self.forward()
         self.optimizer.zero_grad()
@@ -700,7 +634,7 @@ class SDFusionModel(BaseModel):
         print(colored('[*] weight successfully load from: %s' % ckpt, 'blue'))
 
         if load_opt:
-            self.opt.iter_i = state_dict['global_step']
-            print(colored('[*] training start from: %d' % self.opt.iter_i, 'green'))
+            self.start_iter = state_dict['global_step']
+            print(colored('[*] training start from: %d' % self.start_iter, 'green'))
             self.optimizer.load_state_dict(state_dict['opt'])
             print(colored('[*] optimizer successfully restored from: %s' % ckpt, 'blue'))

@@ -48,9 +48,10 @@ def generate(opt, model):
 
         result_index = iter_i * get_world_size() + get_rank()
         split_path = os.path.join(split_dir, f'{result_index}.pth')
+        model.batch_size = 1
         seed_everything(opt.seed)
         if result_index >= total_num: break
-        model.uncond(data = None, split_path = split_path, category = category, suffix = 'mesh_ablation', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = result_index)
+        model.uncond(data = None, split_path = None, category = category, suffix = 'results', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = result_index)
         pbar.update(1)
 
 
@@ -105,11 +106,12 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
                     continue
 
                 # eval
-
-                model.inference(data, phase = 'train')
+                model.uncond(data = data, split_path = None, category = opt.category, suffix = f'train_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
 
                 test_data = next(test_dg)
-                model.inference(test_data, phase = 'test')
+                model.uncond(data = test_data, split_path = None, category = opt.category, suffix = f'test_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
+                
+                model.uncond(data = None, split_path = None, category = opt.category, suffix = f'gen_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
 
                 # torch.cuda.empty_cache()
 
