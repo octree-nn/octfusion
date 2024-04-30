@@ -110,6 +110,16 @@ class SDFusionModel(BaseModel):
 
         self.autoencoder = load_dualoctree(conf = vq_conf, ckpt = opt.vq_ckpt, opt = opt)
 
+        trainable_params = []
+        self.set_requires_grad([
+            self.df.unet_lr
+        ], False)
+
+        trainable_params_num = 0
+        for m in [self.df]:
+            trainable_params += [p for p in m.parameters() if p.requires_grad == True]
+            trainable_params_num += sum([p.numel() for p in m.parameters() if p.requires_grad == True])
+        print("Trainable_params: ", trainable_params_num)
         ######## END: Define Networks ########
 
         if self.isTrain:
@@ -276,6 +286,55 @@ class SDFusionModel(BaseModel):
         times = times.unbind(dim=-1)
         return times
 
+    def uncond_octree(self, ema=False, ddim_steps=200, truncated_index = 0.0):
+
+        
+        small_time_pairs = self.get_sampling_timesteps(
+            self.batch_size, device=self.device, steps=ddim_steps)
+
+        shape = (self.batch_size, *self.z_shape)
+        noised_split_small = torch.randn(shape, device = self.device)
+
+        # label = torch.zeros(self.batch_size).to(self.device)
+        # label += category_5_to_label[category]
+        # label = label.long()
+        label = None
+
+        x_start_small = None
+
+        small_iter = tqdm(small_time_pairs, desc='small sampling loop time step')
+
+        for time, time_next in small_iter:
+
+            log_snr = self.log_snr(time)
+            log_snr_next = self.log_snr(time_next)
+            log_snr, log_snr_next = map(
+                partial(right_pad_dims_to, noised_split_small), (log_snr, log_snr_next))
+
+            alpha, _ = log_snr_to_alpha_sigma(log_snr)
+            alpha_next, sigma_next = log_snr_to_alpha_sigma(log_snr_next)
+
+            noise_cond = self.log_snr(time)
+
+            if ema:
+                x_start_small = self.ema_df(x_lr = noised_split_small, timesteps = noise_cond, x_self_cond = x_start_small, label = label)
+            else:
+                x_start_small = self.df(x_lr = noised_split_small, timesteps = noise_cond, x_self_cond = x_start_small, label = label)
+
+            if time[0] < TRUNCATED_TIME:
+                x_start_small.sign_()
+
+            c = -expm1(log_snr - log_snr_next)
+            mean = alpha_next * (noised_split_small * (1 - c) / alpha + c * x_start_small)
+            variance = (sigma_next ** 2) * c
+            noise = torch.where(
+                rearrange(time_next > truncated_index, 'b -> b 1 1 1 1'),
+                torch.randn_like(noised_split_small),
+                torch.zeros_like(noised_split_small)
+            )
+            noised_split_small = mean + torch.sqrt(variance) * noise
+        return noised_split_small
+    
     # check: ddpm.py, log_images(). line 1317~1327
     @torch.no_grad()
     def inference(self, data, ema = False, ddim_steps=200, ddim_eta=0., phase = "", is_pred_noise = True):
@@ -285,8 +344,11 @@ class SDFusionModel(BaseModel):
 
         else:
             self.df.eval()
-
-        self.set_input(data)
+        
+        if phase == "train":
+            self.set_input(data)
+        else:
+            self.split_small = self.uncond_octree(ema, ddim_steps)
 
         octree_small = self.split2octree_small(self.split_small)
         batch_size = octree_small.batch_size
