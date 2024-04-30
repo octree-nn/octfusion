@@ -15,7 +15,7 @@ __pycache__/
 .ipynb*/
 
 # checkpoints
-saved_ckpt/
+/saved_ckpt
 Tencent/
 
 # logs
@@ -39,3 +39,4 @@ split_small/
 
 # bak
 bak*/
+/.vscode
