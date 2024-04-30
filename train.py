@@ -99,22 +99,6 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
                 t = (time.time() - iter_start_time) / opt.batch_size
                 visualizer.print_current_errors(iter_i, errors, t)
 
-            # display every n batches
-            if iter_i % opt.display_freq == 0:
-                if iter_i == 0 and opt.debug == "1":
-                    pbar.update(1)
-                    continue
-
-                # eval
-                model.uncond(data = data, split_path = None, category = opt.category, suffix = f'train_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
-
-                test_data = next(test_dg)
-                model.uncond(data = test_data, split_path = None, category = opt.category, suffix = f'test_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
-                
-                model.uncond(data = None, split_path = None, category = opt.category, suffix = f'gen_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
-
-                # torch.cuda.empty_cache()
-
             if iter_ip1 % opt.save_latest_freq == 0:
                 cprint('saving the latest model (current_iter %d)' % (iter_i), 'blue')
                 latest_name = f'steps-latest'
@@ -140,6 +124,22 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
                 print('Finish One Epoch!')
                 epoch += 1
                 print('Now Epoch is:', epoch)
+
+        # display every n batches
+        if iter_i % opt.display_freq == 0:
+            if iter_i == 0 and opt.debug == "1":
+                pbar.update(1)
+                continue
+
+            # eval
+            model.uncond(data = data, split_path = None, category = opt.category, suffix = f'train_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
+
+            test_data = next(test_dg)
+            model.uncond(data = test_data, split_path = None, category = opt.category, suffix = f'test_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
+            
+            model.uncond(data = None, split_path = None, category = opt.category, suffix = f'gen_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
+
+            torch.cuda.empty_cache()
 
         if opt.update_learning_rate:
             model.update_learning_rate_cos(iter_i/epoch_length, opt)

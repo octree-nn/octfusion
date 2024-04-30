@@ -286,6 +286,7 @@ class SDFusionModel(BaseModel):
         times = times.unbind(dim=-1)
         return times
 
+    @torch.no_grad()
     def uncond_octree(self, ema=False, ddim_steps=200, truncated_index = 0.0):
 
         
@@ -563,7 +564,7 @@ class SDFusionModel(BaseModel):
 
     def optimize_parameters(self):
 
-        self.set_requires_grad([self.df.unet_hr], requires_grad=True)
+        # self.set_requires_grad([self.df.unet_hr], requires_grad=True)
 
         self.forward()
         self.optimizer.zero_grad()
