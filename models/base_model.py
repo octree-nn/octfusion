@@ -31,6 +31,10 @@ def create_model(opt):
         from models.sdfusion_model_hr_feature import SDFusionModel
         model = SDFusionModel()
 
+    elif opt.model == 'sdfusion_union':
+        from models.sdfusion_model_union import SDFusionModel
+        model = SDFusionModel()
+
 
     else:
         raise ValueError("Model [%s] not recognized." % opt.model)

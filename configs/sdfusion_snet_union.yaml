@@ -1,0 +1,32 @@
+model:
+  params:
+    linear_start: 0.00085
+    linear_end: 0.012
+    conditioning_key: None
+    timesteps: 1000
+    scale_factor: 0.18215
+
+unet:
+  params:
+    image_size: 64
+    input_depth: 6
+    full_depth: 4
+    in_split_channels: &split_channels 8
+    in_feature_channels: &feature_channels 3
+    out_split_channels: *split_channels
+    out_feature_channels: *feature_channels
+    model_channels: 128
+    lr_model_channels: 64
+    num_res_blocks: [2, 2, 1]
+    attention_resolutions: [2,4] # 16, 8, 4
+    # note: this isn\t actually the resolution but
+    # the downsampling factor, i.e. this corresnponds to
+    # attention on spatial resolution 8,16,32, as the
+    # spatial reolution of the latents is 64 for f4
+    channel_mult: [1, 2, 4]
+    lr_channel_mult: [1, 2, 4]
+    # num_head_channels: 32
+    num_heads: 4
+
+    # 3d
+    dims: 3

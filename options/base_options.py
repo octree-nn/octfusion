@@ -53,10 +53,12 @@ class BaseOptions():
         ############## START: model related options ################
         self.parser.add_argument(
                             '--model', type=str, default='sdfusion',
-                            choices=['sdfusion_small', 'sdfusion_lr_feature', 'sdfusion_lr_feature_5', 'sdfusion_hr_large', 'sdfusion_hr_feature', 'sdfusion_union_two_time', 'sdfusion_union_two_time_noise_octree', 'sdfusion_union_three_time', 'sdfusion_union_three_time_pred_x0', 'sdfusion_union_three_time_pred_noise', 'sdfusion_union_three_time_noise_octree', 'sdfusion_union_four_time', 'sdfusion-img2shape', 'sdfusion-txt2shape','sdfusion-mm2shape'],
+                            choices=['sdfusion_small', 'sdfusion_lr_feature', 'sdfusion_lr_feature_5', 'sdfusion_hr_large', 'sdfusion_hr_feature', 'sdfusion_union_two_time', 'sdfusion_union_two_time_noise_octree', 'sdfusion_union_three_time', 'sdfusion_union_three_time_pred_x0', 'sdfusion_union_three_time_pred_noise', 'sdfusion_union_three_time_noise_octree', 'sdfusion_union_four_time', 'sdfusion-img2shape', 'sdfusion-txt2shape','sdfusion-mm2shape', 'sdfusion_union'],
                             help='chooses which model to use.'
                         )
         self.parser.add_argument('--ckpt', type=str, default=None, help='ckpt to load.')
+        self.parser.add_argument('--pretrain_ckpt', type=str, default=None, help='pretrain ckpt to load.')
+        self.parser.add_argument('--split_data', type=str, default=None)
 
         # diffusion stuff
         self.parser.add_argument('--df_cfg', type=str, default='configs/sdfusion_snet.yaml', help="diffusion model's config file")
