@@ -123,11 +123,15 @@ class SDFusionModel(BaseModel):
 
             self.print_networks(verbose=False)
 
+        if opt.pretrain_ckpt is not None:
+            self.load_ckpt(opt.pretrain_ckpt, self.df.unet_lr, self.ema_df.unet_lr, load_opt=False)
+
+        if opt.ckpt is None and os.path.exists(os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")):
+            opt.ckpt = os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")
         if opt.ckpt is not None:
-            self.load_ckpt(opt.ckpt, load_opt=self.isTrain)
+            self.load_ckpt(opt.ckpt, self.df, self.ema_df, load_opt=self.isTrain)
             if self.isTrain:
                 self.optimizers = [self.optimizer]
-            # self.schedulers = [self.scheduler]
 
 
         # setup renderer
@@ -218,8 +222,6 @@ class SDFusionModel(BaseModel):
         with torch.no_grad():
             self.input_data, self.doctree_in = self.autoencoder_module.extract_code(self.octree_in)
 
-        batch_size = self.batch_size
-
         self.df_feature_loss = torch.tensor(0., device=self.device)
         self.df_split_loss = torch.tensor(0., device=self.device)
         stage_flag = "HR"
@@ -272,55 +274,6 @@ class SDFusionModel(BaseModel):
         times = times.unbind(dim=-1)
         return times
 
-
-    # check: ddpm.py, log_images(). line 1317~1327
-    def uncond_octree(self, ema=False, ddim_steps=200, truncated_index=0.0):
-
-        small_time_pairs = self.get_sampling_timesteps(
-            self.batch_size, device=self.device, steps=ddim_steps)
-
-        noised_split_small = torch.randn(self.z_shape, device = self.device)
-
-        # label = torch.zeros(self.batch_size).to(self.device)
-        # label += category_5_to_label[category]
-        # label = label.long()
-        label = None
-
-        x_start_small = None
-
-        small_iter = tqdm(small_time_pairs, desc='small sampling loop time step')
-
-        for time, time_next in small_iter:
-
-            log_snr = self.log_snr(time)
-            log_snr_next = self.log_snr(time_next)
-            log_snr, log_snr_next = map(
-                partial(right_pad_dims_to, noised_split_small), (log_snr, log_snr_next))
-
-            alpha, _ = log_snr_to_alpha_sigma(log_snr)
-            alpha_next, sigma_next = log_snr_to_alpha_sigma(log_snr_next)
-
-            noise_cond = self.log_snr(time)
-
-            if ema:
-                x_start_small = self.ema_df(x_lr = noised_split_small, timesteps = noise_cond, x_self_cond = x_start_small, label = self.label)
-            else:
-                x_start_small = self.df(x_lr = noised_split_small, timesteps = noise_cond, x_self_cond = x_start_small, label = self.label)
-
-            if time[0] < TRUNCATED_TIME:
-                x_start_small.sign_()
-
-            c = -expm1(log_snr - log_snr_next)
-            mean = alpha_next * (noised_split_small * (1 - c) / alpha + c * x_start_small)
-            variance = (sigma_next ** 2) * c
-            noise = torch.where(
-                rearrange(time_next > truncated_index, 'b -> b 1 1 1 1'),
-                torch.randn_like(noised_split_small),
-                torch.zeros_like(noised_split_small)
-            )
-            noised_split_small = mean + torch.sqrt(variance) * noise
-        return noised_split_small
-    
     # check: ddpm.py, log_images(). line 1317~1327
     @torch.no_grad()
     def inference(self, data, ema = False, ddim_steps=200, ddim_eta=0., phase = "", is_pred_noise = True):
@@ -359,29 +312,16 @@ class SDFusionModel(BaseModel):
 
             noise_cond = log_snr
 
-            if is_pred_noise:
-                if ema:
-                    pred_noise = self.ema_df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
-                else:
-                    pred_noise = self.df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
-
-                alpha, sigma, alpha_next, sigma_next = alpha[0], sigma[0], alpha_next[0], sigma_next[0]
-
-                feature_start = (noised_feature - pred_noise * sigma) / alpha.clamp(min=1e-8)
-
-                noised_feature = feature_start * alpha_next + pred_noise * sigma_next
-
+            if ema:
+                pred_noise = self.ema_df(x_hr = noised_feature, doctree = doctree_small, timesteps = noise_cond)
             else:
-                if ema:
-                    feature_start = self.ema_df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
-                else:
-                    feature_start = self.df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
+                pred_noise = self.df(x_hr = noised_feature, doctree = doctree_small, timesteps = noise_cond)
 
-                c = -expm1(log_snr - log_snr_next)
-                c, alpha, alpha_next, sigma_next = c[0], alpha[0], alpha_next[0], sigma_next[0]
-                mean = alpha_next * (noised_feature * (1 - c) / alpha + c * feature_start)
-                variance = (sigma_next ** 2) * c
-                noised_feature = mean + torch.sqrt(variance) * torch.randn_like(noised_feature)
+            alpha, sigma, alpha_next, sigma_next = alpha[0], sigma[0], alpha_next[0], sigma_next[0]
+
+            feature_start = (noised_feature - pred_noise * sigma) / alpha.clamp(min=1e-8)
+
+            noised_feature = feature_start * alpha_next + pred_noise * sigma_next
 
         samples = noised_feature
 
@@ -445,9 +385,9 @@ class SDFusionModel(BaseModel):
             noise_cond = log_snr
 
             if ema:
-                pred_noise = self.ema_df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
+                pred_noise = self.ema_df(x_hr = noised_feature, doctree = doctree_small, timesteps = noise_cond)
             else:
-                pred_noise = self.df(x_feature = noised_feature, doctree = doctree_small, timesteps = noise_cond)
+                pred_noise = self.df(x_hr = noised_feature, doctree = doctree_small, timesteps = noise_cond)
 
             alpha, sigma, alpha_next, sigma_next = alpha[0], sigma[0], alpha_next[0], sigma_next[0]
 
@@ -684,19 +624,19 @@ class SDFusionModel(BaseModel):
 
         torch.save(state_dict, save_path)
 
-    def load_ckpt(self, ckpt, load_opt=True):
+    def load_ckpt(self, ckpt, df, ema_df, load_opt=False):
         map_fn = lambda storage, loc: storage
         if type(ckpt) == str:
             state_dict = torch.load(ckpt, map_location=map_fn)
         else:
             state_dict = ckpt
-
-        # self.vqvae.load_state_dict(state_dict['vqvae'])
-        self.df.load_state_dict(state_dict['df'])
-        self.ema_df.load_state_dict(state_dict['ema_df'])
-        self.start_iter = state_dict['global_step']
+            
+        df.load_state_dict(state_dict['df'])
+        ema_df.load_state_dict(state_dict['ema_df'])
         print(colored('[*] weight successfully load from: %s' % ckpt, 'blue'))
 
         if load_opt:
+            self.opt.iter_i = state_dict['global_step']
+            print(colored('[*] training start from: %d' % self.opt.iter_i, 'green'))
             self.optimizer.load_state_dict(state_dict['opt'])
             print(colored('[*] optimizer successfully restored from: %s' % ckpt, 'blue'))

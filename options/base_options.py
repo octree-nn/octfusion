@@ -58,7 +58,6 @@ class BaseOptions():
                         )
         self.parser.add_argument('--ckpt', type=str, default=None, help='ckpt to load.')
         self.parser.add_argument('--pretrain_ckpt', type=str, default=None, help='pretrain ckpt to load.')
-        self.parser.add_argument('--split_data', type=str, default=None)
 
         # diffusion stuff
         self.parser.add_argument('--df_cfg', type=str, default='configs/sdfusion_snet.yaml', help="diffusion model's config file")
@@ -80,7 +79,7 @@ class BaseOptions():
 
         # misc
         self.parser.add_argument('--debug', default='0', type=str, choices=['0', '1'], help='if true, debug mode')
-        self.parser.add_argument('--seed', default=111, type=int, help='seed')
+        self.parser.add_argument('--seed', default=0, type=int, help='seed')
 
         # multi-gpu stuff
         self.parser.add_argument("--backend", type=str, default="gloo", help="which backend to use")

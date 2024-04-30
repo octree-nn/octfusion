@@ -37,8 +37,8 @@ def generate(opt, model):
     pbar = tqdm(total=total_iters)
 
     category = opt.category
-    uncond_split_dir = f'{category}_split_small'
-    cond_split_dir = f'{category}_split_small_cond'
+    uncond_split_dir = f'logs/split_data/{category}_split_small'
+    # cond_split_dir = f'{category}_split_small_cond'
 
     split_dir = uncond_split_dir
 
@@ -48,7 +48,7 @@ def generate(opt, model):
 
         result_index = iter_i * get_world_size() + get_rank()
         split_path = os.path.join(split_dir, f'{result_index}.pth')
-        seed_everything(0)
+        seed_everything(opt.seed)
         if result_index >= total_num: break
         model.uncond(data = None, split_path = split_path, category = category, suffix = 'mesh_ablation', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = result_index)
         pbar.update(1)
