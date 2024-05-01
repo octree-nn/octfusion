@@ -484,8 +484,10 @@ class SDFusionModel(BaseModel):
         return octree_out
 
     def export_octree(self, octree, depth, save_dir = None, index = 0):
-
-        os.makedirs(save_dir, exist_ok=True)
+        try:
+            os.makedirs(save_dir, exist_ok=True)
+        except FileExistsError:
+            pass
 
         batch_id = octree.batch_id(depth = depth, nempty = False)
         data = torch.ones((len(batch_id), 1), device = self.device)
@@ -514,7 +516,10 @@ class SDFusionModel(BaseModel):
         self.sdfs = calc_sdf(neural_mpu, batch_size, size = self.solver.resolution, bbmin = self.bbmin, bbmax = self.bbmax)
 
     def export_mesh(self, save_dir, index = 0, level = 0, clean = False):
-        os.makedirs(save_dir, exist_ok=True)
+        try:
+            os.makedirs(save_dir, exist_ok=True)
+        except FileExistsError:
+            pass
         ngen = self.sdfs.shape[0]
         size = self.solver.resolution
         mesh_scale=self.vq_conf.data.test.point_scale

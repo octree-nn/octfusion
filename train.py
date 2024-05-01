@@ -51,7 +51,7 @@ def generate(opt, model):
         model.batch_size = 1
         seed_everything(opt.seed)
         if result_index >= total_num: break
-        model.uncond(data = None, split_path = None, category = category, suffix = 'results', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = result_index)
+        model.uncond(data = None, split_path = split_path, category = category, suffix = 'results', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = result_index)
         pbar.update(1)
 
 
