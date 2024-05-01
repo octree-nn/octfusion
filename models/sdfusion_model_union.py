@@ -31,7 +31,7 @@ from models.networks.diffusion_networks.ldm_diffusion_util import *
 from models.networks.diffusion_networks.samplers.ddim_new import DDIMSampler
 
 # distributed
-from utils.distributed import reduce_loss_dict
+from utils.distributed import reduce_loss_dict, get_rank
 
 # rendering
 from utils.util_3d import init_mesh_renderer, render_sdf, render_sdf_dualoctree
@@ -274,7 +274,7 @@ class SDFusionModel(BaseModel):
 
             output = self.df(x_hr = noised_feature, doctree = self.doctree_in, timesteps = noise_level)
 
-            self.df_feature_loss = F.mse_loss(output, self.input_data)
+            self.df_feature_loss = F.mse_loss(output, noise)
 
         self.loss = self.df_split_loss + self.df_feature_loss
 
@@ -485,7 +485,7 @@ class SDFusionModel(BaseModel):
 
     def export_octree(self, octree, depth, save_dir = None, index = 0):
 
-        if not os.path.exists(save_dir): os.makedirs(save_dir)
+        os.makedirs(save_dir, exist_ok=True)
 
         batch_id = octree.batch_id(depth = depth, nempty = False)
         data = torch.ones((len(batch_id), 1), device = self.device)
@@ -514,7 +514,7 @@ class SDFusionModel(BaseModel):
         self.sdfs = calc_sdf(neural_mpu, batch_size, size = self.solver.resolution, bbmin = self.bbmin, bbmax = self.bbmax)
 
     def export_mesh(self, save_dir, index = 0, level = 0, clean = False):
-        if not os.path.exists(save_dir): os.makedirs(save_dir)
+        os.makedirs(save_dir, exist_ok=True)
         ngen = self.sdfs.shape[0]
         size = self.solver.resolution
         mesh_scale=self.vq_conf.data.test.point_scale

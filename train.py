@@ -132,7 +132,7 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
                 continue
 
             # eval
-            model.uncond(data = data, split_path = None, category = opt.category, suffix = f'train_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
+            model.uncond(data = data, split_path = None, category = opt.category, suffix = f'train_images/{iter_i}', ema = False, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
 
             test_data = next(test_dg)
             model.uncond(data = test_data, split_path = None, category = opt.category, suffix = f'test_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
@@ -211,6 +211,16 @@ if __name__ == "__main__":
             cfg_out = os.path.join(expr_dir, os.path.basename(df_cfg))
             os.system(f'cp {df_cfg} {cfg_out}')
     if opt.mode == 'train':
-        train_main_worker(opt, model, train_loader, test_loader, visualizer)
+        if opt.debug == "0":
+            try:
+                train_main_worker(opt, model, train_loader, test_loader, visualizer)
+            except:
+                import traceback
+                print(traceback.format_exc(), flush=True)
+                with open(os.path.join(opt.logs_dir, opt.name, "error.txt"), "a") as f:
+                    f.write(traceback.format_exc() + "\n")
+                raise ValueError
+        else:
+            train_main_worker(opt, model, train_loader, test_loader, visualizer)
     if opt.mode == 'generate':
         generate(opt, model)
