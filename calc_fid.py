@@ -12,14 +12,12 @@ snc_synth_id_to_category_5 = {
 
 category_to_snc_synth_id = {v:k for (k,v) in snc_synth_id_to_category_5.items()}
 
-category = 'airplane'
+category = 'rifle'
 cond = False
 synth_id = category_to_snc_synth_id[category]
 
-if cond:
-    synthesis_path = f'/mnt/sdc/weist/code/OctFusion-Union-Color/logs/{category}_union/cascade_pretrain_linear_noise_res221_chan124_bs2/fid_images'
-else:
-    synthesis_path = f'/mnt/sdc/weist/code/OctFusion-Union-Color/logs/{category}_union/cascade_pretrain_linear_noise_res221_chan124_bs2/fid_images'
+
+synthesis_path = f'logs/{category}_union/cascade_pretrain_res221_chan124_lr1e-4/fid_images'
 dataset_path = f'data/ShapeNet/fid_images/{category}'
 
 views1 = os.listdir(synthesis_path)

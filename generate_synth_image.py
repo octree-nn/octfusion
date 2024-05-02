@@ -3,7 +3,7 @@ import trimesh
 import os
 from multiprocessing import Pool, current_process
 from tqdm import tqdm
-
+os.environ['EGL_DEVICE_ID'] = '1'
 category = "airplane"
 
 cond = False
@@ -24,17 +24,13 @@ snc_category_to_synth_id_13 = {
     'vessel': '04530566',
 }
 
-if cond:
-    fid_root = f'/mnt/sdc/weist/code/OctFusion-Union-Color/logs/{category}_union/cascade_pretrain_linear_noise_res221_chan124_bs2/fid_images'
-else:
-    fid_root = f'/mnt/sdc/weist/code/OctFusion-Union-Color/logs/{category}_union/cascade_pretrain_linear_noise_res221_chan124_bs2/fid_images'
+
+fid_root = f'logs/{category}_union/cascade_pretrain_res220_chan124_lr2e-4/fid_images'
 
 os.makedirs(fid_root, exist_ok=True)
 
-if cond:
-    mesh_dir = f'/mnt/sdc/weist/code/OctFusion-Union-Color/logs/{category}_union/cascade_pretrain_linear_noise_res221_chan124_bs2/results'
-else:
-    mesh_dir = f'/mnt/sdc/weist/code/OctFusion-Union-Color/logs/{category}_union/cascade_pretrain_linear_noise_res221_chan124_bs2/results'
+
+mesh_dir = f'logs/{category}_union/cascade_pretrain_res220_chan124_lr2e-4/results'
 
 meshes = os.listdir(mesh_dir)
 
