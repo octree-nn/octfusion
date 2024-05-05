@@ -17,7 +17,7 @@ unet:
     out_feature_channels: *feature_channels
     model_channels: 128
     lr_model_channels: 64
-    num_res_blocks: [1, 1, 0]
+    num_res_blocks: [2, 2, 0]
     attention_resolutions: [2,4] # 16, 8, 4
     # note: this isn\t actually the resolution but
     # the downsampling factor, i.e. this corresnponds to
