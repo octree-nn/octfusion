@@ -112,6 +112,12 @@ class SDFusionModel(BaseModel):
 
         ######## END: Define Networks ########
 
+        if opt.pretrain_ckpt is not None:
+            self.load_ckpt(opt.pretrain_ckpt, self.df.unet_lr, self.ema_df.unet_lr, load_opt=False)
+            self.set_requires_grad([
+                self.df.unet_lr
+            ], False)
+        
         if self.isTrain:
 
             # initialize optimizers
@@ -122,12 +128,6 @@ class SDFusionModel(BaseModel):
             self.schedulers = [self.scheduler]
 
             self.print_networks(verbose=False)
-
-        if opt.pretrain_ckpt is not None:
-            self.load_ckpt(opt.pretrain_ckpt, self.df.unet_lr, self.ema_df.unet_lr, load_opt=False)
-            self.set_requires_grad([
-                self.df.unet_lr
-            ], False)
 
         if opt.ckpt is None and os.path.exists(os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")):
             opt.ckpt = os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")
