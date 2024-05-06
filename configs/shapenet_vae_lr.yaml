@@ -37,7 +37,7 @@ data:
     distort: False
 
     # data loading
-    location: &location data/ShapeNet/octree
+    location: &location data1/ShapeNet/octree
     filelist: &filelist data/ShapeNet/filelist
     load_octree: &load_octree True
     load_pointcloud: &load_pointcloud False

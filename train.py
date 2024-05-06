@@ -13,7 +13,7 @@ from datasets.dataloader import config_dataloader, get_data_generator
 from models.base_model import create_model
 
 import torch.multiprocessing
-torch.multiprocessing.set_sharing_strategy('file_system')
+torch.multiprocessing.set_sharing_strategy('file_descriptor')
 
 from utils.distributed import (
     get_rank,

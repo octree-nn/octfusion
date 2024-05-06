@@ -110,16 +110,6 @@ class SDFusionModel(BaseModel):
 
         self.autoencoder = load_dualoctree(conf = vq_conf, ckpt = opt.vq_ckpt, opt = opt)
 
-        trainable_params = []
-        self.set_requires_grad([
-            self.df.unet_lr
-        ], False)
-
-        trainable_params_num = 0
-        for m in [self.df]:
-            trainable_params += [p for p in m.parameters() if p.requires_grad == True]
-            trainable_params_num += sum([p.numel() for p in m.parameters() if p.requires_grad == True])
-        print("Trainable_params: ", trainable_params_num)
         ######## END: Define Networks ########
 
         if self.isTrain:
@@ -135,6 +125,9 @@ class SDFusionModel(BaseModel):
 
         if opt.pretrain_ckpt is not None:
             self.load_ckpt(opt.pretrain_ckpt, self.df.unet_lr, self.ema_df.unet_lr, load_opt=False)
+            self.set_requires_grad([
+                self.df.unet_lr
+            ], False)
 
         if opt.ckpt is None and os.path.exists(os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")):
             opt.ckpt = os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")
@@ -142,7 +135,11 @@ class SDFusionModel(BaseModel):
             self.load_ckpt(opt.ckpt, self.df, self.ema_df, load_opt=self.isTrain)
             if self.isTrain:
                 self.optimizers = [self.optimizer]
-
+        
+        trainable_params_num = 0
+        for m in [self.df]:
+            trainable_params_num += sum([p.numel() for p in m.parameters() if p.requires_grad == True])
+        print("Trainable_params: ", trainable_params_num)
 
         # setup renderer
         if 'snet' in opt.dataset_mode:

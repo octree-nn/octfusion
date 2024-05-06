@@ -3,8 +3,8 @@ import trimesh
 import os
 from multiprocessing import Pool, current_process
 from tqdm import tqdm
-os.environ['EGL_DEVICE_ID'] = '1'
-category = "airplane"
+os.environ['EGL_DEVICE_ID'] = '4'
+category = "rifle"
 
 cond = False
 
@@ -25,12 +25,12 @@ snc_category_to_synth_id_13 = {
 }
 
 
-fid_root = f'logs/{category}_union/cascade_pretrain_res220_chan124_lr2e-4/fid_images'
+fid_root = f'logs/{category}_union/cascade_pretrain_res110_chan124_lr2e-4/fid_images'
 
 os.makedirs(fid_root, exist_ok=True)
 
 
-mesh_dir = f'logs/{category}_union/cascade_pretrain_res220_chan124_lr2e-4/results'
+mesh_dir = f'logs/{category}_union/cascade_pretrain_res110_chan124_lr2e-4/results'
 
 meshes = os.listdir(mesh_dir)
 
