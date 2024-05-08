@@ -27,6 +27,7 @@ unet:
     lr_channel_mult: [1, 2, 4]
     # num_head_channels: 32
     num_heads: 4
+    use_checkpoint: False
 
     # 3d
     dims: 3
