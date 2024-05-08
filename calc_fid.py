@@ -12,7 +12,7 @@ snc_synth_id_to_category_5 = {
 
 category_to_snc_synth_id = {v:k for (k,v) in snc_synth_id_to_category_5.items()}
 
-category = 'rifle'
+category = 'car'
 cond = False
 synth_id = category_to_snc_synth_id[category]
 

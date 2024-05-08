@@ -4,8 +4,8 @@ import os
 from multiprocessing import Pool, current_process
 import multiprocessing as mp
 from tqdm import tqdm
-# os.environ['EGL_DEVICE_ID'] = '0'
-category = "car"
+os.environ['EGL_DEVICE_ID'] = '1'
+category = "table"
 
 cond = False
 
@@ -41,7 +41,7 @@ def process_mesh(mesh):
     mesh = trimesh.load(mesh_path, force="mesh")
 
     # Set the GPU for this process
-    os.environ['EGL_DEVICE_ID'] = str(current_process()._identity[0] % 4)
+    os.environ['EGL_DEVICE_ID'] = str(current_process()._identity[0] % 8)
     try:
         generate_image_for_fid(mesh, fid_root, name)
     except:
@@ -49,7 +49,7 @@ def process_mesh(mesh):
         return
     print(f'The mesh {name} finish rendering')
 
-num_processes = mp.cpu_count()
+num_processes = 40 # mp.cpu_count()
 if num_processes > 1:
     with Pool(num_processes) as pool:  # Create a pool with 4 processes
         list(tqdm(pool.imap(process_mesh, meshes), total=len(meshes)))
