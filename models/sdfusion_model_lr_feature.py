@@ -345,7 +345,7 @@ class SDFusionModel(BaseModel):
             octree_small = self.split2octree_small(self.split_small)
 
         elif split_path != None:
-            split_small = torch.load(split_path)
+            split_small = torch.load(split_path, map_location = self.device)
             split_small = split_small.to(self.device)
             octree_small = self.split2octree_small(split_small)
 
