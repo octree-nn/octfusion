@@ -1,6 +1,7 @@
 import os
 import time
 import inspect
+import random
 
 from termcolor import colored, cprint
 from tqdm import tqdm
@@ -36,10 +37,13 @@ def generate(opt, model):
     total_iters = 100000000
     pbar = tqdm(total=total_iters)
 
-    category = opt.category
-    uncond_split_dir = f'logs/split_data/{category}_split_small'
-    # cond_split_dir = f'{category}_split_small_cond'
-
+    if opt.category == "im_5":
+        category = "airplane"
+        cond_split_dir = f'logs/split_data/{category}_split_small_cond'
+    else:
+        category = opt.category
+        uncond_split_dir = f'logs/split_data/{category}_split_small'
+        
     split_dir = uncond_split_dir
 
     total_num = category_5_to_num[category]
@@ -127,17 +131,21 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
 
         # display every n batches
         if iter_i % opt.display_freq == 0:
-            if iter_i == 0 and opt.debug == "1":
+            if iter_i == 0 and opt.debug == "0":
                 pbar.update(1)
                 continue
 
             # eval
-            model.uncond(data = data, split_path = None, category = opt.category, suffix = f'train_images/{iter_i}', ema = False, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
+            if opt.category == "im_5":
+                category = random.choice(list(category_5_to_num.keys()))
+            else:
+                category = opt.category
+            model.uncond(data = data, split_path = None, category = category, suffix = f'train_images/{iter_i}', ema = False, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
 
             # test_data = next(test_dg)
             # model.uncond(data = test_data, split_path = None, category = opt.category, suffix = f'test_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
             
-            # model.uncond(data = None, split_path = None, category = opt.category, suffix = f'gen_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
+            model.uncond(data = None, split_path = None, category = category, suffix = f'gen_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
 
             torch.cuda.empty_cache()
 

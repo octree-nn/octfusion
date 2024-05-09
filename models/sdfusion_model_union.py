@@ -38,6 +38,13 @@ from utils.util_3d import init_mesh_renderer, render_sdf, render_sdf_dualoctree
 from utils.util_dualoctree import calc_sdf
 
 TRUNCATED_TIME = 0.7
+category_5_to_label = {
+    'airplane': 0,
+    'car': 1,
+    'chair': 2,
+    'table': 3,
+    'rifle': 4,
+}
 
 class SDFusionModel(BaseModel):
     def name(self):
@@ -80,6 +87,7 @@ class SDFusionModel(BaseModel):
         unet_params = df_conf.unet.params
         self.conditioning_key = df_model_params.conditioning_key
         self.num_timesteps = df_model_params.timesteps
+        self.enable_label = "num_classes" in df_conf.unet.params
 
         self.df = UNet3DModel(unet_params)
         self.df.to(self.device)
@@ -200,6 +208,8 @@ class SDFusionModel(BaseModel):
         if self.load_octree:
             batch['octree_in'] = batch['octree_in'].cuda()
 
+        batch['label'] = batch['label'].cuda()
+
         batch['split_small'] = self.octree2split_small(batch['octree_in'])
         batch['split_large'] = self.octree2split_large(batch['octree_in'])
 
@@ -209,7 +219,11 @@ class SDFusionModel(BaseModel):
         self.split_large = input['split_large']
         self.octree_in = input['octree_in']
         self.batch_size = self.octree_in.batch_size
-        self.label = input['label']
+
+        if self.enable_label:
+            self.label = input['label']
+        else:
+            self.label = None
 
     def switch_train(self):
         self.df.train()
@@ -269,7 +283,7 @@ class SDFusionModel(BaseModel):
             batch_sigma = sigma[batch_id].unsqueeze(1)
             noised_feature = noised_feature * batch_alpha + noise * batch_sigma
 
-            output = self.df(x_hr = noised_feature, doctree = self.doctree_in, timesteps = noise_level)
+            output = self.df(x_hr = noised_feature, doctree = self.doctree_in, timesteps = noise_level, label = self.label)
 
             self.df_feature_loss = F.mse_loss(output, noise)
 
@@ -284,7 +298,7 @@ class SDFusionModel(BaseModel):
         return times
 
     @torch.no_grad()
-    def uncond_octree(self, ema=False, ddim_steps=200, truncated_index = 0.0):
+    def uncond_octree(self, ema=False, ddim_steps=200, truncated_index = 0.0, label = None):
 
         
         small_time_pairs = self.get_sampling_timesteps(
@@ -292,11 +306,6 @@ class SDFusionModel(BaseModel):
 
         shape = (self.batch_size, *self.z_shape)
         noised_split_small = torch.randn(shape, device = self.device)
-
-        # label = torch.zeros(self.batch_size).to(self.device)
-        # label += category_5_to_label[category]
-        # label = label.long()
-        label = None
 
         x_start_small = None
 
@@ -342,6 +351,14 @@ class SDFusionModel(BaseModel):
         else:
             self.df.eval()
 
+        batch_size = self.batch_size
+
+        if self.enable_label:
+            label = torch.ones(batch_size).to(self.device) * category_5_to_label[category]
+            label = label.long()
+        else:
+            label = None
+
         if data != None:
             self.set_input(data)
             split_small = self.split_small
@@ -349,13 +366,11 @@ class SDFusionModel(BaseModel):
             split_small = torch.load(split_path)
             split_small = split_small.to(self.device)
         else:
-            split_small = self.uncond_octree(ema = ema, ddim_steps = ddim_steps)
+            split_small = self.uncond_octree(ema = ema, ddim_steps = ddim_steps, label=label)
         octree_small = self.split2octree_small(split_small)
 
         save_dir = os.path.join(self.opt.logs_dir, self.opt.name, suffix)
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
-
-        batch_size = octree_small.batch_size
 
         doctree_small = dual_octree.DualOctree(octree_small)
         doctree_small.post_processing_for_docnn()
@@ -381,9 +396,9 @@ class SDFusionModel(BaseModel):
             noise_cond = log_snr
 
             if ema:
-                pred_noise = self.ema_df(x_hr = noised_feature, doctree = doctree_small, timesteps = noise_cond)
+                pred_noise = self.ema_df(x_hr = noised_feature, doctree = doctree_small, timesteps = noise_cond, label=label)
             else:
-                pred_noise = self.df(x_hr = noised_feature, doctree = doctree_small, timesteps = noise_cond)
+                pred_noise = self.df(x_hr = noised_feature, doctree = doctree_small, timesteps = noise_cond, label=label)
 
             alpha, sigma, alpha_next, sigma_next = alpha[0], sigma[0], alpha_next[0], sigma_next[0]
 
