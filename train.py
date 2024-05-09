@@ -135,15 +135,15 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
                 pbar.update(1)
                 continue
 
-            # eval
+            # eval 
+            # model.uncond(data = data, split_path = None, category = category, suffix = f'train_images/{iter_i}', ema = False, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
+
+            test_data = next(test_dg)
+            model.uncond(data = test_data, split_path = None, category = opt.category, suffix = f'test_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
             if opt.category == "im_5":
                 category = random.choice(list(category_5_to_num.keys()))
             else:
                 category = opt.category
-            model.uncond(data = data, split_path = None, category = category, suffix = f'train_images/{iter_i}', ema = False, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
-
-            # test_data = next(test_dg)
-            # model.uncond(data = test_data, split_path = None, category = opt.category, suffix = f'test_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
             
             model.uncond(data = None, split_path = None, category = category, suffix = f'gen_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
 

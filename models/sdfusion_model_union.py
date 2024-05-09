@@ -352,7 +352,6 @@ class SDFusionModel(BaseModel):
             self.df.eval()
 
         batch_size = self.batch_size
-
         if self.enable_label:
             label = torch.ones(batch_size).to(self.device) * category_5_to_label[category]
             label = label.long()
@@ -362,6 +361,7 @@ class SDFusionModel(BaseModel):
         if data != None:
             self.set_input(data)
             split_small = self.split_small
+            label = self.label
         elif split_path != None:
             split_small = torch.load(split_path)
             split_small = split_small.to(self.device)
