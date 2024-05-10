@@ -19,7 +19,7 @@ __pycache__/
 Tencent/
 
 # logs
-logs/
+/logs
 logs_home/
 quant_logs*/
 qual_logs*/
