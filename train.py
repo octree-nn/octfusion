@@ -39,13 +39,11 @@ def generate(opt, model):
 
     if opt.category == "im_5":
         category = "airplane"
-        cond_split_dir = f'logs/split_data/{category}_split_small_cond'
+        split_dir = f'logs/split_data/{category}_split_small_cond'
     else:
         category = opt.category
-        uncond_split_dir = f'logs/split_data/{category}_split_small'
+        split_dir = f'logs/split_data/{category}_split_small'
         
-    split_dir = uncond_split_dir
-
     total_num = category_5_to_num[category]
 
     for iter_i in range(total_iters):
