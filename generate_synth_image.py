@@ -5,7 +5,7 @@ from multiprocessing import Pool, current_process
 import multiprocessing as mp
 from tqdm import tqdm
 os.environ['EGL_DEVICE_ID'] = '1'
-category = "table"
+category = "car"
 
 cond = False
 
@@ -25,13 +25,16 @@ snc_category_to_synth_id_13 = {
     'vessel': '04530566',
 }
 
-
-fid_root = f'logs/{category}_union/cascade_pretrain_res110_chan124_lr2e-4/fid_images'
+cond = False
+note = "res220_chan124_lr2e-4"
+if cond:
+    fid_root = f'logs/im_5_union/cascade_pretrain_{note}/fid_images_{category}'
+    mesh_dir = f'logs/im_5_union/cascade_pretrain_{note}results_{category}'
+else:
+    fid_root = f'logs/{category}_union/cascade_pretrain_{note}/fid_images'
+    mesh_dir = f'logs/{category}_union/cascade_pretrain_{note}/results'
 
 os.makedirs(fid_root, exist_ok=True)
-
-
-mesh_dir = f'logs/{category}_union/cascade_pretrain_res110_chan124_lr2e-4/results'
 
 meshes = os.listdir(mesh_dir)
 
