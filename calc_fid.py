@@ -1,7 +1,7 @@
 import torch
 from cleanfid import fid
 import os
-gpu_ids = 4
+gpu_ids = 9
 os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_ids}"
 
 snc_synth_id_to_category_5 = {
@@ -12,12 +12,15 @@ snc_synth_id_to_category_5 = {
 
 category_to_snc_synth_id = {v:k for (k,v) in snc_synth_id_to_category_5.items()}
 
-category = 'table'
-cond = False
+category = 'rifle'
+cond = True
 synth_id = category_to_snc_synth_id[category]
 
 
-synthesis_path = f'logs/{category}_union/cascade_pretrain_res110_chan124_lr2e-4/fid_images'
+if cond:
+    synthesis_path = f'logs/im_5_union/cascade_pretrain_res220_chan124_lr2e-4/fid_images_{category}'
+else:
+    synthesis_path = f'logs/{category}_union/cascade_pretrain_res110_chan124_lr2e-4/fid_images'
 dataset_path = f'data/ShapeNet/fid_images/{category}'
 
 views1 = os.listdir(synthesis_path)
