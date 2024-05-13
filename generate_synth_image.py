@@ -5,10 +5,7 @@ from multiprocessing import Pool, current_process
 import multiprocessing as mp
 from tqdm import tqdm
 os.environ['EGL_DEVICE_ID'] = '1'
-category = "car"
-
-cond = False
-
+category = "table"
 snc_category_to_synth_id_13 = {
     'airplane': '02691156',
     'bench': '02828884',
@@ -25,11 +22,11 @@ snc_category_to_synth_id_13 = {
     'vessel': '04530566',
 }
 
-cond = False
+cond = True
 note = "res220_chan124_lr2e-4"
 if cond:
     fid_root = f'logs/im_5_union/cascade_pretrain_{note}/fid_images_{category}'
-    mesh_dir = f'logs/im_5_union/cascade_pretrain_{note}results_{category}'
+    mesh_dir = f'logs/im_5_union/cascade_pretrain_{note}/results_{category}'
 else:
     fid_root = f'logs/{category}_union/cascade_pretrain_{note}/fid_images'
     mesh_dir = f'logs/{category}_union/cascade_pretrain_{note}/results'
@@ -52,7 +49,7 @@ def process_mesh(mesh):
         return
     print(f'The mesh {name} finish rendering')
 
-num_processes = 40 # mp.cpu_count()
+num_processes = 20 # mp.cpu_count()
 if num_processes > 1:
     with Pool(num_processes) as pool:  # Create a pool with 4 processes
         list(tqdm(pool.imap(process_mesh, meshes), total=len(meshes)))

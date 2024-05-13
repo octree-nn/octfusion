@@ -371,7 +371,7 @@ class SDFusionModel(BaseModel):
                 split_small = self.uncond_octree(ema = ema, ddim_steps = ddim_steps, label=label)
         octree_small = self.split2octree_small(split_small)
 
-        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, suffix)
+        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{suffix}_{category}")
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
 
         doctree_small = dual_octree.DualOctree(octree_small)
