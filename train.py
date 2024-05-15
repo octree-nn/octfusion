@@ -259,17 +259,17 @@ if __name__ == "__main__":
             cfg_out = os.path.join(expr_dir, os.path.basename(df_cfg))
             os.system(f'cp {df_cfg} {cfg_out}')
     # profile(opt, model, train_loader, test_loader, visualizer)
-    # if opt.mode == 'train':
-    #     if opt.debug == "0":
-    #         try:
-    #             train_main_worker(opt, model, train_loader, test_loader, visualizer)
-    #         except:
-    #             import traceback
-    #             print(traceback.format_exc(), flush=True)
-    #             with open(os.path.join(opt.logs_dir, opt.name, "error.txt"), "a") as f:
-    #                 f.write(traceback.format_exc() + "\n")
-    #             raise ValueError
-    #     else:
-    #         train_main_worker(opt, model, train_loader, test_loader, visualizer)
-    # if opt.mode == 'generate':
-    #     generate(opt, model)
+    if opt.mode == 'train':
+        if opt.debug == "0":
+            try:
+                train_main_worker(opt, model, train_loader, test_loader, visualizer)
+            except:
+                import traceback
+                print(traceback.format_exc(), flush=True)
+                with open(os.path.join(opt.logs_dir, opt.name, "error.txt"), "a") as f:
+                    f.write(traceback.format_exc() + "\n")
+                raise ValueError
+        else:
+            train_main_worker(opt, model, train_loader, test_loader, visualizer)
+    if opt.mode == 'generate':
+        generate(opt, model)
