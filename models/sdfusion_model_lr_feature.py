@@ -350,6 +350,7 @@ class SDFusionModel(BaseModel):
             octree_small = self.split2octree_small(split_small)
 
         batch_size = octree_small.batch_size
+        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{suffix}_{category}")
 
         doctree_small = dual_octree.DualOctree(octree_small)
         doctree_small.post_processing_for_docnn()
@@ -395,7 +396,7 @@ class SDFusionModel(BaseModel):
         # decode z
         self.output = self.autoencoder_module.decode_code(samples, doctree_small)
         self.get_sdfs(self.output['neural_mpu'], batch_size, bbox = None)
-        self.export_mesh(save_dir = f'{category}_{suffix}', index = save_index, clean = clean)
+        self.export_mesh(save_dir = save_dir, index = save_index, clean = clean)
 
 
     def octree2split_small(self, octree):

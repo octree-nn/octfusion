@@ -48,6 +48,8 @@ def generate(opt, model):
 
         result_index = iter_i * get_world_size() + get_rank()
         split_path = os.path.join(split_dir, f'{result_index}.pth')
+        if not os.path.exists(split_path):
+            continue
         model.batch_size = 1
         seed_everything(opt.seed)
         if result_index >= total_num: break
