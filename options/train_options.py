@@ -14,7 +14,7 @@ class TrainOptions(BaseOptions):
 
 
         # display stuff
-        self.parser.add_argument('--display_freq', type=int, default=100, help='frequency of showing training results on screen')
+        self.parser.add_argument('--display_freq', type=int, default=3000, help='frequency of showing training results on screen')
         self.parser.add_argument('--print_freq', type=int, default=100, help='frequency of showing training results on console')
         self.parser.add_argument('--ckpt_num', type=int, default=10, help='The number of checkpoint kept')
 
