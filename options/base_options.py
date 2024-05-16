@@ -43,6 +43,7 @@ class BaseOptions():
         self.parser.add_argument('--dataset_mode', type=str, default='snet', help='chooses how datasets are loaded. [mnist, snet, abc, snet-abc]')
         self.parser.add_argument('--res', type=int, default=64, help='dataset resolution')
         self.parser.add_argument('--category', type=str, default='chair', help='category for shapenet')
+        self.parser.add_argument('--split_dir', type=str, default='logs/split_data/chair', help='split path')
         self.parser.add_argument('--trunc_thres', type=float, default=0.2, help='threshold for truncated sdf.')
 
         self.parser.add_argument('--ratio', type=float, default=1., help='ratio of the dataset to use. for debugging and overfitting')
