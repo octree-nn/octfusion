@@ -40,12 +40,10 @@ def generate(opt, model, test_loader):
     pbar = tqdm(total=total_iters)
 
     if opt.category == "im_5":
-        category = "airplane"
-        split_dir = f'logs/split_data/{category}_split_small_cond'
+        category = "table"
     else:
         category = opt.category
-        split_dir = f'logs/split_data/{category}_split_small'
-        
+    split_dir = opt.split_dir        
     total_num = category_5_to_num[category]
     total_time, total_memory, total_node = 0, 0, 0
     for iter_i in range(total_iters):
