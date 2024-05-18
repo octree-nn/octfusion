@@ -35,6 +35,7 @@ from utils.distributed import reduce_loss_dict, get_rank
 
 # rendering
 from utils.util_dualoctree import calc_sdf
+from utils.utils import TorchRecoder
 
 TRUNCATED_TIME = 0.7
 category_5_to_label = {
