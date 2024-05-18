@@ -37,7 +37,7 @@ from models.networks.diffusion_networks.samplers.ddim_new import DDIMSampler
 from utils.distributed import reduce_loss_dict
 
 # rendering
-from utils.util_3d import init_mesh_renderer, render_sdf, render_sdf_dualoctree
+# from utils.util_3d import init_mesh_renderer, render_sdf, render_sdf_dualoctree
 from utils.util_dualoctree import calc_sdf
 
 TRUNCATED_TIME = 0.7
@@ -138,17 +138,6 @@ class SDFusionModel(BaseModel):
                 self.optimizers = [self.optimizer]
             # self.schedulers = [self.scheduler]
 
-
-        # setup renderer
-        if 'snet' in opt.dataset_mode:
-            dist, elev, azim = 1.7, 20, 20
-        elif 'pix3d' in opt.dataset_mode:
-            dist, elev, azim = 1.7, 20, 20
-        elif opt.dataset_mode == 'buildingnet':
-            dist, elev, azim = 1.0, 20, 20
-
-        self.renderer = init_mesh_renderer(image_size=256, dist=dist, elev=elev, azim=azim, device=self.device)
-
         # for distributed training
         if self.opt.distributed:
             self.make_distributed(opt)
@@ -234,12 +223,14 @@ class SDFusionModel(BaseModel):
         pass
 
     @torch.no_grad()
-    def uncond(self, batch_size=16, category = 'airplane', ema = True, ddim_steps = 200, ddim_eta = 0., truncated_index: float = 0.0, save_index = 0):
+    def uncond(self, data = None, split_path = None, category = 'airplane', suffix = "", ema=True, ddim_steps = 200, ddim_eta = 0., truncated_index: float = 0.0, save_index = 0, clean = False):
 
         if ema:
             self.ema_df.eval()
         else:
             self.df.eval()
+        
+        batch_size = self.batch_size
 
         shape = (batch_size, *self.z_shape)
 
@@ -248,9 +239,10 @@ class SDFusionModel(BaseModel):
 
         noised_split_small = torch.randn(shape, device = self.device)
 
-        label = torch.zeros(batch_size).to(self.device)
-        label += category_5_to_label[category]
-        label = label.long()
+        # label = torch.zeros(batch_size).to(self.device)
+        # label += category_5_to_label[category]
+        # label = label.long()
+        label = None
 
         x_start_small = None
 

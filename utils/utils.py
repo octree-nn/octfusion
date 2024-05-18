@@ -301,3 +301,34 @@ def linear_slerp(val, low, high):
   return (1-val)*low + val * high
 
 
+class TorchRecoder:
+  def __init__(self):
+    self.total_time = 0
+    self.calls = 0
+    self.total_memory = 0
+
+  def __enter__(self):
+    self.start = torch.cuda.Event(enable_timing=True)
+    self.end = torch.cuda.Event(enable_timing=True)
+    torch.cuda.empty_cache()
+    torch.cuda.reset_peak_memory_stats()
+    self.start.record()
+
+  def __exit__(self, *args):
+    self.end.record()
+    torch.cuda.synchronize()
+    self.total_time += self.start.elapsed_time(self.end)
+    self.calls += 1
+    peak_memory = torch.cuda.memory.max_memory_allocated()  / (2 ** 30)
+    self.total_memory += peak_memory
+
+  def reset(self):
+    self.total_time = 0
+    self.calls = 0
+    self.total_memory = 0
+
+  def avg_time(self):
+    return self.total_time / self.calls if self.calls > 0 else 0
+  
+  def avg_memory(self):
+    return self.total_memory / self.calls if self.calls > 0 else 0

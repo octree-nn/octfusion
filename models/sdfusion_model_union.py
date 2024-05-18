@@ -34,7 +34,6 @@ from models.networks.diffusion_networks.samplers.ddim_new import DDIMSampler
 from utils.distributed import reduce_loss_dict, get_rank
 
 # rendering
-from utils.util_3d import init_mesh_renderer, render_sdf, render_sdf_dualoctree
 from utils.util_dualoctree import calc_sdf
 
 TRUNCATED_TIME = 0.7
@@ -81,6 +80,7 @@ class SDFusionModel(BaseModel):
 
         self.load_octree = self.vq_conf.data.train.load_octree
         self.load_pointcloud = self.vq_conf.data.train.load_pointcloud
+        self.load_split_small = self.vq_conf.data.train.load_split_small
 
         # init diffusion networks
         df_model_params = df_conf.model.params
@@ -157,8 +157,6 @@ class SDFusionModel(BaseModel):
         elif opt.dataset_mode == 'buildingnet':
             dist, elev, azim = 1.0, 20, 20
 
-        self.renderer = init_mesh_renderer(image_size=256, dist=dist, elev=elev, azim=azim, device=self.device)
-
         # for distributed training
         if self.opt.distributed:
             self.make_distributed(opt)
@@ -205,18 +203,19 @@ class SDFusionModel(BaseModel):
             octree.construct_all_neigh()
             batch['octree_in'] = octree
 
+        batch['label'] = batch['label'].cuda()
         if self.load_octree:
             batch['octree_in'] = batch['octree_in'].cuda()
-
-        batch['label'] = batch['label'].cuda()
-
-        batch['split_small'] = self.octree2split_small(batch['octree_in'])
-        batch['split_large'] = self.octree2split_large(batch['octree_in'])
+            batch['split_small'] = self.octree2split_small(batch['octree_in'])
+            # batch['split_large'] = self.octree2split_large(batch['octree_in'])
+        elif self.load_split_small:
+            batch['split_small'] = batch['split_small'].cuda()
+            batch['octree_in'] = self.split2octree_small(batch['split_small'])
 
     def set_input(self, input=None):
         self.batch_to_cuda(input)
         self.split_small = input['split_small']
-        self.split_large = input['split_large']
+        # self.split_large = input['split_large']
         self.octree_in = input['octree_in']
         self.batch_size = self.octree_in.batch_size
 
@@ -351,8 +350,7 @@ class SDFusionModel(BaseModel):
         else:
             self.df.eval()
 
-        batch_size = self.batch_size
-
+        batch_size = self.vq_conf.data.test.batch_size
         if data != None:
             self.set_input(data)
             split_small = self.split_small
@@ -372,7 +370,7 @@ class SDFusionModel(BaseModel):
         octree_small = self.split2octree_small(split_small)
 
         save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{suffix}_{category}")
-        self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
+        # self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
 
         doctree_small = dual_octree.DualOctree(octree_small)
         doctree_small.post_processing_for_docnn()

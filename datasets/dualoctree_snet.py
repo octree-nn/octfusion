@@ -131,7 +131,7 @@ class ReadFile:
       output['point_cloud'] = point_cloud
 
     if self.load_split_small:
-      filename_split_small = os.path.join(filename, 'split_small.pth')
+      filename_split_small = os.path.join(filename + '.pth')
       raw = torch.load(filename_split_small, map_location = 'cpu')
       output['split_small'] = raw
 
