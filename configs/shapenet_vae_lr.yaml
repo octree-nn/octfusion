@@ -72,7 +72,7 @@ data:
     # data loading
     location: *location
     filelist: *filelist
-    batch_size: *batch_size
+    batch_size: 1
     load_octree: *load_octree
     load_pointcloud: *load_pointcloud
     load_split_small: *load_split_small

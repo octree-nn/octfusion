@@ -152,47 +152,6 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
 
         pbar.update(1)
 
-def profile(opt, model, train_loader, test_loader, visualizer):
-
-    if get_rank() == 0:
-        cprint('[*] Start training. name: %s' % opt.name, 'blue')
-
-    train_dg = get_data_generator(train_loader)
-
-    epoch_length = len(train_loader)
-    print('The epoch length is', epoch_length)
-
-    total_iters = epoch_length * opt.epochs
-    start_iter = opt.start_iter
-
-    epoch = start_iter // epoch_length
-
-    # pbar = tqdm(total=total_iters)
-    pbar = tqdm(range(start_iter, total_iters))
-    data = next(train_dg)
-    data['iter_num'] = 0
-    data['epoch'] = epoch
-    model.set_input(data)
-
-    for iter_i in range(100):
-        model.optimize_parameters()
-        pbar.update(1)
-    
-    starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-
-    torch.cuda.reset_peak_memory_stats()
-    torch.cuda.empty_cache()
-    starter.record()
-    total_iters = 500
-    for _ in range(total_iters):
-        model.optimize_parameters()
-        pbar.update(1)
-    ender.record()
-    torch.cuda.synchronize()
-    avg_time = starter.elapsed_time(ender) / total_iters
-    avg_memory = torch.cuda.memory.max_memory_allocated()
-    print("Time:", avg_time)
-    print("Memory:", avg_memory / (2 ** 30))
     
 
 if __name__ == "__main__":
@@ -258,7 +217,6 @@ if __name__ == "__main__":
             df_cfg = opt.df_cfg
             cfg_out = os.path.join(expr_dir, os.path.basename(df_cfg))
             os.system(f'cp {df_cfg} {cfg_out}')
-    # profile(opt, model, train_loader, test_loader, visualizer)
     if opt.mode == 'train':
         if opt.debug == "0":
             try:

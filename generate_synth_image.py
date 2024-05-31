@@ -22,14 +22,17 @@ snc_category_to_synth_id_13 = {
     'vessel': '04530566',
 }
 
-cond = False
-note = "res110_chan124_lr2e-4"
+cond = True
 if cond:
-    fid_root = f'logs/im_5_union/cascade_pretrain_{note}/fid_images_{category}'
-    mesh_dir = f'logs/im_5_union/cascade_pretrain_{note}/results_{category}'
+    note = "res220_chan124_lr2e-4"
+    suffix = "split3_seed42"
+    fid_root = f'logs/im_5_union/cascade_pretrain_{note}/300epoch/fid_images_{category}_{suffix}'
+    mesh_dir = f'logs/im_5_union/cascade_pretrain_{note}/300epoch/results_{category}_{suffix}'
 else:
-    fid_root = f'logs/{category}_union/cascade_pretrain_{note}/fid_images_{category}'
-    mesh_dir = f'logs/{category}_union/cascade_pretrain_{note}/results_{category}'
+    note = "res110_chan124_lr2e-4"
+    suffix = "split3_seed2024"
+    fid_root = f'logs/{category}_union/cascade_pretrain_{note}/1000epoch/fid_images_{category}_{suffix}'
+    mesh_dir = f'logs/{category}_union/cascade_pretrain_{note}/1000epoch/results_{category}_{suffix}'
 
 os.makedirs(fid_root, exist_ok=True)
 
@@ -41,7 +44,7 @@ def process_mesh(mesh):
     mesh = trimesh.load(mesh_path, force="mesh")
 
     # Set the GPU for this process
-    os.environ['EGL_DEVICE_ID'] = str(current_process()._identity[0] % 4)
+    os.environ['EGL_DEVICE_ID'] = str(current_process()._identity[0] % 8)
     try:
         generate_image_for_fid(mesh, fid_root, name)
     except:
@@ -49,7 +52,7 @@ def process_mesh(mesh):
         return
     print(f'The mesh {name} finish rendering')
 
-num_processes = 40 # mp.cpu_count()
+num_processes = 20 # mp.cpu_count()
 if num_processes > 1:
     with Pool(num_processes) as pool:  # Create a pool with 4 processes
         list(tqdm(pool.imap(process_mesh, meshes), total=len(meshes)))
