@@ -38,14 +38,13 @@ vq_model="GraphVAE"
 vq_yaml="shapenet_vae_lr.yaml"
 vq_cfg="configs/${vq_yaml}"
 vq_ckpt="saved_ckpt/all-KL-0.25-weight-0.001-depth-8-00200.model.pth"
-mode="train"
+mode="generate"
 
 ####################
 
 ### dataset stuff ###
 note="res110_chan124"
 dataset_mode='snet'
-dataroot="data"
 category='car'
 
 #####################
@@ -82,11 +81,6 @@ cmd="train.py --name ${name} --logs_dir ${logs_dir} --gpu_ids ${gpu_ids} --mode 
             --display_freq ${display_freq} --print_freq ${print_freq} \
             --save_steps_freq ${save_steps_freq} --save_latest_freq ${save_latest_freq} \
             --debug ${debug}"
-
-if [ ! -z "$dataroot" ]; then
-    cmd="${cmd} --dataroot ${dataroot}"
-    echo "setting dataroot to: ${dataroot}"
-fi
 
 if [ ! -z "$ckpt" ]; then
     cmd="${cmd} --ckpt ${ckpt}"

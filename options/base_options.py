@@ -39,7 +39,6 @@ class BaseOptions():
         self.parser.add_argument('--name', type=str, default='experiment_name', help='name of the experiment. It decides where to store samples and models')
 
         # dataset stuff
-        self.parser.add_argument('--dataroot', type=str, default=None, help='root dir for data. if None, specify by `hostname` in configs/paths.py')
         self.parser.add_argument('--dataset_mode', type=str, default='snet', help='chooses how datasets are loaded. [mnist, snet, abc, snet-abc]')
         self.parser.add_argument('--res', type=int, default=64, help='dataset resolution')
         self.parser.add_argument('--category', type=str, default='chair', help='category for shapenet')

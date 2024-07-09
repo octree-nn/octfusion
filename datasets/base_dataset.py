@@ -11,9 +11,6 @@ import torchvision.transforms as transforms
 
 from torchvision import datasets
 
-# from configs.paths import dataroot
-
-
 def data_sampler(dataset, shuffle, distributed):
     if distributed:
         return data.distributed.DistributedSampler(dataset, shuffle=shuffle)
