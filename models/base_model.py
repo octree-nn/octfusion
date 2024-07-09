@@ -7,28 +7,8 @@ import math
 def create_model(opt):
     model = None
 
-    if opt.model == 'sdfusion':
-        from models.sdfusion_model import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_small':
+    if opt.model == 'sdfusion_small':
         from models.sdfusion_model_small import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_lr_feature':
-        from models.sdfusion_model_lr_feature import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_lr_feature_5':
-        from models.sdfusion_model_lr_feature_5 import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_hr_large':
-        from models.sdfusion_model_hr_large import SDFusionModel
-        model = SDFusionModel()
-
-    elif opt.model == 'sdfusion_hr_feature':
-        from models.sdfusion_model_hr_feature import SDFusionModel
         model = SDFusionModel()
 
     elif opt.model == 'sdfusion_union':

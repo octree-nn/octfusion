@@ -203,6 +203,7 @@ class SDFusionModel(BaseModel):
             octree = ocnn.octree.merge_octrees(octrees)
             octree.construct_all_neigh()
             batch['octree_in'] = octree
+            batch['split_small'] = self.octree2split_small(batch['octree_in'])
 
         batch['label'] = batch['label'].cuda()
         if self.load_octree:

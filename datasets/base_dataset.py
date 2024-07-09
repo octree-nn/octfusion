@@ -45,36 +45,6 @@ def CreateDataset(opt):
         train_dataset.initialize(opt, 'train', cat=opt.cat, res=opt.res)
         test_dataset.initialize(opt, 'test', cat=opt.cat, res=opt.res)
 
-    elif opt.dataset_mode == 'pix3d_img2shape':
-        from datasets.pix3d_dataset import Pix3DImg2ShapeDataset
-        train_dataset = Pix3DImg2ShapeDataset()
-        test_dataset = Pix3DImg2ShapeDataset()
-        train_dataset.initialize(opt, 'train', cat=opt.cat, res=opt.res)
-        test_dataset.initialize(opt, 'test', cat=opt.cat, res=opt.res)
-        
-
-    elif opt.dataset_mode == 'text2shape':
-        from datasets.text2shape_dataset import Text2ShapeDataset
-        train_dataset = Text2ShapeDataset()
-        test_dataset = Text2ShapeDataset()
-        train_dataset.initialize(opt, 'train', cat=opt.cat, res=opt.res)
-        test_dataset.initialize(opt, 'test', cat=opt.cat, res=opt.res)
-        
-
-    elif opt.dataset_mode == 'snet_mm2shape':
-        from datasets.snet_mm2shape_dataset import ShapeNetMultiModal2ShapeDataset
-        train_dataset = ShapeNetMultiModal2ShapeDataset()
-        test_dataset = ShapeNetMultiModal2ShapeDataset()
-        train_dataset.initialize(opt, 'train', cat=opt.cat, res=opt.res)
-        test_dataset.initialize(opt, 'test', cat=opt.cat, res=opt.res)
-
-    elif opt.dataset_mode == 'buildingnet':
-        from datasets.buildingnet_dataset import BuildingNetDataset
-        train_dataset = BuildingNetDataset()
-        test_dataset = BuildingNetDataset()
-        train_dataset.initialize(opt, 'train', cat=opt.cat, res=opt.res)
-        test_dataset.initialize(opt, 'test', cat=opt.cat, res=opt.res)
-
     else:
         raise ValueError("Dataset [%s] not recognized." % opt.dataset_mode)
 
