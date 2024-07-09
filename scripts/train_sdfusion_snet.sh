@@ -31,9 +31,9 @@ ckpt_num=10
 
 ### model stuff ###
 note="release"
-model='sdfusion_lr_feature'
-df_cfg='configs/sdfusion_snet_lr_feature.yaml'
-ckpt="logs_home/2024-04-28T13-26-14-sdfusion_lr_feature-snet-airplane-LR1e-4-release/ckpt/df_steps-latest.pth"
+model='octfusion_lr_feature'
+df_cfg='configs/octfusion_snet_lr_feature.yaml'
+ckpt="logs_home/2024-04-28T13-26-14-octfusion_lr_feature-snet-airplane-LR1e-4-release/ckpt/df_steps-latest.pth"
 
 vq_model="GraphVAE"
 vq_cfg='configs/shapenet_vae_lr.yaml'

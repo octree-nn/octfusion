@@ -29,9 +29,9 @@ label = category_5_to_label[category]
 total_num = category_5_to_num[category]
 
 # initialize SDFusion model
-model = 'sdfusion_lr_feature_5'
-df_cfg = 'configs/sdfusion_snet_lr_feature_5.yaml'
-ckpt_path = 'logs_home/2024-04-23T21-23-41-sdfusion_lr_feature_5-snet-im_5-LR1e-4-release/ckpt/df_steps-latest.pth'
+model = 'octfusion_lr_feature_5'
+df_cfg = 'configs/octfusion_snet_lr_feature_5.yaml'
+ckpt_path = 'logs_home/2024-04-23T21-23-41-octfusion_lr_feature_5-snet-im_5-LR1e-4-release/ckpt/df_steps-latest.pth'
 
 vq_cfg = "configs/shapenet_vae_lr.yaml"
 vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-8-00200.model.pth'

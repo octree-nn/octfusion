@@ -61,7 +61,7 @@ class BaseOptions():
         self.parser.add_argument('--pretrain_ckpt', type=str, default=None, help='pretrain ckpt to load.')
 
         # diffusion stuff
-        self.parser.add_argument('--df_cfg', type=str, default='configs/sdfusion_snet.yaml', help="diffusion model's config file")
+        self.parser.add_argument('--df_cfg', type=str, default='configs/octfusion_snet.yaml', help="diffusion model's config file")
         self.parser.add_argument('--ddim_steps', type=int, default=100, help='steps for ddim sampler')
         self.parser.add_argument('--ddim_eta', type=float, default=0.0)
         self.parser.add_argument('--uc_scale', type=float, default=1.0, help='scale for un guidance')

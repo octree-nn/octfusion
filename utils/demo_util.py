@@ -84,9 +84,9 @@ class SDFusionOpt(BaseOpt):
 
     def init_model_args(
             self,
-            model='sdfusion',
-            df_cfg = 'configs/sdfusion_snet.yaml',
-            ckpt_path='saved_ckpt/sdfusion-snet-all.pth',
+            model='octfusion',
+            df_cfg = 'configs/octfusion_snet.yaml',
+            ckpt_path='saved_ckpt/octfusion-snet-all.pth',
             vq_cfg = 'configs/shapenet_vqvae.yaml',
             vq_ckpt_path='saved_ckpt/vqvae-snet-all.pth',
         ):
@@ -122,11 +122,11 @@ class SDFusionText2ShapeOpt(BaseOpt):
 
     def init_model_args(
             self,
-            ckpt_path='saved_ckpt/sdfusion-txt2shape.pth',
+            ckpt_path='saved_ckpt/octfusion-txt2shape.pth',
             vq_ckpt_path='saved_ckpt/vqvae-snet-all.pth',
         ):
-        self.model = 'sdfusion-txt2shape'
-        self.df_cfg = 'configs/sdfusion-txt2shape.yaml'
+        self.model = 'octfusion-txt2shape'
+        self.df_cfg = 'configs/octfusion-txt2shape.yaml'
         self.ckpt = ckpt_path
 
         self.vq_model = 'vqvae'
@@ -156,11 +156,11 @@ class SDFusionImage2ShapeOpt(BaseOpt):
 
     def init_model_args(
             self,
-            ckpt_path='saved_ckpt/sdfusion-img2shape.pth',
+            ckpt_path='saved_ckpt/octfusion-img2shape.pth',
             vq_ckpt_path='saved_ckpt/vqvae-snet-all.pth',
         ):
-        self.model = 'sdfusion-img2shape'
-        self.df_cfg = 'configs/sdfusion-img2shape.yaml'
+        self.model = 'octfusion-img2shape'
+        self.df_cfg = 'configs/octfusion-img2shape.yaml'
         self.ckpt = ckpt_path
 
         self.vq_model = 'vqvae'
@@ -191,11 +191,11 @@ class SDFusionMM2ShapeOpt(BaseOpt):
 
     def init_model_args(
             self,
-            ckpt_path='saved_ckpt/sdfusion-mm2shape.pth',
+            ckpt_path='saved_ckpt/octfusion-mm2shape.pth',
             vq_ckpt_path='saved_ckpt/vqvae-snet-all.pth',
         ):
-        self.model = 'sdfusion-mm2shape'
-        self.df_cfg = 'configs/sdfusion-mm2shape.yaml'
+        self.model = 'octfusion-mm2shape'
+        self.df_cfg = 'configs/octfusion-mm2shape.yaml'
         self.ckpt = ckpt_path
 
         self.vq_model = 'vqvae'

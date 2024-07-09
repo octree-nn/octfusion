@@ -29,14 +29,14 @@ label = category_5_to_label[category]
 total_num = category_5_to_num[category]
 
 # initialize SDFusion model
-model = 'sdfusion_lr_feature'
-df_cfg = 'configs/sdfusion_snet_lr_feature.yaml'
+model = 'octfusion_lr_feature'
+df_cfg = 'configs/octfusion_snet_lr_feature.yaml'
 ckpt_path = f'saved_ckpt/diffusion-ckpt/{category}/df_steps-lr-feature.pth'
 
 # if category == 'chair':
-#     ckpt_path = 'logs_home/2024-04-08T14-55-07-sdfusion_lr_feature-snet-chair-LR1e-4-release/ckpt/df_steps-282000.pth'
+#     ckpt_path = 'logs_home/2024-04-08T14-55-07-octfusion_lr_feature-snet-chair-LR1e-4-release/ckpt/df_steps-282000.pth'
 # elif category == 'table':
-#     ckpt_path = 'logs_home/2024-04-22T14-56-03-sdfusion_lr_feature-snet-table-LR1e-4-release/ckpt/df_steps-latest.pth'
+#     ckpt_path = 'logs_home/2024-04-22T14-56-03-octfusion_lr_feature-snet-table-LR1e-4-release/ckpt/df_steps-latest.pth'
 
 vq_cfg = "configs/shapenet_vae_lr.yaml"
 vq_ckpt = 'saved_ckpt/all-KL-0.25-weight-0.001-depth-8-00200.model.pth'

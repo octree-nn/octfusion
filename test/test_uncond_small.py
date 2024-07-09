@@ -30,7 +30,7 @@ total_num = category_5_to_num[category]
 
 # initialize SDFusion model
 model = 'octfusion_small'
-df_cfg = 'configs/sdfusion_snet_small_5.yaml'
+df_cfg = 'configs/octfusion_snet_small_5.yaml'
 ckpt_path = f'logs_home/2024-04-07T20-16-40-octfusion_small-snet-im_5-LR1e-4-release/ckpt/df_steps-latest.pth'
 
 vq_cfg = "configs/shapenet_vae_lr.yaml"

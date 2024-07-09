@@ -195,7 +195,7 @@ if __name__ == "__main__":
         model_f = inspect.getfile(model.__class__)
         unet_f = inspect.getfile(model.df_module.__class__)
         dset_f = inspect.getfile(train_ds.__class__)
-        sh_f = 'train_sdfusion_snet.sh'
+        sh_f = 'train_octfusion_snet.sh'
         train_f = 'train.py'
         cprint(f'[*] saving model and dataset files: {model_f}, {dset_f}', 'blue')
         modelf_out = os.path.join(expr_dir, os.path.basename(model_f))

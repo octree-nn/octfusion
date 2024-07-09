@@ -34,9 +34,9 @@ category = 'chair'
 total_num = category_5_to_num[category]
 
 # initialize SDFusion model
-model = 'sdfusion_hr_feature'
-df_cfg = 'configs/sdfusion_snet_hr_feature.yaml'
-ckpt_path = f'logs_home/continue-2024-02-07T11-18-49-sdfusion_hr_feature-snet-im_5-LR1e-4-release/ckpt/df_steps-latest.pth'
+model = 'octfusion_hr_feature'
+df_cfg = 'configs/octfusion_snet_hr_feature.yaml'
+ckpt_path = f'logs_home/continue-2024-02-07T11-18-49-octfusion_hr_feature-snet-im_5-LR1e-4-release/ckpt/df_steps-latest.pth'
 
 vq_cfg = "configs/shapenet_vae_hr.yaml"
 vq_ckpt = 'saved_ckpt/graph_vae/all/all-KL-0.25-weight-0.001-depth-9-00140.model.pth'

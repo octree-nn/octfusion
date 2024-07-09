@@ -29,8 +29,8 @@ label = category_5_to_label[category]
 total_num = category_5_to_num[category]
 
 # initialize SDFusion model
-model = 'sdfusion_hr_large'
-df_cfg = 'configs/sdfusion_snet_hr_large.yaml'
+model = 'octfusion_hr_large'
+df_cfg = 'configs/octfusion_snet_hr_large.yaml'
 ckpt_path = f'Tencent/{category}/df_steps-hr-large.pth'
 
 vq_cfg = "configs/shapenet_vae_hr.yaml"
