@@ -51,9 +51,6 @@ class BaseModel():
     def optimize_parameters(self):
         pass
 
-    def get_current_visuals(self):
-        return self.input
-
     def get_current_errors(self):
         return {}
 
@@ -125,12 +122,3 @@ class BaseModel():
                 var = getattr(self, name)
                 # setattr(self, name, var.cuda(self.gpu_ids[0], non_blocking=True))
                 setattr(self, name, var.cuda(self.opt.device, non_blocking=True))
-
-
-    def tnsrs2ims(self, tensor_names):
-        ims = []
-        for name in tensor_names:
-            if isinstance(name, str):
-                var = getattr(self, name)
-                ims.append(util.tensor2im(var.data))
-        return ims

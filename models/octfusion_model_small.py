@@ -37,7 +37,6 @@ from models.networks.diffusion_networks.samplers.ddim_new import DDIMSampler
 from utils.distributed import reduce_loss_dict
 
 # rendering
-# from utils.util_3d import init_mesh_renderer, render_sdf, render_sdf_dualoctree
 from utils.util_dualoctree import calc_sdf
 
 TRUNCATED_TIME = 0.7
@@ -491,23 +490,6 @@ class OctFusionModel(BaseModel):
             ret['gamma'] = self.loss_gamma.data
 
         return ret
-
-    def get_current_visuals(self):
-
-        with torch.no_grad():
-            self.img_gen_df = render_sdf_dualoctree(self.renderer, self.sdfs, level=0,
-                                                bbmin = self.bbmin, bbmax = self.bbmax,
-                                                mesh_scale = self.vq_conf.data.test.point_scale, render_all = True)
-            # self.img_gen_df = render_sdf(self.renderer, self.gen_df)
-
-        vis_tensor_names = [
-            'img_gen_df',
-        ]
-
-        vis_ims = self.tnsrs2ims(vis_tensor_names)
-        visuals = zip(vis_tensor_names, vis_ims)
-
-        return OrderedDict(visuals)
 
     def save(self, label, global_iter, save_opt=True):
 

@@ -35,7 +35,7 @@ from utils.distributed import reduce_loss_dict, get_rank
 
 # rendering
 from utils.util_dualoctree import calc_sdf
-from utils.utils import TorchRecoder
+from utils.util import TorchRecoder
 
 TRUNCATED_TIME = 0.7
 category_5_to_label = {
@@ -601,22 +601,6 @@ class OctFusionModel(BaseModel):
             ret['gamma'] = self.loss_gamma.data
 
         return ret
-
-    def get_current_visuals(self):
-
-        with torch.no_grad():
-            self.img_gen_df = render_sdf_dualoctree(self.renderer, self.sdfs, level=0,
-                                                bbmin = self.bbmin, bbmax = self.bbmax,
-                                                mesh_scale = self.vq_conf.data.test.point_scale, render_all = True)
-
-        vis_tensor_names = [
-            'img_gen_df',
-        ]
-
-        vis_ims = self.tnsrs2ims(vis_tensor_names)
-        visuals = zip(vis_tensor_names, vis_ims)
-
-        return OrderedDict(visuals)
 
     def save(self, label, global_iter, save_opt=True):
 

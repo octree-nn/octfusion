@@ -1,99 +1,20 @@
-from __future__ import print_function
-
+from contextlib import contextmanager, ExitStack
+import torch
+from torch import nn
+import numpy as np
 import os
+from scipy.spatial.transform import Rotation
+import trimesh
+from skimage.measure import marching_cubes
+import argparse
 import random
 
-import numpy as np
-from PIL import Image
-from einops import rearrange
-
-import torch
-import torchvision.utils as vutils
-
-from torch.autograd import Variable
-from torch.optim.lr_scheduler import _LRScheduler
-
-
-################# START: PyTorch Tensor functions #################
-
-# Converts a Tensor into a Numpy array
-# |imtype|: the desired type of the converted numpy array
-def tensor2im(image_tensor, imtype=np.uint8, use_all = True):
-    # image_numpy = image_tensor[0].cpu().float().numpy()
-    # if image_numpy.shape[0] == 1:
-    #     image_numpy = np.tile(image_numpy, (3, 1, 1))
-    # image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0
-    # return image_numpy.astype(imtype)
-
-    n_img = image_tensor.shape[0]
-    if not use_all:
-        n_img = min(image_tensor.shape[0], 16)
-
-    image_tensor = image_tensor[:n_img]
-
-    if image_tensor.shape[1] == 1:
-        image_tensor = image_tensor.repeat(1, 3, 1, 1)
-
-    # if image_tensor.shape[1] == 4:
-        # import pdb; pdb.set_trace()
-
-    image_tensor = vutils.make_grid( image_tensor, nrow=4 )
-
-    image_numpy = image_tensor.cpu().float().numpy()
-    image_numpy = ( np.transpose( image_numpy, (1, 2, 0) ) + 1) / 2.0 * 255.
-    return image_numpy.astype(imtype)
-
-def tensor_to_pil(tensor):
-    # """ assume shape: c h w """
-    if tensor.dim() == 4:
-        tensor = vutils.make_grid(tensor)
-
-    # assert tensor.dim() == 3
-    return Image.fromarray( (rearrange(tensor, 'c h w -> h w c').cpu().numpy() * 255.).astype(np.uint8) )
-
-################# END: PyTorch Tensor functions #################
-
-
-def to_variable(numpy_data, volatile=False):
-    numpy_data = numpy_data.astype(np.float32)
-    torch_data = torch.from_numpy(numpy_data).float()
-    variable = Variable(torch_data, volatile=volatile)
-    return variable
-
-def diagnose_network(net, name='network'):
-    mean = 0.0
-    count = 0
-    for param in net.parameters():
-        if param.grad is not None:
-            mean += torch.mean(torch.abs(param.grad.data))
-            count += 1
-    if count > 0:
-        mean = mean / count
-    print(name)
-    print(mean)
-
-
-def save_image(image_numpy, image_path):
-    image_pil = Image.fromarray(image_numpy)
-    image_pil.save(image_path)
-
-
-def print_numpy(x, val=True, shp=False):
-    x = x.astype(np.float64)
-    if shp:
-        print('shape,', x.shape)
-    if val:
-        x = x.flatten()
-        print('mean = %3.3f, min = %3.3f, max = %3.3f, median = %3.3f, std=%3.3f' % (
-            np.mean(x), np.min(x), np.max(x), np.median(x), np.std(x)))
-
-
 def mkdirs(paths):
-    if isinstance(paths, list) and not isinstance(paths, str):
-        for path in paths:
-            mkdir(path)
-    else:
-        mkdir(paths)
+  if isinstance(paths, list) and not isinstance(paths, str):
+    for path in paths:
+      mkdir(path)
+  else:
+    mkdir(paths)
 
 
 def mkdir(path):
@@ -102,56 +23,334 @@ def mkdir(path):
 
 def seed_everything(seed):
 
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = True
+  random.seed(seed)
+  os.environ['PYTHONHASHSEED'] = str(seed)
+  np.random.seed(seed)
+  torch.manual_seed(seed)
+  torch.cuda.manual_seed(seed)
+  torch.backends.cudnn.deterministic = True
+  torch.backends.cudnn.benchmark = True
+
+def get_data_class_label(data_class):
+    if data_class == "chairs":
+      label = "03001627"
+    elif data_class == "planes":
+      label = "02691156"
+    elif data_class == "cars":
+      label = "02958343"
+    elif data_class == "tables":
+      label = "04379243"
+    elif data_class == "rifles":
+      label = "04090263"
+    else:
+      raise NotImplementedError
+    return label
+
+def get_sample_number_for_metric(data_class, metrics= "fid"):
+    assert metrics in ["fid", "cov", "fpd"]
+    if metrics == "fid" or metrics == "fpd":
+      if data_class == "chairs":
+        n_sam = 4744
+      elif data_class == "planes":
+        n_sam = 2831
+      elif data_class == "cars":
+        n_sam = 5247
+      elif data_class == "tables":
+        n_sam = 5956
+      elif data_class == "rifles":
+        n_sam = 1660
+      else:
+        raise NotImplementedError
+    elif metrics == "cov":
+      if data_class == "chairs":
+        n_sam = 1356 * 5
+      elif data_class == "planes":
+        n_sam = 809 * 5
+      elif data_class == "cars":
+        n_sam = 1500 * 5
+      elif data_class == "tables":
+        n_sam = 1702 * 5
+      elif data_class == "rifles":
+        n_sam = 475 * 5
+      else:
+        raise NotImplementedError
+    else:
+      raise NotImplementedError  
+    return n_sam
 
 
-def iou(x_gt, x, thres):
-    thres_gt = 0.0
+def scale_to_unit_sphere(mesh, evaluate_metric = False):
+  if isinstance(mesh, trimesh.Scene):
+    mesh = mesh.dump().sum()
 
-    # compute iou
-    # > 0 free space, < 0 occupied
-    x_gt_mask = x_gt.clone().detach()
-    x_gt_mask[x_gt > thres_gt] = 0.
-    x_gt_mask[x_gt <= thres_gt] = 1.
-
-    x_mask = x.clone().detach()
-    x_mask[x > thres] = 0.
-    x_mask[x <= thres] = 1.
-
-    inter = torch.logical_and(x_gt_mask, x_mask)
-    union = torch.logical_or(x_gt_mask, x_mask)
-    inter = rearrange(inter, 'b c d h w -> b (c d h w)')
-    union = rearrange(union, 'b c d h w -> b (c d h w)')
-
-    iou = inter.sum(1) / (union.sum(1) + 1e-12)
-    return iou
-
-#################### START: MISCELLANEOUS ####################
-def count_params(model, verbose=False):
-    total_params = sum(p.numel() for p in model.parameters())
-    if verbose:
-        print(f"{model.__class__.__name__} has {total_params * 1.e-6:.2f} M params.")
-    return total_params
-
-#################### END: MISCELLANEOUS ####################
+  vertices = mesh.vertices - mesh.bounding_box.centroid
+  distances = np.linalg.norm(vertices, axis=1)
+  vertices /= np.max(distances)
+  if evaluate_metric:
+        vertices /= 2
+  return trimesh.Trimesh(vertices=vertices, faces=mesh.faces)
 
 
+def shapenet_v2_to_v1_orientation(mesh):
+    mesh.apply_transform(get_rotation_matrix(-90, 'y'))
+    # mesh.invert()
+    return mesh
 
-# Noam Learning rate schedule.
-# From https://github.com/tugstugi/pytorch-saltnet/blob/master/utils/lr_scheduler.py
-class NoamLR(_LRScheduler):
+def get_grid_normal(grid, bouding_box_length=2):
 
-	def __init__(self, optimizer, warmup_steps):
-		self.warmup_steps = warmup_steps
-		super().__init__(optimizer)
+  grid_res = grid.shape[-1]
+  n = grid_res - 1
+  voxel_size = bouding_box_length/n
 
-	def get_lr(self):
-		last_epoch = max(1, self.last_epoch)
-		scale = self.warmup_steps ** 0.5 * min(last_epoch ** (-0.5), last_epoch * self.warmup_steps ** (-1.5))
-		return [base_lr * scale for base_lr in self.base_lrs]
+  X_1 = torch.cat((grid[:, :, 1:, :, :], (3 * grid[:, :, n, :, :] - 3 *
+                  grid[:, :, n-1, :, :] + grid[:, :, n-2, :, :]).unsqueeze_(2)), 2)
+  X_2 = torch.cat(((-3 * grid[:, :, 1, :, :] + 3 * grid[:, :, 0, :, :] +
+                  grid[:, :, 2, :, :]).unsqueeze_(2), grid[:, :, :n, :, :]), 2)
+  grid_normal_x = (X_1 - X_2) / (2 * voxel_size)
+
+  Y_1 = torch.cat((grid[:, :, :, 1:, :], (3 * grid[:, :, :, n, :] - 3 *
+                  grid[:, :, :, n-1, :] + grid[:, :, :, n-2, :]).unsqueeze_(3)), 3)
+  Y_2 = torch.cat(((-3 * grid[:, :, :, 1, :] + 3 * grid[:, :, :, 0, :] +
+                  grid[:, :, :, 2, :]).unsqueeze_(3), grid[:, :, :, :n, :]), 3)
+  grid_normal_y = (Y_1 - Y_2) / (2 * voxel_size)
+  
+  Z_1 = torch.cat((grid[:, :, :, :, 1:], (3 * grid[:, :, :, :, n] - 3 *
+                  grid[:, :, :, :, n-1] + grid[:, :, :, :, n-2]).unsqueeze_(4)), 4)
+  Z_2 = torch.cat(((-3 * grid[:, :, :, :, 1] + 3 * grid[:, :, :, :, 0] +
+                  grid[:, :, :, :, 2]).unsqueeze_(4), grid[:, :, :, :, :n]), 4)
+  grid_normal_z = (Z_1 - Z_2) / (2 * voxel_size)
+
+  return torch.cat((grid_normal_x, grid_normal_y, grid_normal_z), 1)
+
+
+def str2bool(v):
+  if isinstance(v, bool):
+    return v
+  if v.lower() in ('yes', 'true', 't', 'y', '1'):
+    return True
+  elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+    return False
+  else:
+    raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
+def cast_tuple(val, repeat=1):
+  return val if isinstance(val, tuple) else ((val,) * repeat)
+
+
+def run(cmd,verbose=True):
+  if verbose:
+    print(cmd)
+  os.system(cmd)
+
+
+def process_mesh(mesh, sample_number=2048):
+  mesh = scale_to_unit_sphere(mesh=mesh, evaluate_metric=True)
+  return mesh.sample(sample_number)
+
+
+def points_gradient(inputs, outputs):
+  d_points = torch.ones_like(
+      outputs, requires_grad=False, device=outputs.device)
+  points_grad = torch.autograd.grad(
+      outputs=outputs,
+      inputs=inputs,
+      grad_outputs=d_points,
+      create_graph=True,
+      retain_graph=True,
+      only_inputs=True)[0]
+  return points_grad
+
+
+def get_voxel_coordinates(resolution=32, size=1, center=0, device=None):
+  if type(center) == int:
+    center = (center, center, center)
+  points = np.meshgrid(
+      np.linspace(center[0] - size, center[0] + size, resolution),
+      np.linspace(center[1] - size, center[1] + size, resolution),
+      np.linspace(center[2] - size, center[2] + size, resolution)
+  )
+  points = np.stack(points)
+  points = np.swapaxes(points, 1, 2)
+  points = points.reshape(3, -1).transpose()
+  if device is not None:
+    return torch.tensor(points, dtype=torch.float32, device=device)
+  else:
+    return torch.tensor(points, dtype=torch.float32)
+
+
+def process_sdf(volume, level=0, padding=True, spacing=None, offset=-1,normalize=False):
+  try:
+    if padding:
+      volume = np.pad(volume, 1, mode='constant', constant_values=1)
+    if spacing is None:
+      spacing = 2/(volume.shape[-1] - 1)
+    vertices, faces, normals, _ = marching_cubes(
+        volume, level=level, spacing=(spacing, spacing, spacing))
+    if offset is not None:
+      vertices += offset
+    if normalize:
+      return scale_to_unit_sphere(trimesh.Trimesh(
+          vertices=vertices, faces=faces, vertex_normals=normals))   
+    else:
+      return trimesh.Trimesh(
+          vertices=vertices, faces=faces, vertex_normals=normals)
+  except Exception as e:
+    print(str(e))
+    return None
+
+
+def ensure_directory(directory):
+  if not os.path.exists(directory):
+    os.makedirs(directory, exist_ok=True)
+
+
+class NanException(Exception):
+  pass
+
+
+def get_rotation_matrix(angle, axis='y'):
+    rotation = Rotation.from_euler(axis, angle, degrees=True)
+    matrix = np.identity(4)
+    matrix[:3, :3] = rotation.as_matrix()
+    return matrix
+
+def get_pc_rotation_matrix(angle, axis='y'):
+    rotation = Rotation.from_euler(axis, angle, degrees=True)
+    return rotation.as_matrix()
+    # return matrix
+    
+
+def count_parameters(model):
+  return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+def cast_list(el):
+  return el if isinstance(el, list) else [el]
+
+
+def exists(val):
+  return val is not None
+
+
+@contextmanager
+def null_context():
+  yield
+
+
+def combine_contexts(contexts):
+  @contextmanager
+  def multi_contexts():
+    with ExitStack() as stack:
+      yield [stack.enter_context(ctx()) for ctx in contexts]
+
+  return multi_contexts
+
+
+def default(value, d):
+  return value if exists(value) else d
+
+
+def cycle(iterable):
+  while True:
+    for i in iterable:
+      yield i
+
+
+def cast_list(el):
+  return el if isinstance(el, list) else [el]
+
+
+def is_empty(t):
+  if isinstance(t, torch.Tensor):
+    return t.nelement() == 0
+  return not exists(t)
+
+
+def raise_if_nan(t):
+  if torch.isnan(t):
+    raise NanException
+
+
+def noise(batch_size, latent_dim, device):
+  return torch.randn(batch_size, latent_dim).cuda(device)
+
+
+def noise_list(batch_size, layers, latent_dim, device):
+  return [(noise(batch_size, latent_dim, device), layers)]
+
+
+def mixed_list(batch_size, layers, latent_dim, device):
+  tt = int(torch.rand(()).numpy() * layers)
+  return noise_list(batch_size, tt, latent_dim, device) + noise_list(batch_size, layers - tt, latent_dim, device)
+
+
+def latent_to_w(style_vectorizer, latent_descr):
+  return [(style_vectorizer(z), num_layers) for z, num_layers in latent_descr]
+
+
+def image_noise(n, im_size, device):
+  return torch.FloatTensor(n, im_size, im_size, 1).uniform_(0., 1.).cuda(device)
+
+
+def volume_noise(n, vol_size, device):
+  return torch.FloatTensor(n, vol_size, vol_size, vol_size, 1).uniform_(0., 1.).cuda(device)
+
+
+def leaky_relu(p=0.2,):
+  return nn.LeakyReLU(p, inplace=True)
+
+
+def evaluate_in_chunks(max_batch_size, model, *args):
+  split_args = list(
+      zip(*list(map(lambda x: x.split(max_batch_size, dim=0), args))))
+  chunked_outputs = [model(*i) for i in split_args]
+  if len(chunked_outputs) == 1:
+    return chunked_outputs[0]
+  return torch.cat(chunked_outputs, dim=0)
+
+
+def styles_def_to_tensor(styles_def):
+  return torch.cat([t[:, None, :].expand(-1, n, -1) for t, n in styles_def], dim=1)
+
+
+def set_requires_grad(model, bool):
+  for p in model.parameters():
+    p.requires_grad = bool
+
+def linear_slerp(val, low, high):
+  val = val.squeeze()
+  return (1-val)*low + val * high
+
+
+class TorchRecoder:
+  def __init__(self):
+    self.total_time = 0
+    self.calls = 0
+    self.total_memory = 0
+
+  def __enter__(self):
+    self.start = torch.cuda.Event(enable_timing=True)
+    self.end = torch.cuda.Event(enable_timing=True)
+    torch.cuda.empty_cache()
+    torch.cuda.reset_peak_memory_stats()
+    self.start.record()
+
+  def __exit__(self, *args):
+    self.end.record()
+    torch.cuda.synchronize()
+    self.total_time += self.start.elapsed_time(self.end)
+    self.calls += 1
+    peak_memory = torch.cuda.memory.max_memory_allocated()  / (2 ** 30)
+    self.total_memory += peak_memory
+
+  def reset(self):
+    self.total_time = 0
+    self.calls = 0
+    self.total_memory = 0
+
+  def avg_time(self):
+    return self.total_time / self.calls if self.calls > 0 else 0
+  
+  def avg_memory(self):
+    return self.total_memory / self.calls if self.calls > 0 else 0
