@@ -7,13 +7,13 @@ import math
 def create_model(opt):
     model = None
 
-    if opt.model == 'sdfusion_small':
-        from models.sdfusion_model_small import SDFusionModel
-        model = SDFusionModel()
+    if opt.model == 'octfusion_small':
+        from models.octfusion_model_small import OctFusionModel
+        model = OctFusionModel()
 
-    elif opt.model == 'sdfusion_union':
-        from models.sdfusion_model_union import SDFusionModel
-        model = SDFusionModel()
+    elif opt.model == 'octfusion_union':
+        from models.octfusion_model_union import OctFusionModel
+        model = OctFusionModel()
 
 
     else:
