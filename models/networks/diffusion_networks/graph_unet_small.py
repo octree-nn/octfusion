@@ -149,7 +149,7 @@ class UNet3DModel(nn.Module):
                     activation_function(),
                     AttentionBlock(
                         dim_out, num_heads=num_heads)) if ds in attention_resolutions else our_Identity(),
-                Downsample(
+                ConvDownsample(
                     dim_out, dims=dims) if not is_last else our_Identity()
             ]))
             if not is_last:
@@ -178,7 +178,7 @@ class UNet3DModel(nn.Module):
                     activation_function(),
                     AttentionBlock(
                         dim_in, num_heads=num_heads)) if ds in attention_resolutions else our_Identity(),
-                Upsample(
+                ConvUpsample(
                     dim_in, dims=dims) if not is_last else our_Identity()
             ]))
             if not is_last:
