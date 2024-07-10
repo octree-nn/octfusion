@@ -27,7 +27,7 @@ import torchvision.utils as vutils
 import torchvision.transforms as transforms
 
 from models.base_model import BaseModel
-from models.networks.diffusion_networks.graph_unet_small import UNet3DModel
+from models.networks.diffusion_networks.graph_unet_split import UNet3DModel
 from models.model_utils import load_dualoctree
 from models.networks.diffusion_networks.ldm_diffusion_util import *
 

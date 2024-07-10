@@ -7,17 +7,9 @@ import math
 def create_model(opt):
     model = None
 
-    if opt.model == 'octfusion_small':
-        from models.octfusion_model_small import OctFusionModel
-        model = OctFusionModel()
 
-    elif opt.model == 'octfusion_union':
-        from models.octfusion_model_union import OctFusionModel
-        model = OctFusionModel()
-
-
-    else:
-        raise ValueError("Model [%s] not recognized." % opt.model)
+    from models.octfusion_model_union import OctFusionModel
+    model = OctFusionModel()
 
     model.initialize(opt)
     cprint("[*] Model has been created: %s" % model.name(), 'blue')

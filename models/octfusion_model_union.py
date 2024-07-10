@@ -92,6 +92,7 @@ class OctFusionModel(BaseModel):
 
         self.df = UNet3DModel(unet_params)
         self.df.to(self.device)
+        self.stage_flag = opt.model
 
         # record z_shape
         self.split_channel = 8
@@ -248,9 +249,9 @@ class OctFusionModel(BaseModel):
 
         self.df_feature_loss = torch.tensor(0., device=self.device)
         self.df_split_loss = torch.tensor(0., device=self.device)
-        stage_flag = "HR"
+        
 
-        if stage_flag == "LR":
+        if self.stage_flag == "split":
             times = torch.zeros(
                 (self.batch_size,), device=self.device).float().uniform_(0, 1)
             split_small = self.octree2split_small(self.doctree_in.octree)
@@ -299,9 +300,15 @@ class OctFusionModel(BaseModel):
         return times
 
     @torch.no_grad()
-    def uncond_octree(self, ema=False, ddim_steps=200, truncated_index = 0.0, label = None):
+    def uncond_octree(self, ema=False, suffix = 'mesh_2t', ddim_steps=200, category = 'airplane', truncated_index = 0.0, save_index = 0):
+        batch_size = self.vq_conf.data.test.batch_size
 
-        
+        if self.enable_label:
+            label = torch.ones(batch_size).to(self.device) * category_5_to_label[category]
+            label = label.long()
+        else:
+            label = None
+
         small_time_pairs = self.get_sampling_timesteps(
             self.batch_size, device=self.device, steps=ddim_steps)
 
@@ -341,38 +348,41 @@ class OctFusionModel(BaseModel):
                 torch.zeros_like(noised_split_small)
             )
             noised_split_small = mean + torch.sqrt(variance) * noise
-        return noised_split_small
+        
+        octree_small = self.split2octree_small(noised_split_small)
+
+        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{suffix}_{category}")
+        self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
+        for i in range(batch_size):
+            torch.save(noised_split_small[i].unsqueeze(0), os.path.join(save_dir, f"{save_index}.pth"))
+
+
     
     @torch.no_grad()
     def uncond(self, data, split_path, category = 'airplane', suffix = 'mesh_2t', ema = False, ddim_steps=200, ddim_eta=0., clean = False, save_index = 0):
 
         if ema:
             self.ema_df.eval()
-
         else:
             self.df.eval()
 
         batch_size = self.vq_conf.data.test.batch_size
-        if data != None:
-            self.set_input(data)
-            split_small = self.split_small
-            label = self.label
+
+        if self.enable_label:
+            label = torch.ones(batch_size).to(self.device) * category_5_to_label[category]
+            label = label.long()
         else:
-            if self.enable_label:
-                label = torch.ones(batch_size).to(self.device) * category_5_to_label[category]
-                label = label.long()
-            else:
-                label = None
-            
-            if split_path != None:
-                split_small = torch.load(split_path)
-                split_small = split_small.to(self.device)
-            else:
-                split_small = self.uncond_octree(ema = ema, ddim_steps = ddim_steps, label=label)
+            label = None
+        
+        if split_path != None:
+            split_small = torch.load(split_path)
+            split_small = split_small.to(self.device)
+        else:
+            split_small = self.uncond_octree(ema = ema, ddim_steps = ddim_steps, label=label)
         octree_small = self.split2octree_small(split_small)
 
         save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{suffix}_{category}")
-        # self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
+        self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
 
         doctree_small = dual_octree.DualOctree(octree_small)
         doctree_small.post_processing_for_docnn()

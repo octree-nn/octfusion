@@ -41,19 +41,25 @@ def generate(opt, model):
         category = "table"
     else:
         category = opt.category
-    split_dir = opt.split_dir        
     total_num = category_5_to_num[category]
 
     for iter_i in range(total_iters):
 
         result_index = iter_i * get_world_size() + get_rank()
-        split_path = os.path.join(split_dir, f'{result_index}.pth')
-        if not os.path.exists(split_path):
-            continue
+        if opt.split_dir is not None:
+            split_path = os.path.join(opt.split_dir, f'{result_index}.pth')
+        else:
+            split_path = None
         model.batch_size = 1
-        seed_everything(opt.seed)
-        if result_index >= total_num: break
-        model.uncond(data = None, split_path = split_path, category = category, suffix = 'results', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = result_index)
+        
+        if result_index >= total_num: 
+            break
+
+        if opt.model == "split":
+            model.uncond_octree(ema = True, category = category, suffix = 'split', ddim_steps = 200, save_index = result_index)
+        elif opt.model == "union":
+            seed_everything(opt.seed)
+            model.uncond(data = None, split_path = split_path, category = category, suffix = 'results', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = result_index)
         pbar.update(1)
 
 
@@ -134,10 +140,6 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
                 continue
 
             # eval 
-            # model.uncond(data = data, split_path = None, category = category, suffix = f'train_images/{iter_i}', ema = False, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
-
-            test_data = next(test_dg)
-            model.uncond(data = test_data, split_path = None, category = opt.category, suffix = f'test_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
             if opt.category == "im_5":
                 category = random.choice(list(category_5_to_num.keys()))
             else:
