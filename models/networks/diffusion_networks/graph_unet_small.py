@@ -23,169 +23,16 @@ from models.networks.diffusion_networks.ldm_diffusion_util import (
     default,
 )
 
-class GroupNorm32(nn.GroupNorm):
-    def forward(self, x):
-        return super().forward(x.float()).type(x.dtype)
-
-def normalization(channels):
-    _channels = min(channels, 32)
-    return GroupNorm32(_channels, channels)
-
-def activation_function():
-    return nn.SiLU()
-
-class our_Identity(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x, *args, **kwargs):
-        return x
-
-class Upsample(nn.Module):
-    def __init__(self, channels, use_conv=True, dims=2):
-        super().__init__()
-        self.channels = channels
-        self.use_conv = use_conv
-        self.dims = dims
-        if use_conv:
-            self.conv = conv_nd(dims, channels, channels, 3, padding=1)
-
-    def forward(self, x):
-        assert x.shape[1] == self.channels
-        x = F.interpolate(x, scale_factor=2, mode="nearest")
-        if self.use_conv:
-            x = self.conv(x)
-        return x
-
-
-class Downsample(nn.Module):
-    def __init__(self, channels, use_conv=True, dims=2):
-        super().__init__()
-        self.channels = channels
-        self.use_conv = use_conv
-        self.dims = dims
-        stride = 2
-        if use_conv:
-            self.op = conv_nd(dims, channels, channels,
-                              3, stride=stride, padding=1)
-        else:
-            self.op = avg_pool_nd(stride)
-
-    def forward(self, x):
-        assert x.shape[1] == self.channels
-        return self.op(x)
-
-class ResnetBlock(nn.Module):
-    def __init__(self, world_dims: int, dim_in: int, dim_out: int, emb_dim: int, dropout: float = 0.1,
-                 use_text_condition: bool = True):
-        super().__init__()
-        self.world_dims = world_dims
-        self.time_mlp = nn.Sequential(
-            activation_function(),
-            nn.Linear(emb_dim, dim_out)
-        )
-        self.use_text_condition = use_text_condition
-        if self.use_text_condition:
-            self.text_mlp = nn.Sequential(
-                activation_function(),
-                nn.Linear(emb_dim, dim_out),
-            )
-
-        self.block1 = nn.Sequential(
-            normalization(dim_in),
-            activation_function(),
-            conv_nd(world_dims, dim_in, dim_out, 3, padding=1),
-        )
-        self.block2 = nn.Sequential(
-            normalization(dim_out),
-            activation_function(),
-            nn.Dropout(dropout),
-            zero_module(conv_nd(world_dims, dim_out, dim_out, 3, padding=1)),
-        )
-        self.res_conv = conv_nd(
-            world_dims, dim_in, dim_out, 1) if dim_in != dim_out else nn.Identity()
-
-    def forward(self, x, time_emb, text_condition=None):
-        h = self.block1(x)
-        if self.use_text_condition:
-            h = h * self.text_mlp(text_condition)[(...,) +
-                                                  (None, )*self.world_dims] + self.time_mlp(time_emb)[(...,) + (None, )*self.world_dims]
-        else:
-            h += self.time_mlp(time_emb)[(...,) + (None, )*self.world_dims]
-
-        h = self.block2(h)
-        return h + self.res_conv(x)
-
-class AttentionBlock(nn.Module):
-
-    def __init__(self, channels, num_heads=1):
-        super().__init__()
-        self.channels = channels
-        self.num_heads = num_heads
-
-        self.norm = normalization(channels)
-        self.qkv = conv_nd(1, channels, channels * 3, 1)
-        self.attention = QKVAttention()
-        self.proj_out = zero_module(conv_nd(1, channels, channels, 1))
-
-    def forward(self, x):
-        b, c, *spatial = x.shape
-        x = x.reshape(b, c, -1)
-        qkv = self.qkv(self.norm(x))
-        qkv = qkv.reshape(b * self.num_heads, -1, qkv.shape[2])
-        h = self.attention(qkv)
-        h = h.reshape(b, -1, h.shape[-1])
-        h = self.proj_out(h)
-        return (x + h).reshape(b, c, *spatial)
-
-
-class QKVAttention(nn.Module):
-    def forward(self, qkv):
-        ch = qkv.shape[1] // 3
-        q, k, v = torch.split(qkv, ch, dim=1)
-        scale = 1 / math.sqrt(math.sqrt(ch))
-        weight = torch.einsum(
-            "bct,bcs->bts", q * scale, k * scale
-        )
-        weight = torch.softmax(weight.float(), dim=-1).type(weight.dtype)
-        return torch.einsum("bts,bcs->bct", weight, v)
-
-
-def count_flops_attn(model, _x, y):
-    """
-    A counter for the `thop` package to count the operations in an
-    attention operation.
-    Meant to be used like:
-        macs, params = thop.profile(
-            model,
-            inputs=(inputs, timestamps),
-            custom_ops={QKVAttention: QKVAttention.count_flops},
-        )
-    """
-    b, c, *spatial = y[0].shape
-    num_spatial = int(np.prod(spatial))
-    # We perform two matmuls with the same number of ops.
-    # The first computes the weight matrix, the second computes
-    # the combination of the value vectors.
-    matmul_ops = 2 * b * (num_spatial ** 2) * c
-    model.total_ops += th.DoubleTensor([matmul_ops])
-
-
-class LearnedSinusoidalPosEmb(nn.Module):
-
-    def __init__(self, dim):
-        super().__init__()
-        assert (dim % 2) == 0
-        half_dim = dim // 2
-        self.weights = nn.Parameter(torch.randn(half_dim))
-
-    def forward(self, x):
-        x = rearrange(x, 'b -> b 1')
-        freqs = x * rearrange(self.weights, 'd -> 1 d') * 2 * math.pi
-        fouriered = torch.cat((freqs.sin(), freqs.cos()), dim=-1)
-        fouriered = torch.cat((x, fouriered), dim=-1)
-        return fouriered
-
+from models.networks.diffusion_networks.modules import (
+    ConvDownsample,
+    ConvUpsample,
+    ResnetBlock,
+    AttentionBlock,
+    LearnedSinusoidalPosEmb,
+    activation_function,
+    our_Identity,
+    convnormalization,
+)
 
 class UNet3DModel(nn.Module):
     """
@@ -298,7 +145,7 @@ class UNet3DModel(nn.Module):
                 ResnetBlock(dims, dim_in, dim_out,
                             emb_dim=time_embed_dim, dropout=dropout, use_text_condition=use_text_condition),
                 nn.Sequential(
-                    normalization(dim_out),
+                    convnormalization(dim_out),
                     activation_function(),
                     AttentionBlock(
                         dim_out, num_heads=num_heads)) if ds in attention_resolutions else our_Identity(),
@@ -313,7 +160,7 @@ class UNet3DModel(nn.Module):
             dims, mid_dim, mid_dim, emb_dim=time_embed_dim, dropout=dropout, use_text_condition=use_text_condition)
 
         self.mid_self_attn = nn.Sequential(
-            normalization(mid_dim),
+            convnormalization(mid_dim),
             activation_function(),
             AttentionBlock(mid_dim, num_heads=num_heads)
         ) if ds in attention_resolutions else our_Identity()
@@ -327,7 +174,7 @@ class UNet3DModel(nn.Module):
                 ResnetBlock(dims, dim_out * 2, dim_in,
                             emb_dim=time_embed_dim, dropout=dropout, use_text_condition=use_text_condition),
                 nn.Sequential(
-                    normalization(dim_in),
+                    convnormalization(dim_in),
                     activation_function(),
                     AttentionBlock(
                         dim_in, num_heads=num_heads)) if ds in attention_resolutions else our_Identity(),
@@ -338,7 +185,7 @@ class UNet3DModel(nn.Module):
                 ds //= 2
 
         self.end = nn.Sequential(
-            normalization(model_channels),
+            convnormalization(model_channels),
             activation_function()
         )
 
