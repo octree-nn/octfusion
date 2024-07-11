@@ -10,9 +10,9 @@ import torch.nn
 from torch.nn import init
 
 from .distributions import DiagonalGaussianDistribution
-from . import modules_v1
+from . import modules
 from . import dual_octree
-from . import graph_ounet_v1
+from . import graph_ounet
 from ocnn.nn import octree2voxel
 from ocnn.octree import Octree
 import copy
@@ -49,7 +49,7 @@ def init_weights(net, init_type='normal', gain=0.01):
     for m in net.children():
         m.apply(init_func)
 
-class GraphVAE(graph_ounet_v1.GraphOUNet):
+class GraphVAE(graph_ounet.GraphOUNet):
 
     def __init__(self, depth, channel_in, nout, full_depth=2, depth_stop = 6, depth_out=8, use_checkpoint = False,
                 resblk_type='bottleneck', bottleneck=4,resblk_num=3, code_channel=3, embed_dim=3):
@@ -60,21 +60,21 @@ class GraphVAE(graph_ounet_v1.GraphOUNet):
         n_edge_type, avg_degree = 7, 7
 
         self.decoder_mid = torch.nn.Module()
-        self.decoder_mid.block_1 = modules_v1.GraphResBlocks(self.channels[depth_stop], self.channels[depth_stop],self.dropout,
+        self.decoder_mid.block_1 = modules.GraphResBlocks(self.channels[depth_stop], self.channels[depth_stop],self.dropout,
          self.resblk_nums[depth_stop], n_edge_type, avg_degree, depth_stop-1, self.use_checkpoint)
-        self.decoder_mid.block_2 = modules_v1.GraphResBlocks(self.channels[depth_stop], self.channels[depth_stop],self.dropout,
+        self.decoder_mid.block_2 = modules.GraphResBlocks(self.channels[depth_stop], self.channels[depth_stop],self.dropout,
          self.resblk_nums[depth_stop], n_edge_type, avg_degree, depth_stop-1, self.use_checkpoint)
 
         self.decoder = torch.nn.ModuleList(
-            [modules_v1.GraphResBlocks(self.channels[d], self.channels[d],self.dropout,
+            [modules.GraphResBlocks(self.channels[d], self.channels[d],self.dropout,
          self.resblk_nums[d], n_edge_type, avg_degree, d-1, self.use_checkpoint)
             for d in range(depth_stop, depth + 1)])
 
         self.code_channel = code_channel
         ae_channel_in = self.channels[self.depth_stop]
 
-        self.KL_conv = modules_v1.Conv1x1(ae_channel_in, 2 * embed_dim, use_bias = True)
-        self.post_KL_conv = modules_v1.Conv1x1(embed_dim, ae_channel_in, use_bias = True)
+        self.KL_conv = modules.Conv1x1(ae_channel_in, 2 * embed_dim, use_bias = True)
+        self.post_KL_conv = modules.Conv1x1(embed_dim, ae_channel_in, use_bias = True)
 
 
     def octree_encoder(self, octree, doctree): # encoder的操作是从depth到full-deth为止，在这里就是从6到2

@@ -23,6 +23,10 @@ from models.networks.diffusion_networks.ldm_diffusion_util import (
     linear,
 )
 
+def nonlinearity(x):
+    # swish
+    return x*torch.sigmoid(x)
+
 class GroupNorm32(nn.GroupNorm):
 	def forward(self, x):
 		return super().forward(x.float()).type(x.dtype)
