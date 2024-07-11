@@ -1,7 +1,5 @@
 # extensions
 *.pyc
-*.png
-*.jpg
 *.tar.gz
 *.tar.xz
 *.tar
