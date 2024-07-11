@@ -111,21 +111,25 @@ def ckpt_conv_wrapper(conv_op, x, *args):
 
 class GraphConv(torch.nn.Module):
 
-    def __init__(self, in_channels, out_channels, n_edge_type=7, avg_degree=7,
-                             n_node_type=0):
+    def __init__(self, in_channels, out_channels, n_edge_type=7, avg_degree=7, n_node_type=0, use_bias = False):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
+        self.use_bias = use_bias
         self.n_edge_type = n_edge_type
         self.avg_degree = avg_degree
         self.n_node_type = n_node_type
 
         node_channel = n_node_type if n_node_type > 1 else 0
         self.weights = torch.nn.Parameter(
-                torch.Tensor(n_edge_type * (in_channels + node_channel), out_channels))
+            torch.Tensor(n_edge_type * (in_channels + node_channel), out_channels))
+        if self.use_bias:
+            self.bias = torch.nn.Parameter(torch.Tensor(out_channels))
+
         # if n_node_type > 0:
         #     self.node_weights = torch.nn.Parameter(
         #             torch.tensor([0.5 ** i for i in range(n_node_type)]))
+
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
@@ -134,6 +138,8 @@ class GraphConv(torch.nn.Module):
         std = math.sqrt(2.0 / float(fan_in + fan_out))
         a = math.sqrt(3.0) * std
         torch.nn.init.uniform_(self.weights, -a, a)
+        if self.use_bias:
+            torch.nn.init.zeros_(self.bias)
 
     def forward(self, x, edge_index, edge_type, node_type=None):
         has_node_type = node_type is not None
@@ -152,6 +158,10 @@ class GraphConv(torch.nn.Module):
 
         # matrix product
         output = col_data.view(x.shape[0], -1) @ self.weights
+
+        if self.use_bias:
+            output += self.bias
+
         return output
 
     def extra_repr(self) -> str:
@@ -272,7 +282,7 @@ class GraphDownsample(torch.nn.Module):
         out = torch.cat([x[:-numd-lnumd], out], dim=0)
 
         if self.channels_in != self.channels_out:
-            out = self.conv1x1(out,octree, d)
+            out = self.conv1x1(out, octree, d)
         return out
 
     def extra_repr(self):
@@ -330,7 +340,7 @@ class GraphUpsample(torch.nn.Module):
 class GraphResBlock(torch.nn.Module):
 
     def __init__(self, channel_in, channel_out,dropout, n_edge_type=7,
-                             avg_degree=7, n_node_type=0, use_checkpoint=False):
+            avg_degree=7, n_node_type=0, use_checkpoint=False):
         super().__init__()
         self.channel_in = channel_in
         self.channel_out = channel_out

@@ -24,14 +24,14 @@ from models.networks.diffusion_networks.ldm_diffusion_util import (
     timestep_embedding,
 )
 
-from models.networks.diffusion_networks.modules import (
+from models.networks.modules import (
     GraphConv,
     Conv1x1,
     graphnormalization,
     TimestepBlock,
     GraphDownsample,
     GraphUpsample,
-    GraphResBlock,
+    GraphResBlockEmbed,
 
 )
 
@@ -134,7 +134,7 @@ class UNet3DModel(nn.Module):
         ch = model_channels
         for level, mult in enumerate(channel_mult):
             for _ in range(self.num_res_blocks[level]):
-                resblk = GraphResBlock(
+                resblk = GraphResBlockEmbed(
                         ch,
                         time_embed_dim,
                         dropout,
@@ -161,7 +161,7 @@ class UNet3DModel(nn.Module):
                 input_block_chans.append(ch)
                 self._feature_size += ch
 
-        self.middle_block1 = GraphResBlock(
+        self.middle_block1 = GraphResBlockEmbed(
             ch,
             time_embed_dim,
             dropout,
@@ -174,7 +174,7 @@ class UNet3DModel(nn.Module):
             use_scale_shift_norm=use_scale_shift_norm,
         )
 
-        self.middle_block2 = GraphResBlock(
+        self.middle_block2 = GraphResBlockEmbed(
             lr_model_channels * 2,
             time_embed_dim,
             dropout,
@@ -193,7 +193,7 @@ class UNet3DModel(nn.Module):
         for level, mult in list(enumerate(channel_mult))[::-1]:
             for i in range(self.num_res_blocks[level] + 1):
                 ich = input_block_chans.pop()
-                resblk = GraphResBlock(
+                resblk = GraphResBlockEmbed(
                         ch + ich,
                         time_embed_dim,
                         dropout,
@@ -247,7 +247,7 @@ class UNet3DModel(nn.Module):
         for module in self.input_blocks:
             if isinstance(module, GraphConv):
                 h = module(h, doctree, d)
-            elif isinstance(module, GraphResBlock):
+            elif isinstance(module, GraphResBlockEmbed):
                 h = module(h, emb, doctree, d)
             elif isinstance(module, GraphDownsample):
                 h = module(h, doctree, d)
@@ -270,7 +270,7 @@ class UNet3DModel(nn.Module):
         h = self.middle_block2(h, emb, doctree, d)
 
         for module in self.output_blocks:
-            if isinstance(module, GraphResBlock):
+            if isinstance(module, GraphResBlockEmbed):
                 h = torch.cat([h, hs.pop()], dim=1)
                 h = module(h, emb, doctree, d)
             elif isinstance(module, GraphUpsample):

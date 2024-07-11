@@ -20,7 +20,7 @@ from models.networks.diffusion_networks.ldm_diffusion_util import (
     conv_nd,
     default,
 )
-from models.networks.diffusion_networks.modules import (
+from models.networks.modules import (
     ConvDownsample,
     ConvUpsample,
     ResnetBlock,
