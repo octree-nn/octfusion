@@ -47,5 +47,5 @@ ddim_eta = 0.
 
 for i in range(total_num):
     seed_everything(i)
-    SDFusion.uncond(batch_size=ngen, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
+    SDFusion.sample(batch_size=ngen, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
     # SDFusion.uncond_interp(batch_size=ngen, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)

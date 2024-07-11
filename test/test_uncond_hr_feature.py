@@ -62,4 +62,4 @@ for i in range(total_num):
 
     split_path_small = os.path.join(split_dir_small, f'{i}.pth')
     split_path_large = os.path.join(split_dir_large, f'{i}.pth')
-    SDFusion.uncond(data = None, split_path_small = split_path_small, split_path_large = split_path_large, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)
+    SDFusion.sample(data = None, split_path_small = split_path_small, split_path_large = split_path_large, category = category, ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = i)

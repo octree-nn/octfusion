@@ -56,10 +56,10 @@ def generate(opt, model):
             break
 
         if opt.model == "split":
-            model.uncond_octree(ema = True, category = category, suffix = 'split', ddim_steps = 200, save_index = result_index)
+            model.sample_split(ema = True, category = category, suffix = 'split', ddim_steps = 200, save_index = result_index)
         elif opt.model == "union":
             seed_everything(opt.seed)
-            model.uncond(data = None, split_path = split_path, category = category, suffix = 'results', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = result_index)
+            model.sample(data = None, split_path = split_path, category = category, suffix = 'results', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = result_index)
         pbar.update(1)
 
 
@@ -145,7 +145,7 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
             else:
                 category = opt.category
             
-            model.uncond(data = None, split_path = None, category = category, suffix = f'gen_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
+            model.sample(data = None, split_path = None, category = category, suffix = f'gen_images/{iter_i}', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = 0)
 
             torch.cuda.empty_cache()
 

@@ -59,4 +59,4 @@ for split in all_splits:
     seed_everything(0)
     split_path = os.path.join(split_dir, split)
     index = int(split[:-4])
-    SDFusion.uncond(data = None, split_path = split_path, category = category, suffix = 'sketch_cond', ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = index)
+    SDFusion.sample(data = None, split_path = split_path, category = category, suffix = 'sketch_cond', ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, save_index = index)

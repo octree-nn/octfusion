@@ -64,4 +64,4 @@ for split_filename in all_splits:
     seed_everything(0)
     index = int(split_filename.split(".")[0])
     split_path = os.path.join(split_dir, split_filename)
-    SDFusion.uncond(data = None, split_path = split_path, category = category, suffix = 'mesh_2t', ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, clean = False, save_index = index)
+    SDFusion.sample(data = None, split_path = split_path, category = category, suffix = 'mesh_2t', ema = True, ddim_steps = ddim_steps, ddim_eta = ddim_eta, clean = False, save_index = index)

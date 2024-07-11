@@ -300,7 +300,7 @@ class OctFusionModel(BaseModel):
         return times
 
     @torch.no_grad()
-    def uncond_octree(self, ema=False, suffix = 'mesh_2t', ddim_steps=200, category = 'airplane', truncated_index = 0.0, save_index = 0):
+    def sample_split(self, ema=False, suffix = 'mesh_2t', ddim_steps=200, category = 'airplane', truncated_index = 0.0, save_index = 0):
         batch_size = self.vq_conf.data.test.batch_size
 
         if self.enable_label:
@@ -359,7 +359,7 @@ class OctFusionModel(BaseModel):
 
     
     @torch.no_grad()
-    def uncond(self, data, split_path, category = 'airplane', suffix = 'mesh_2t', ema = False, ddim_steps=200, ddim_eta=0., clean = False, save_index = 0):
+    def sample(self, data, split_path, category = 'airplane', suffix = 'mesh_2t', ema = False, ddim_steps=200, ddim_eta=0., clean = False, save_index = 0):
 
         if ema:
             self.ema_df.eval()
@@ -378,7 +378,7 @@ class OctFusionModel(BaseModel):
             split_small = torch.load(split_path)
             split_small = split_small.to(self.device)
         else:
-            split_small = self.uncond_octree(ema = ema, ddim_steps = ddim_steps, label=label)
+            split_small = self.sample_split(ema = ema, ddim_steps = ddim_steps, label=label)
         octree_small = self.split2octree_small(split_small)
 
         save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{suffix}_{category}")
