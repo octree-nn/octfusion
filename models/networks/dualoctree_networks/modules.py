@@ -18,95 +18,103 @@ from ocnn.octree import key2xyz, xyz2key
 
 from ocnn.octree import Octree
 from ocnn.utils import scatter_add
-
+from models.networks.modules import (
+    nonlinearity,
+    ckpt_conv_wrapper,
+    DualOctreeGroupNorm,
+    Conv1x1,
+    Conv1x1Gn,
+    Conv1x1GnGelu,
+    Conv1x1GnGeluSequential,
+)
 bn_momentum, bn_eps = 0.01, 0.001        # the default value of Tensorflow 1.x
 # bn_momentum, bn_eps = 0.1, 1e-05     # the default value of pytorch
 
-def nonlinearity(x):
-    # swish
-    return x*torch.sigmoid(x)
+# def nonlinearity(x):
+#     # swish
+#     return x*torch.sigmoid(x)
 
-class DualOctreeGroupNorm(torch.nn.Module):
-    r''' A group normalization layer for the dual octree.
-    '''
+# class DualOctreeGroupNorm(torch.nn.Module):
+#     r''' A group normalization layer for the dual octree.
+#     '''
 
-    def __init__(self, in_channels: int, group: int = 32, nempty: bool = False):
-        super().__init__()
-        self.eps = 1e-5
-        self.nempty = nempty
+#     def __init__(self, in_channels: int, group: int = 32, nempty: bool = False):
+#         super().__init__()
+#         self.eps = 1e-5
+#         self.nempty = nempty
 
-        if in_channels <= 32:
-            group = in_channels // 4
-        elif in_channels % group != 0:
-            group = 30
+#         if in_channels <= 32:
+#             group = in_channels // 4
+#         elif in_channels % group != 0:
+#             group = 30
 
-        self.in_channels = in_channels
-        self.group = group
+#         self.in_channels = in_channels
+#         self.group = group
 
-        assert in_channels % group == 0
-        self.channels_per_group = in_channels // group
+#         assert in_channels % group == 0
+#         self.channels_per_group = in_channels // group
 
-        self.weights = torch.nn.Parameter(torch.Tensor(1, in_channels))
-        self.bias = torch.nn.Parameter(torch.Tensor(1, in_channels))
-        self.reset_parameters()
+#         self.weights = torch.nn.Parameter(torch.Tensor(1, in_channels))
+#         self.bias = torch.nn.Parameter(torch.Tensor(1, in_channels))
+#         self.reset_parameters()
 
-    def reset_parameters(self):
-        torch.nn.init.ones_(self.weights)
-        torch.nn.init.zeros_(self.bias)
-
-
-    def forward(self, data, doctree, depth):
-        r''''''
-
-        batch_size = doctree.batch_size
-        batch_id = doctree.batch_id(depth)
-
-        assert batch_id.shape[0]==data.shape[0]
-
-        ones = data.new_ones([data.shape[0], 1])
-        count = scatter_add(ones, batch_id, dim=0, dim_size=batch_size)
-        count = count * self.channels_per_group    # element number in each group
-        inv_count = 1.0 / (count + self.eps)    # there might be 0 element sometimes
-
-        mean = scatter_add(data, batch_id, dim=0, dim_size=batch_size) * inv_count
-        mean = self._adjust_for_group(mean)
-        out = data - mean.index_select(0, batch_id)
-
-        var = scatter_add(out**2, batch_id, dim=0, dim_size=batch_size) * inv_count
-        var = self._adjust_for_group(var)
-        inv_std = 1.0 / (var + self.eps).sqrt()
-        out = out * inv_std.index_select(0, batch_id)
-
-        out = out * self.weights + self.bias
-        return out
+#     def reset_parameters(self):
+#         torch.nn.init.ones_(self.weights)
+#         torch.nn.init.zeros_(self.bias)
 
 
-    def _adjust_for_group(self, tensor: torch.Tensor):
-        r''' Adjust the tensor for the group.
-        '''
+#     def forward(self, data, doctree, depth):
+#         r''''''
 
-        if self.channels_per_group > 1:
-            tensor = (tensor.reshape(-1, self.group, self.channels_per_group)
-                                            .sum(-1, keepdim=True)
-                                            .repeat(1, 1, self.channels_per_group)
-                                            .reshape(-1, self.in_channels))
-        return tensor
+#         batch_size = doctree.batch_size
+#         batch_id = doctree.batch_id(depth)
 
-    def extra_repr(self) -> str:
-        return ('in_channels={}, group={}, nempty={}').format(
-                        self.in_channels, self.group, self.nempty)    # noqa
+#         assert batch_id.shape[0]==data.shape[0]
+
+#         ones = data.new_ones([data.shape[0], 1])
+#         count = scatter_add(ones, batch_id, dim=0, dim_size=batch_size)
+#         count = count * self.channels_per_group    # element number in each group
+#         inv_count = 1.0 / (count + self.eps)    # there might be 0 element sometimes
+
+#         mean = scatter_add(data, batch_id, dim=0, dim_size=batch_size) * inv_count
+#         mean = self._adjust_for_group(mean)
+#         out = data - mean.index_select(0, batch_id)
+
+#         var = scatter_add(out**2, batch_id, dim=0, dim_size=batch_size) * inv_count
+#         var = self._adjust_for_group(var)
+#         inv_std = 1.0 / (var + self.eps).sqrt()
+#         out = out * inv_std.index_select(0, batch_id)
+
+#         out = out * self.weights + self.bias
+#         return out
 
 
-def ckpt_conv_wrapper(conv_op, x, *args):
-    def conv_wrapper(x, dummy_tensor, *args):
-        return conv_op(x, *args)
+#     def _adjust_for_group(self, tensor: torch.Tensor):
+#         r''' Adjust the tensor for the group.
+#         '''
 
-    # The dummy tensor is a workaround when the checkpoint is used for the first conv layer:
-    # https://discuss.pytorch.org/t/checkpoint-with-no-grad-requiring-inputs-problem/19117/11
-    dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
+#         if self.channels_per_group > 1:
+#             tensor = (tensor.reshape(-1, self.group, self.channels_per_group)
+#                                             .sum(-1, keepdim=True)
+#                                             .repeat(1, 1, self.channels_per_group)
+#                                             .reshape(-1, self.in_channels))
+#         return tensor
 
-    return torch.utils.checkpoint.checkpoint(
-            conv_wrapper, x, dummy, *args)
+#     def extra_repr(self) -> str:
+#         return ('in_channels={}, group={}, nempty={}').format(
+#                         self.in_channels, self.group, self.nempty)    # noqa
+
+
+# def ckpt_conv_wrapper(conv_op, x, *args):
+#     def conv_wrapper(x, dummy_tensor, *args):
+#         return conv_op(x, *args)
+
+#     # The dummy tensor is a workaround when the checkpoint is used for the first conv layer:
+#     # https://discuss.pytorch.org/t/checkpoint-with-no-grad-requiring-inputs-problem/19117/11
+#     dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
+
+#     return torch.utils.checkpoint.checkpoint(
+#             conv_wrapper, x, dummy, *args)
 
 
 class GraphConv(torch.nn.Module):
@@ -170,55 +178,55 @@ class GraphConv(torch.nn.Module):
 				self.n_edge_type, self.avg_degree, self.n_node_type))    # noqa
 
 
-class Conv1x1(torch.nn.Module):
+# class Conv1x1(torch.nn.Module):
 
-    def __init__(self, channel_in, channel_out, use_bias=False):
-        super().__init__()
-        self.linear = torch.nn.Linear(channel_in, channel_out, use_bias)
+#     def __init__(self, channel_in, channel_out, use_bias=False):
+#         super().__init__()
+#         self.linear = torch.nn.Linear(channel_in, channel_out, use_bias)
 
-    def forward(self, x):
-        return self.linear(x)
+#     def forward(self, x):
+#         return self.linear(x)
 
-class Conv1x1Gn(torch.nn.Module):
+# class Conv1x1Gn(torch.nn.Module):
 
-    def __init__(self, channel_in, channel_out):
-        super().__init__()
-        self.conv = Conv1x1(channel_in, channel_out, use_bias=False)
-        self.gn = DualOctreeGroupNorm(channel_out)
+#     def __init__(self, channel_in, channel_out):
+#         super().__init__()
+#         self.conv = Conv1x1(channel_in, channel_out, use_bias=False)
+#         self.gn = DualOctreeGroupNorm(channel_out)
 
-    def forward(self, x, doctree, depth):
-        out = self.conv(x)
-        out = self.gn(out, doctree, depth)
-        return out
+#     def forward(self, x, doctree, depth):
+#         out = self.conv(x)
+#         out = self.gn(out, doctree, depth)
+#         return out
 
-class Conv1x1GnGelu(torch.nn.Module):
+# class Conv1x1GnGelu(torch.nn.Module):
 
-    def __init__(self, channel_in, channel_out):
-        super().__init__()
-        self.conv = Conv1x1(channel_in, channel_out, use_bias=False)
-        self.gn = DualOctreeGroupNorm(channel_out)
-        self.gelu = torch.nn.GELU()
+#     def __init__(self, channel_in, channel_out):
+#         super().__init__()
+#         self.conv = Conv1x1(channel_in, channel_out, use_bias=False)
+#         self.gn = DualOctreeGroupNorm(channel_out)
+#         self.gelu = torch.nn.GELU()
 
-    def forward(self, x, doctree, depth):
-        out = self.conv(x)
-        out = self.gn(out, doctree, depth)
-        out = self.gelu(out)
-        return out
+#     def forward(self, x, doctree, depth):
+#         out = self.conv(x)
+#         out = self.gn(out, doctree, depth)
+#         out = self.gelu(out)
+#         return out
 
-class Conv1x1GnGeluSequential(torch.nn.Module):
+# class Conv1x1GnGeluSequential(torch.nn.Module):
 
-    def __init__(self, channel_in, channel_out):
-        super().__init__()
-        self.conv = Conv1x1(channel_in, channel_out, use_bias=False)
-        self.gn = DualOctreeGroupNorm(channel_out)
-        self.gelu = torch.nn.GELU()
+#     def __init__(self, channel_in, channel_out):
+#         super().__init__()
+#         self.conv = Conv1x1(channel_in, channel_out, use_bias=False)
+#         self.gn = DualOctreeGroupNorm(channel_out)
+#         self.gelu = torch.nn.GELU()
 
-    def forward(self, data):
-        x, doctree, depth = data
-        out = self.conv(x)
-        out = self.gn(out, doctree, depth)
-        out = self.gelu(out)
-        return out
+#     def forward(self, data):
+#         x, doctree, depth = data
+#         out = self.conv(x)
+#         out = self.gn(out, doctree, depth)
+#         out = self.gelu(out)
+#         return out
 
 class Upsample(torch.nn.Module):
 

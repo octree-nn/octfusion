@@ -49,16 +49,16 @@ class our_Identity(nn.Module):
 	def forward(self, x, *args, **kwargs):
 		return x
 	
-def ckpt_conv_wrapper(conv_op, x, edge_index, edge_type):
-	def conv_wrapper(x, edge_index, edge_type, dummy_tensor):
-		return conv_op(x, edge_index, edge_type)
+def ckpt_conv_wrapper(conv_op, x, *args):
+    def conv_wrapper(x, dummy_tensor, *args):
+        return conv_op(x, *args)
 
-	# The dummy tensor is a workaround when the checkpoint is used for the first conv layer:
-	# https://discuss.pytorch.org/t/checkpoint-with-no-grad-requiring-inputs-problem/19117/11
-	dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
+    # The dummy tensor is a workaround when the checkpoint is used for the first conv layer:
+    # https://discuss.pytorch.org/t/checkpoint-with-no-grad-requiring-inputs-problem/19117/11
+    dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
 
-	return torch.utils.checkpoint.checkpoint(
-		conv_wrapper, x, edge_index, edge_type, dummy)
+    return torch.utils.checkpoint.checkpoint(
+            conv_wrapper, x, dummy, *args)
 
 class ConvUpsample(nn.Module):
 	def __init__(self, channels, use_conv=True, dims=2):
@@ -166,13 +166,15 @@ class DualOctreeGroupNorm(torch.nn.Module):
 		self.eps = 1e-5
 		self.nempty = nempty
 
-		self.in_channels = in_channels
-		self.group = group
-
 		if in_channels <= 32:
 			group = in_channels // 4
 		elif in_channels % group != 0:
 			group = 30
+
+		self.in_channels = in_channels
+		self.group = group
+
+		assert in_channels % group == 0
 		self.channels_per_group = in_channels // group
 
 		self.weights = torch.nn.Parameter(torch.Tensor(1, in_channels))
@@ -194,8 +196,8 @@ class DualOctreeGroupNorm(torch.nn.Module):
 
 		ones = data.new_ones([data.shape[0], 1])
 		count = scatter_add(ones, batch_id, dim=0, dim_size=batch_size)
-		count = count * self.channels_per_group  # element number in each group
-		inv_count = 1.0 / (count + self.eps)  # there might be 0 element sometimes
+		count = count * self.channels_per_group    # element number in each group
+		inv_count = 1.0 / (count + self.eps)    # there might be 0 element sometimes
 
 		mean = scatter_add(data, batch_id, dim=0, dim_size=batch_size) * inv_count
 		mean = self._adjust_for_group(mean)
@@ -209,16 +211,21 @@ class DualOctreeGroupNorm(torch.nn.Module):
 		out = out * self.weights + self.bias
 		return out
 
+
 	def _adjust_for_group(self, tensor: torch.Tensor):
 		r''' Adjust the tensor for the group.
 		'''
 
 		if self.channels_per_group > 1:
 			tensor = (tensor.reshape(-1, self.group, self.channels_per_group)
-							.sum(-1, keepdim=True)
-							.repeat(1, 1, self.channels_per_group)
-							.reshape(-1, self.in_channels))
+					.sum(-1, keepdim=True)
+					.repeat(1, 1, self.channels_per_group)
+					.reshape(-1, self.in_channels))
 		return tensor
+
+	def extra_repr(self) -> str:
+		return ('in_channels={}, group={}, nempty={}').format(
+						self.in_channels, self.group, self.nempty)    # noqa
 
 class Conv1x1(torch.nn.Module):
 
@@ -653,72 +660,72 @@ class GraphResBlockEmbed(TimestepBlock):
 		return self.skip_connection(x) + h
 
 def doctree_align(value, key, query):
-    # out-of-bound
-    out_of_bound = query > key[-1]
-    query[out_of_bound] = -1
+	# out-of-bound
+	out_of_bound = query > key[-1]
+	query[out_of_bound] = -1
 
-    # search
-    idx = torch.searchsorted(key, query)
-    found = key[idx] == query
+	# search
+	idx = torch.searchsorted(key, query)
+	found = key[idx] == query
 
-    # assign the found value to the output
-    out = torch.zeros(query.shape[0], value.shape[1], device=value.device)
-    out[found] = value[idx[found]]
-    return out
+	# assign the found value to the output
+	out = torch.zeros(query.shape[0], value.shape[1], device=value.device)
+	out[found] = value[idx[found]]
+	return out
 
 
 def doctree_align_average(input_data, source_doctree, target_doctree, depth):
-    batch_size = source_doctree.batch_size
-    channel = input_data.shape[1]
-    size = 2 ** depth
+	batch_size = source_doctree.batch_size
+	channel = input_data.shape[1]
+	size = 2 ** depth
 
-    full_vox = torch.zeros(batch_size, channel, size, size, size).to(source_doctree.device)
+	full_vox = torch.zeros(batch_size, channel, size, size, size).to(source_doctree.device)
 
-    full_depth = source_doctree.full_depth
+	full_depth = source_doctree.full_depth
 
-    start = 0
+	start = 0
 
-    for i in range(full_depth, depth):
-        empty_mask = source_doctree.octree.children[i] < 0
-        key = source_doctree.octree.keys[i]
-        key = key[empty_mask]
-        length = len(key)
-        data_i = input_data[start: start + length]
-        start = start + length
-        scale = 2 ** (depth - i)
-        x, y, z, b = key2xyz(key)
-        n = x.shape[0]
-        for j in range(n):
-            full_vox[b[j], :, x[j] * scale: (x[j] + 1) * scale, y[j] * scale: (y[j] + 1) * scale, z[j] * scale: (z[j] + 1) * scale] = data_i[j].view(channel, 1, 1, 1).expand(channel, scale, scale, scale)
+	for i in range(full_depth, depth):
+		empty_mask = source_doctree.octree.children[i] < 0
+		key = source_doctree.octree.keys[i]
+		key = key[empty_mask]
+		length = len(key)
+		data_i = input_data[start: start + length]
+		start = start + length
+		scale = 2 ** (depth - i)
+		x, y, z, b = key2xyz(key)
+		n = x.shape[0]
+		for j in range(n):
+			full_vox[b[j], :, x[j] * scale: (x[j] + 1) * scale, y[j] * scale: (y[j] + 1) * scale, z[j] * scale: (z[j] + 1) * scale] = data_i[j].view(channel, 1, 1, 1).expand(channel, scale, scale, scale)
 
-    key = source_doctree.octree.keys[depth]
-    data_i = input_data[start:]
-    assert data_i.shape[0] == len(key)
-    x, y, z, b = key2xyz(key)
-    full_vox[b, :, x, y, z] = data_i
+	key = source_doctree.octree.keys[depth]
+	data_i = input_data[start:]
+	assert data_i.shape[0] == len(key)
+	x, y, z, b = key2xyz(key)
+	full_vox[b, :, x, y, z] = data_i
 
-    total_num = target_doctree.total_num
-    output_data = torch.zeros(total_num, channel).to(target_doctree.device)
+	total_num = target_doctree.total_num
+	output_data = torch.zeros(total_num, channel).to(target_doctree.device)
 
-    start = 0
+	start = 0
 
-    for i in range(full_depth, depth):
-        empty_mask = target_doctree.octree.children[i] < 0
-        key = target_doctree.octree.keys[i]
-        key = key[empty_mask]
-        length = len(key)
-        data_i = output_data[start: start + length]
-        start = start + length
-        scale = 2 ** (depth - i)
-        x, y, z, b = key2xyz(key)
-        n = x.shape[0]
-        for j in range(n):
-            data_i[j] = full_vox[b[j], :, x[j] * scale: (x[j] + 1) * scale, y[j] * scale: (y[j] + 1) * scale, z[j] * scale: (z[j] + 1) * scale].mean()
+	for i in range(full_depth, depth):
+		empty_mask = target_doctree.octree.children[i] < 0
+		key = target_doctree.octree.keys[i]
+		key = key[empty_mask]
+		length = len(key)
+		data_i = output_data[start: start + length]
+		start = start + length
+		scale = 2 ** (depth - i)
+		x, y, z, b = key2xyz(key)
+		n = x.shape[0]
+		for j in range(n):
+			data_i[j] = full_vox[b[j], :, x[j] * scale: (x[j] + 1) * scale, y[j] * scale: (y[j] + 1) * scale, z[j] * scale: (z[j] + 1) * scale].mean()
 
-    key = target_doctree.octree.keys[depth]
-    data_i = output_data[start:]
-    assert data_i.shape[0] == len(key)
-    x, y, z, b = key2xyz(key)
-    data_i = full_vox[b, :, x, y, z]
+	key = target_doctree.octree.keys[depth]
+	data_i = output_data[start:]
+	assert data_i.shape[0] == len(key)
+	x, y, z, b = key2xyz(key)
+	data_i = full_vox[b, :, x, y, z]
 
-    return output_data
+	return output_data
