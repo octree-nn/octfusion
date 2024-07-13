@@ -504,24 +504,25 @@ class GraphResBlock(torch.nn.Module):
 		if self.channel_in != self.channel_out:
 			self.conv1x1c = Conv1x1Gn(channel_in, channel_out)
 
-	def forward(self, x, doctree, depth, edge_index, edge_type, node_type):
+	def forward(self, x, doctree, depth):
+		"""
+		Apply the block to a Tensor, conditioned on a timestep embedding.
+		:param x: an [N x C x ...] Tensor of features.
+		:param emb: an [N x emb_channels] Tensor of timestep embeddings.
+		:return: an [N x C x ...] Tensor of outputs.
+		"""
+		return checkpoint(
+			self._forward, (x, doctree, depth), self.parameters(), self.use_checkpoint
+		)
+	def _forward(self, x, doctree, depth):
 		h = x
 		h = self.norm1(data = h, doctree = doctree, depth = depth)
 		h = nonlinearity(h)
-
-		if self.use_checkpoint:
-			h = ckpt_conv_wrapper(self.conv1, h, edge_index, edge_type, node_type)
-		else:
-			h = self.conv1(h,edge_index, edge_type, node_type)
-
+		h = self.conv1(h, doctree, depth)
 		h = self.norm2(data = h, doctree = doctree, depth = depth)
 		h = nonlinearity(h)
 		h = self.dropout(h)
-
-		if self.use_checkpoint:
-			h = ckpt_conv_wrapper(self.conv2, h, edge_index, edge_type, node_type)
-		else:
-			h = self.conv2(h, edge_index, edge_type, node_type)
+		h = self.conv2(h, doctree, depth)
 
 		if self.channel_in != self.channel_out:
 			x = self.conv1x1c(x, doctree, depth)
@@ -542,9 +543,9 @@ class GraphResBlocks(torch.nn.Module):
 				n_edge_type, avg_degree, n_node_type, use_checkpoint)
 			for i in range(self.resblk_num)])
 
-	def forward(self, data, doctree, depth, edge_index, edge_type, node_type):
+	def forward(self, data, doctree, depth):
 		for i in range(self.resblk_num):
-			data = self.resblks[i](data, doctree, depth, edge_index, edge_type, node_type)
+			data = self.resblks[i](data, doctree, depth)
 		return data
 
 class GraphResBlockEmbed(TimestepBlock):
@@ -650,3 +651,74 @@ class GraphResBlockEmbed(TimestepBlock):
 			h = self.dropout(h)
 			h = self.conv2(h, doctree, depth)
 		return self.skip_connection(x) + h
+
+def doctree_align(value, key, query):
+    # out-of-bound
+    out_of_bound = query > key[-1]
+    query[out_of_bound] = -1
+
+    # search
+    idx = torch.searchsorted(key, query)
+    found = key[idx] == query
+
+    # assign the found value to the output
+    out = torch.zeros(query.shape[0], value.shape[1], device=value.device)
+    out[found] = value[idx[found]]
+    return out
+
+
+def doctree_align_average(input_data, source_doctree, target_doctree, depth):
+    batch_size = source_doctree.batch_size
+    channel = input_data.shape[1]
+    size = 2 ** depth
+
+    full_vox = torch.zeros(batch_size, channel, size, size, size).to(source_doctree.device)
+
+    full_depth = source_doctree.full_depth
+
+    start = 0
+
+    for i in range(full_depth, depth):
+        empty_mask = source_doctree.octree.children[i] < 0
+        key = source_doctree.octree.keys[i]
+        key = key[empty_mask]
+        length = len(key)
+        data_i = input_data[start: start + length]
+        start = start + length
+        scale = 2 ** (depth - i)
+        x, y, z, b = key2xyz(key)
+        n = x.shape[0]
+        for j in range(n):
+            full_vox[b[j], :, x[j] * scale: (x[j] + 1) * scale, y[j] * scale: (y[j] + 1) * scale, z[j] * scale: (z[j] + 1) * scale] = data_i[j].view(channel, 1, 1, 1).expand(channel, scale, scale, scale)
+
+    key = source_doctree.octree.keys[depth]
+    data_i = input_data[start:]
+    assert data_i.shape[0] == len(key)
+    x, y, z, b = key2xyz(key)
+    full_vox[b, :, x, y, z] = data_i
+
+    total_num = target_doctree.total_num
+    output_data = torch.zeros(total_num, channel).to(target_doctree.device)
+
+    start = 0
+
+    for i in range(full_depth, depth):
+        empty_mask = target_doctree.octree.children[i] < 0
+        key = target_doctree.octree.keys[i]
+        key = key[empty_mask]
+        length = len(key)
+        data_i = output_data[start: start + length]
+        start = start + length
+        scale = 2 ** (depth - i)
+        x, y, z, b = key2xyz(key)
+        n = x.shape[0]
+        for j in range(n):
+            data_i[j] = full_vox[b[j], :, x[j] * scale: (x[j] + 1) * scale, y[j] * scale: (y[j] + 1) * scale, z[j] * scale: (z[j] + 1) * scale].mean()
+
+    key = target_doctree.octree.keys[depth]
+    data_i = output_data[start:]
+    assert data_i.shape[0] == len(key)
+    x, y, z, b = key2xyz(key)
+    data_i = full_vox[b, :, x, y, z]
+
+    return output_data
