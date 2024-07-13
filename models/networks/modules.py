@@ -518,9 +518,10 @@ class GraphResBlock(torch.nn.Module):
 		:param emb: an [N x emb_channels] Tensor of timestep embeddings.
 		:return: an [N x C x ...] Tensor of outputs.
 		"""
-		return checkpoint(
-			self._forward, (x, doctree, depth), self.parameters(), self.use_checkpoint
-		)
+		return ckpt_conv_wrapper(self._forward, x, doctree, depth)
+		# return checkpoint(
+		# 	self._forward, (x, doctree, depth), self.parameters(), self.use_checkpoint
+		# )
 	def _forward(self, x, doctree, depth):
 		h = x
 		h = self.norm1(data = h, doctree = doctree, depth = depth)

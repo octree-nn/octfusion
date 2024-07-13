@@ -26,6 +26,11 @@ from models.networks.modules import (
     Conv1x1Gn,
     Conv1x1GnGelu,
     Conv1x1GnGeluSequential,
+    Downsample,
+    Upsample,
+    GraphConv,
+    GraphResBlock,
+    GraphResBlocks,
 )
 bn_momentum, bn_eps = 0.01, 0.001        # the default value of Tensorflow 1.x
 # bn_momentum, bn_eps = 0.1, 1e-05     # the default value of pytorch
@@ -117,65 +122,65 @@ bn_momentum, bn_eps = 0.01, 0.001        # the default value of Tensorflow 1.x
 #             conv_wrapper, x, dummy, *args)
 
 
-class GraphConv(torch.nn.Module):
+# class GraphConv(torch.nn.Module):
 
-    def __init__(self, in_channels, out_channels, n_edge_type=7, avg_degree=7, n_node_type=0, use_bias = False):
-        super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.use_bias = use_bias
-        self.n_edge_type = n_edge_type
-        self.avg_degree = avg_degree
-        self.n_node_type = n_node_type
+#     def __init__(self, in_channels, out_channels, n_edge_type=7, avg_degree=7, n_node_type=0, use_bias = False):
+#         super().__init__()
+#         self.in_channels = in_channels
+#         self.out_channels = out_channels
+#         self.use_bias = use_bias
+#         self.n_edge_type = n_edge_type
+#         self.avg_degree = avg_degree
+#         self.n_node_type = n_node_type
 
-        node_channel = n_node_type if n_node_type > 1 else 0
-        self.weights = torch.nn.Parameter(
-            torch.Tensor(n_edge_type * (in_channels + node_channel), out_channels))
-        if self.use_bias:
-            self.bias = torch.nn.Parameter(torch.Tensor(out_channels))
+#         node_channel = n_node_type if n_node_type > 1 else 0
+#         self.weights = torch.nn.Parameter(
+#             torch.Tensor(n_edge_type * (in_channels + node_channel), out_channels))
+#         if self.use_bias:
+#             self.bias = torch.nn.Parameter(torch.Tensor(out_channels))
 
-        # if n_node_type > 0:
-        #     self.node_weights = torch.nn.Parameter(
-        #             torch.tensor([0.5 ** i for i in range(n_node_type)]))
+#         # if n_node_type > 0:
+#         #     self.node_weights = torch.nn.Parameter(
+#         #             torch.tensor([0.5 ** i for i in range(n_node_type)]))
 
-        self.reset_parameters()
+#         self.reset_parameters()
 
-    def reset_parameters(self) -> None:
-        fan_in = self.avg_degree * self.in_channels
-        fan_out = self.avg_degree * self.out_channels
-        std = math.sqrt(2.0 / float(fan_in + fan_out))
-        a = math.sqrt(3.0) * std
-        torch.nn.init.uniform_(self.weights, -a, a)
-        if self.use_bias:
-            torch.nn.init.zeros_(self.bias)
+#     def reset_parameters(self) -> None:
+#         fan_in = self.avg_degree * self.in_channels
+#         fan_out = self.avg_degree * self.out_channels
+#         std = math.sqrt(2.0 / float(fan_in + fan_out))
+#         a = math.sqrt(3.0) * std
+#         torch.nn.init.uniform_(self.weights, -a, a)
+#         if self.use_bias:
+#             torch.nn.init.zeros_(self.bias)
 
-    def forward(self, x, edge_index, edge_type, node_type=None):
-        has_node_type = node_type is not None
-        if has_node_type and self.n_node_type > 1:
-            # concatenate the one_hot vector
-            one_hot = F.one_hot(node_type, num_classes=self.n_node_type)
-            x = torch.cat([x, one_hot], dim=1)
+#     def forward(self, x, edge_index, edge_type, node_type=None):
+#         has_node_type = node_type is not None
+#         if has_node_type and self.n_node_type > 1:
+#             # concatenate the one_hot vector
+#             one_hot = F.one_hot(node_type, num_classes=self.n_node_type)
+#             x = torch.cat([x, one_hot], dim=1)
 
-        # x -> col_data
-        row, col = edge_index[0], edge_index[1]
-        # weights = torch.pow(0.5, node_type[col]) if has_node_type else None
-        weights = None    # TODO: ablation the weights
-        index = row * self.n_edge_type + edge_type
-        col_data = scatter_mean(x[col], index, dim=0, weights=weights,
-                                                        dim_size=x.shape[0] * self.n_edge_type)
+#         # x -> col_data
+#         row, col = edge_index[0], edge_index[1]
+#         # weights = torch.pow(0.5, node_type[col]) if has_node_type else None
+#         weights = None    # TODO: ablation the weights
+#         index = row * self.n_edge_type + edge_type
+#         col_data = scatter_mean(x[col], index, dim=0, weights=weights,
+#                                                         dim_size=x.shape[0] * self.n_edge_type)
 
-        # matrix product
-        output = col_data.view(x.shape[0], -1) @ self.weights
+#         # matrix product
+#         output = col_data.view(x.shape[0], -1) @ self.weights
 
-        if self.use_bias:
-            output += self.bias
+#         if self.use_bias:
+#             output += self.bias
 
-        return output
+#         return output
 
-    def extra_repr(self) -> str:
-        return ('channel_in={}, channel_out={}, n_edge_type={}, avg_degree={}, '
-			'n_node_type={}'.format(self.in_channels, self.out_channels,
-				self.n_edge_type, self.avg_degree, self.n_node_type))    # noqa
+#     def extra_repr(self) -> str:
+#         return ('channel_in={}, channel_out={}, n_edge_type={}, avg_degree={}, '
+# 			'n_node_type={}'.format(self.in_channels, self.out_channels,
+# 				self.n_edge_type, self.avg_degree, self.n_node_type))    # noqa
 
 
 # class Conv1x1(torch.nn.Module):
@@ -228,42 +233,42 @@ class GraphConv(torch.nn.Module):
 #         out = self.gelu(out)
 #         return out
 
-class Upsample(torch.nn.Module):
+# class Upsample(torch.nn.Module):
 
-    def __init__(self, channels):
-        super().__init__()
-        self.channels = channels
+#     def __init__(self, channels):
+#         super().__init__()
+#         self.channels = channels
 
-        self.weights = torch.nn.Parameter(
-            torch.Tensor(channels, channels, 8))
-        torch.nn.init.xavier_uniform_(self.weights)
+#         self.weights = torch.nn.Parameter(
+#             torch.Tensor(channels, channels, 8))
+#         torch.nn.init.xavier_uniform_(self.weights)
 
-    def forward(self, x):
-        out = x @ self.weights.flatten(1)
-        out = out.view(-1, self.channels)
-        return out
+#     def forward(self, x):
+#         out = x @ self.weights.flatten(1)
+#         out = out.view(-1, self.channels)
+#         return out
 
-    def extra_repr(self):
-        return 'channels={}'.format(self.channels)
+#     def extra_repr(self):
+#         return 'channels={}'.format(self.channels)
 
 
-class Downsample(torch.nn.Module):
+# class Downsample(torch.nn.Module):
 
-    def __init__(self, channels):
-        super().__init__()
-        self.channels = channels
+#     def __init__(self, channels):
+#         super().__init__()
+#         self.channels = channels
 
-        self.weights = torch.nn.Parameter(
-            torch.Tensor(channels, channels, 8))
-        torch.nn.init.xavier_uniform_(self.weights)
+#         self.weights = torch.nn.Parameter(
+#             torch.Tensor(channels, channels, 8))
+#         torch.nn.init.xavier_uniform_(self.weights)
 
-    def forward(self, x):
-        weights = self.weights.flatten(1).t()
-        out = x.view(-1, self.channels * 8) @ weights
-        return out
+#     def forward(self, x):
+#         weights = self.weights.flatten(1).t()
+#         out = x.view(-1, self.channels * 8) @ weights
+#         return out
 
-    def extra_repr(self):
-        return 'channels={}'.format(self.channels)
+#     def extra_repr(self):
+#         return 'channels={}'.format(self.channels)
 
 
 class GraphDownsample(torch.nn.Module):
@@ -345,71 +350,71 @@ class GraphUpsample(torch.nn.Module):
         return 'channels_in={}, channels_out={}'.format(
             self.channels_in, self.channels_out)
 
-class GraphResBlock(torch.nn.Module):
+# class GraphResBlock(torch.nn.Module):
 
-    def __init__(self, channel_in, channel_out,dropout, n_edge_type=7,
-            avg_degree=7, n_node_type=0, use_checkpoint=False):
-        super().__init__()
-        self.channel_in = channel_in
-        self.channel_out = channel_out
-        self.use_checkpoint = use_checkpoint
+#     def __init__(self, channel_in, channel_out,dropout, n_edge_type=7,
+#             avg_degree=7, n_node_type=0, use_checkpoint=False):
+#         super().__init__()
+#         self.channel_in = channel_in
+#         self.channel_out = channel_out
+#         self.use_checkpoint = use_checkpoint
 
-        self.norm1 = DualOctreeGroupNorm(channel_in)
+#         self.norm1 = DualOctreeGroupNorm(channel_in)
 
-        self.conv1 = GraphConv(
-            channel_in, channel_out, n_edge_type, avg_degree, n_node_type)
+#         self.conv1 = GraphConv(
+#             channel_in, channel_out, n_edge_type, avg_degree, n_node_type)
 
-        self.norm2 = DualOctreeGroupNorm(channel_out)
-        self.dropout = torch.nn.Dropout(dropout)
+#         self.norm2 = DualOctreeGroupNorm(channel_out)
+#         self.dropout = torch.nn.Dropout(dropout)
 
-        self.conv2 = GraphConv(
-            channel_out, channel_out, n_edge_type, avg_degree, n_node_type)
+#         self.conv2 = GraphConv(
+#             channel_out, channel_out, n_edge_type, avg_degree, n_node_type)
 
-        if self.channel_in != self.channel_out:
-            self.conv1x1c = Conv1x1Gn(channel_in, channel_out)
+#         if self.channel_in != self.channel_out:
+#             self.conv1x1c = Conv1x1Gn(channel_in, channel_out)
 
-    def forward(self, x, doctree, depth, edge_index, edge_type, node_type):
-        h = x
-        h = self.norm1(data = h, doctree = doctree, depth = depth)
-        h = nonlinearity(h)
+#     def forward(self, x, doctree, depth, edge_index, edge_type, node_type):
+#         h = x
+#         h = self.norm1(data = h, doctree = doctree, depth = depth)
+#         h = nonlinearity(h)
 
-        if self.use_checkpoint:
-            h = ckpt_conv_wrapper(self.conv1, h, edge_index, edge_type, node_type)
-        else:
-            h = self.conv1(h,edge_index, edge_type, node_type)
+#         if self.use_checkpoint:
+#             h = ckpt_conv_wrapper(self.conv1, h, edge_index, edge_type, node_type)
+#         else:
+#             h = self.conv1(h,edge_index, edge_type, node_type)
 
-        h = self.norm2(data = h, doctree = doctree, depth = depth)
-        h = nonlinearity(h)
-        h = self.dropout(h)
+#         h = self.norm2(data = h, doctree = doctree, depth = depth)
+#         h = nonlinearity(h)
+#         h = self.dropout(h)
 
-        if self.use_checkpoint:
-            h = ckpt_conv_wrapper(self.conv2, h, edge_index, edge_type, node_type)
-        else:
-            h = self.conv2(h, edge_index, edge_type, node_type)
+#         if self.use_checkpoint:
+#             h = ckpt_conv_wrapper(self.conv2, h, edge_index, edge_type, node_type)
+#         else:
+#             h = self.conv2(h, edge_index, edge_type, node_type)
 
-        if self.channel_in != self.channel_out:
-            x = self.conv1x1c(x, doctree, depth)
+#         if self.channel_in != self.channel_out:
+#             x = self.conv1x1c(x, doctree, depth)
 
-        out = h + x
-        return out
+#         out = h + x
+#         return out
 
 
-class GraphResBlocks(torch.nn.Module):
+# class GraphResBlocks(torch.nn.Module):
 
-    def __init__(self, channel_in, channel_out, dropout,resblk_num,
-                             n_edge_type=7, avg_degree=7, n_node_type=0, use_checkpoint=False):
-        super().__init__()
-        self.resblk_num = resblk_num
-        channels = [channel_in] + [channel_out] * resblk_num
-        self.resblks = torch.nn.ModuleList([
-            GraphResBlock(channels[i], channels[i+1],dropout,
-                n_edge_type, avg_degree, n_node_type, use_checkpoint)
-            for i in range(self.resblk_num)])
+#     def __init__(self, channel_in, channel_out, dropout,resblk_num,
+#                              n_edge_type=7, avg_degree=7, n_node_type=0, use_checkpoint=False):
+#         super().__init__()
+#         self.resblk_num = resblk_num
+#         channels = [channel_in] + [channel_out] * resblk_num
+#         self.resblks = torch.nn.ModuleList([
+#             GraphResBlock(channels[i], channels[i+1],dropout,
+#                 n_edge_type, avg_degree, n_node_type, use_checkpoint)
+#             for i in range(self.resblk_num)])
 
-    def forward(self, data, doctree, depth, edge_index, edge_type, node_type):
-        for i in range(self.resblk_num):
-            data = self.resblks[i](data, doctree, depth, edge_index, edge_type, node_type)
-        return data
+#     def forward(self, data, doctree, depth, edge_index, edge_type, node_type):
+#         for i in range(self.resblk_num):
+#             data = self.resblks[i](data, doctree, depth, edge_index, edge_type, node_type)
+#         return data
 
 
 def doctree_align(value, key, query):

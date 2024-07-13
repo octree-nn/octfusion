@@ -99,12 +99,8 @@ class GraphVAE(graph_ounet.GraphOUNet):
 
         deconvs[depth_stop] = code
 
-        edge_idx = doctree_out.graph[depth_stop]['edge_idx']
-        edge_type = doctree_out.graph[depth_stop]['edge_dir']
-        node_type = doctree_out.graph[depth_stop]['node_type']
-
-        deconvs[depth_stop] = self.decoder_mid.block_1(deconvs[depth_stop], doctree_out, depth_stop, edge_idx, edge_type, node_type)
-        deconvs[depth_stop] = self.decoder_mid.block_2(deconvs[depth_stop], doctree_out, depth_stop, edge_idx, edge_type, node_type)
+        deconvs[depth_stop] = self.decoder_mid.block_1(deconvs[depth_stop], doctree_out, depth_stop)
+        deconvs[depth_stop] = self.decoder_mid.block_2(deconvs[depth_stop], doctree_out, depth_stop)
 
         for i, d in enumerate(range(self.depth_stop, self.depth_out+1)): # decoder的操作是从full_depth到depth_out为止
             if d > self.depth_stop:
@@ -112,11 +108,8 @@ class GraphVAE(graph_ounet.GraphOUNet):
                 leaf_mask = doctree_out.node_child(d-1) < 0
                 deconvs[d] = self.upsample[i-1](deconvs[d-1], doctree_out, d, leaf_mask, nnum)
 
-            edge_idx = doctree_out.graph[d]['edge_idx']
-            edge_type = doctree_out.graph[d]['edge_dir']
-            node_type = doctree_out.graph[d]['node_type']
             octree_out = doctree_out.octree
-            deconvs[d] = self.decoder[i](deconvs[d], doctree_out, d, edge_idx, edge_type, node_type)
+            deconvs[d] = self.decoder[i](deconvs[d], doctree_out, d)
 
             # predict the splitting label
             logit = self.predict[i]([deconvs[d], doctree_out, d])
