@@ -126,10 +126,7 @@ class GraphOUNet(torch.nn.Module):
             convs[d], doctree.graph[d]['keyd'], doctree_out.graph[d]['keyd'])
         deconvd = deconvd + skip  # skip connections
 
-        edge_idx = doctree_out.graph[d]['edge_idx']
-        edge_type = doctree_out.graph[d]['edge_dir']
-        node_type = doctree_out.graph[d]['node_type']
-        deconvs[d] = self.decoder[i-1](deconvd, edge_idx, edge_type, node_type)
+        deconvs[d] = self.decoder[i-1](deconvd, doctree, d)
 
       # predict the splitting label
       logit = self.predict[i](deconvs[d])
