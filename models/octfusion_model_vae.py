@@ -193,6 +193,23 @@ class OctFusionModel(BaseModel):
         self.loss = output['loss']
         self.output = output
 
+    def inference(self):
+        self.autoencoder.eval()
+        output = self.autoencoder.forward(octree_in = self.batch['octree_in'], evaluate=True)
+        filename = self.batch['filename'][0]
+        pos = filename.rfind('.')
+        if pos != -1: 
+            filename = filename[:pos]  # remove the suffix
+        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"results_vae", filename)
+        os.makedirs(save_dir, exist_ok=True)
+        bbox = self.batch['bbox'][0].numpy() if 'bbox' in self.batch else None
+        self.get_sdfs(output['neural_mpu'], self.batch_size, bbox)  # output['neural_mpu']是一个函数。
+        self.export_mesh(save_dir, index = 0)
+
+        # save the input point cloud
+        pointcloud = trimesh.PointCloud(vertices=self.batch['points'][0].cpu().points.numpy())
+        pointcloud.export(os.path.join(save_dir, 'input.ply'))
+
 
     def get_sdfs(self, neural_mpu, batch_size, bbox):
         # bbox used for marching cubes
@@ -240,13 +257,10 @@ class OctFusionModel(BaseModel):
             mesh.export(filename)
 
     def backward(self):
-
         self.loss.backward()
 
 
     def optimize_parameters(self):
-
-        # self.set_requires_grad([self.df.unet_hr], requires_grad=True)
 
         self.forward()
         self.optimizer.zero_grad()

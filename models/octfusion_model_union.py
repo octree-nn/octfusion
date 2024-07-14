@@ -359,7 +359,7 @@ class OctFusionModel(BaseModel):
 
     
     @torch.no_grad()
-    def sample(self, data, split_path, category = 'airplane', suffix = 'mesh_2t', ema = False, ddim_steps=200, ddim_eta=0., clean = False, save_index = 0):
+    def sample(self, data, split_path, category = 'airplane', prefix = 'mesh_2t', ema = False, ddim_steps=200, ddim_eta=0., clean = False, save_index = 0):
 
         if ema:
             self.ema_df.eval()
@@ -381,7 +381,7 @@ class OctFusionModel(BaseModel):
             split_small = self.sample_split(ema = ema, ddim_steps = ddim_steps, label=label)
         octree_small = self.split2octree_small(split_small)
 
-        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{suffix}_{category}")
+        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{prefix}_{category}")
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
 
         doctree_small = dual_octree.DualOctree(octree_small)
