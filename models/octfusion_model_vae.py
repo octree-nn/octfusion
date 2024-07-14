@@ -191,6 +191,7 @@ class OctFusionModel(BaseModel):
         output['code_max'] = model_out['code_max']
         output['code_min'] = model_out['code_min']
         self.loss = output['loss']
+        self.output = output
 
 
     def get_sdfs(self, neural_mpu, batch_size, bbox):
@@ -238,16 +239,6 @@ class OctFusionModel(BaseModel):
                 mesh = components[max_component]
             mesh.export(filename)
 
-    @torch.no_grad()
-    def eval_metrics(self, dataloader, thres=0.0, global_step=0):
-        self.eval()
-
-        ret = OrderedDict([
-            ('dummy_metrics', 0.0),
-        ])
-        self.train()
-        return ret
-
     def backward(self):
 
         self.loss.backward()
@@ -267,6 +258,7 @@ class OctFusionModel(BaseModel):
         ret = OrderedDict([
             ('loss', self.loss.data),
         ])
+        ret.update(self.output)
 
         if hasattr(self, 'loss_gamma'):
             ret['gamma'] = self.loss_gamma.data

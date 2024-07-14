@@ -574,15 +574,6 @@ class OctFusionModel(BaseModel):
                 mesh = components[max_component]
             mesh.export(filename)
 
-    @torch.no_grad()
-    def eval_metrics(self, dataloader, thres=0.0, global_step=0):
-        self.eval()
-
-        ret = OrderedDict([
-            ('dummy_metrics', 0.0),
-        ])
-        self.train()
-        return ret
 
     def backward(self):
 
