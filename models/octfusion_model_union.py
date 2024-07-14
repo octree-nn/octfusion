@@ -60,8 +60,8 @@ class OctFusionModel(BaseModel):
 
         if self.isTrain:
             self.log_dir = os.path.join(opt.logs_dir, opt.name)
-            self.train_dir = os.path.join(self.log_dir, 'train_images')
-            self.test_dir = os.path.join(self.log_dir, 'test_images')
+            self.train_dir = os.path.join(self.log_dir, 'train_temp')
+            self.test_dir = os.path.join(self.log_dir, 'test_temp')
 
 
         ######## START: Define Networks ########

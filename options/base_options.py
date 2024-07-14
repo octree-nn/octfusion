@@ -53,7 +53,7 @@ class BaseOptions():
         ############## START: model related options ################
         self.parser.add_argument(
             '--model', type=str, default='split',
-            choices=['split', 'union'],
+            choices=['split', 'union', 'vae'],
             help='chooses which model to use.'
         )
         self.parser.add_argument('--ckpt', type=str, default=None, help='ckpt to load.')

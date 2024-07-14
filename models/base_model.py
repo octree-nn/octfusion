@@ -7,9 +7,14 @@ import math
 def create_model(opt):
     model = None
 
-
-    from models.octfusion_model_union import OctFusionModel
-    model = OctFusionModel()
+    if opt.model == 'split' or opt.model == 'union':
+        from models.octfusion_model_union import OctFusionModel
+        model = OctFusionModel()
+    elif opt.model == 'vae':
+        from models.octfusion_model_vae import OctFusionModel
+        model = OctFusionModel()
+    else:
+        raise ValueError
 
     model.initialize(opt)
     cprint("[*] Model has been created: %s" % model.name(), 'blue')

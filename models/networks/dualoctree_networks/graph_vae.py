@@ -12,7 +12,6 @@ from torch.nn import init
 from .distributions import DiagonalGaussianDistribution
 from . import modules
 from . import dual_octree
-from . import graph_ounet
 from . import mpu
 from ocnn.nn import octree2voxel
 from ocnn.octree import Octree
@@ -132,13 +131,40 @@ class GraphVAE(torch.nn.Module):
     def _get_input_feature(self, doctree):
         return doctree.get_input_feature()
 
+    def octree_encoder_step(self, octree, doctree):
+        depth, depth_stop = self.depth, self.depth_stop
+        data = self._get_input_feature(doctree)
+
+        convs = dict()
+        convs[depth] = data   # channel为4
+        for i, d in enumerate(range(depth, depth_stop-1, -1)):   # encoder的操作是从depth到depth_stop为止
+        # perform graph conv
+            convd = convs[d]  # get convd
+            if d == self.depth:  # the first conv
+                convd = self.conv1(convd, doctree, d)
+            convd = self.encoder[i](convd, doctree, d)
+            convs[d] = convd  # update convd
+            # print(convd.shape)
+
+        # downsampleing
+            if d > depth_stop:  # init convd
+                nnum = doctree.nnum[d]
+                lnum = doctree.lnum[d-1]
+                leaf_mask = doctree.node_child(d-1) < 0
+                convs[d-1] = self.downsample[i](convd, doctree, d-1, leaf_mask, nnum, lnum)
+
+        convs[depth_stop] = self.encoder_norm_out(convs[depth_stop], doctree, depth_stop)
+        convs[depth_stop] = self.nonlinearity(convs[depth_stop])
+
+        return convs
+    
     def octree_encoder(self, octree, doctree): # encoder的操作是从depth到full-deth为止，在这里就是从6到2
-        convs = super().octree_encoder(octree, doctree) # conv的channel随着八叉树深度从6到2的变化为[32, 64, 128, 256, 512]
+        convs = self.octree_encoder_step(octree, doctree) # conv的channel随着八叉树深度从6到2的变化为[32, 64, 128, 256, 512]
         # reduce the dimension
         code = self.KL_conv(convs[self.depth_stop])
         # print(code.max())
         # print(code.min())
-        posterior = DiagonalGaussianDistribution(code, kl_std = 0.25)
+        posterior = DiagonalGaussianDistribution(code)
         return posterior
 
     def octree_decoder(self, code, doctree_out, update_octree=False):
@@ -265,7 +291,7 @@ class GraphVAE(torch.nn.Module):
         doctree_in = dual_octree.DualOctree(octree_in)
         doctree_in.post_processing_for_docnn()
 
-        convs = super().octree_encoder(octree_in, doctree_in) # conv的channel随着八叉树深度从6到2的变化为[32, 64, 128, 256, 512]
+        convs = self.octree_encoder_step(octree_in, doctree_in) # conv的channel随着八叉树深度从6到2的变化为[32, 64, 128, 256, 512]
         code = self.KL_conv(convs[self.depth_stop])
         posterior = DiagonalGaussianDistribution(code)
         return posterior.sample(), doctree_in
