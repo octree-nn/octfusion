@@ -29,7 +29,7 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--epochs', type=int, default=4000, help='# of iter for training')
         self.parser.add_argument('--start_iter', type=int, default=0, help='# of iter for training')
 
-        self.parser.add_argument('--mode', type=str, default='train', help='# of iter for training')
+        self.parser.add_argument('--mode', type=str, default='train_octfusion', help='# of iter for training')
         self.parser.add_argument('--isTrain', type=str, default='True', help='# of iter for training')
 
         # weights

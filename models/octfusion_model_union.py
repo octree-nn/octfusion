@@ -6,7 +6,7 @@ import sys
 from collections import OrderedDict
 from functools import partial
 import copy
-
+import time
 import numpy as np
 from omegaconf import OmegaConf
 from termcolor import colored, cprint
@@ -35,7 +35,7 @@ from utils.distributed import reduce_loss_dict, get_rank
 
 # rendering
 from utils.util_dualoctree import calc_sdf
-from utils.util import TorchRecoder
+from utils.util import TorchRecoder, seed_everything
 
 TRUNCATED_TIME = 0.7
 category_5_to_label = {
@@ -300,7 +300,7 @@ class OctFusionModel(BaseModel):
         return times
 
     @torch.no_grad()
-    def sample_split(self, ema=False, suffix = 'mesh_2t', ddim_steps=200, category = 'airplane', truncated_index = 0.0, save_index = 0):
+    def sample_split(self, ema=False, prefix = 'results', ddim_steps=200, category = 'airplane', truncated_index = 0.0, save_index = 0):
         batch_size = self.vq_conf.data.test.batch_size
 
         if self.enable_label:
@@ -308,7 +308,7 @@ class OctFusionModel(BaseModel):
             label = label.long()
         else:
             label = None
-
+        seed_everything(int(time.time()))
         small_time_pairs = self.get_sampling_timesteps(
             self.batch_size, device=self.device, steps=ddim_steps)
 
@@ -319,31 +319,31 @@ class OctFusionModel(BaseModel):
 
         small_iter = tqdm(small_time_pairs, desc='small sampling loop time step')
 
-        for time, time_next in small_iter:
+        for t, t_next in small_iter:
 
-            log_snr = self.log_snr(time)
-            log_snr_next = self.log_snr(time_next)
+            log_snr = self.log_snr(t)
+            log_snr_next = self.log_snr(t_next)
             log_snr, log_snr_next = map(
                 partial(right_pad_dims_to, noised_split_small), (log_snr, log_snr_next))
 
             alpha, _ = log_snr_to_alpha_sigma(log_snr)
             alpha_next, sigma_next = log_snr_to_alpha_sigma(log_snr_next)
 
-            noise_cond = self.log_snr(time)
+            noise_cond = self.log_snr(t)
 
             if ema:
                 x_start_small = self.ema_df(x_lr = noised_split_small, timesteps = noise_cond, x_self_cond = x_start_small, label = label)
             else:
                 x_start_small = self.df(x_lr = noised_split_small, timesteps = noise_cond, x_self_cond = x_start_small, label = label)
 
-            if time[0] < TRUNCATED_TIME:
+            if t[0] < TRUNCATED_TIME:
                 x_start_small.sign_()
 
             c = -expm1(log_snr - log_snr_next)
             mean = alpha_next * (noised_split_small * (1 - c) / alpha + c * x_start_small)
             variance = (sigma_next ** 2) * c
             noise = torch.where(
-                rearrange(time_next > truncated_index, 'b -> b 1 1 1 1'),
+                rearrange(t_next > truncated_index, 'b -> b 1 1 1 1'),
                 torch.randn_like(noised_split_small),
                 torch.zeros_like(noised_split_small)
             )
@@ -351,15 +351,16 @@ class OctFusionModel(BaseModel):
         
         octree_small = self.split2octree_small(noised_split_small)
 
-        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{suffix}_{category}")
+        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{prefix}_{category}")
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
-        for i in range(batch_size):
-            torch.save(noised_split_small[i].unsqueeze(0), os.path.join(save_dir, f"{save_index}.pth"))
+        # for i in range(batch_size):
+        #     torch.save(noised_split_small[i].unsqueeze(0), os.path.join(save_dir, f"{save_index}.pth"))
+        return noised_split_small
 
 
     
     @torch.no_grad()
-    def sample(self, data, split_path, category = 'airplane', prefix = 'mesh_2t', ema = False, ddim_steps=200, ddim_eta=0., clean = False, save_index = 0):
+    def sample(self, data, split_path, category = 'airplane', prefix = 'results', ema = False, ddim_steps=200, ddim_eta=0., clean = False, save_index = 0):
 
         if ema:
             self.ema_df.eval()
@@ -378,7 +379,8 @@ class OctFusionModel(BaseModel):
             split_small = torch.load(split_path)
             split_small = split_small.to(self.device)
         else:
-            split_small = self.sample_split(ema = ema, ddim_steps = ddim_steps, label=label)
+            split_small = self.sample_split(ema=ema, prefix=prefix, ddim_steps = ddim_steps, category=category, save_index=save_index)
+        seed_everything(self.opt.seed)        
         octree_small = self.split2octree_small(split_small)
 
         save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{prefix}_{category}")
@@ -397,10 +399,10 @@ class OctFusionModel(BaseModel):
 
         feature_iter = tqdm(feature_time_pairs, desc='feature stage sampling loop time step')
 
-        for time, time_next in feature_iter:
+        for t, t_next in feature_iter:
 
-            log_snr = self.log_snr(time)
-            log_snr_next = self.log_snr(time_next)
+            log_snr = self.log_snr(t)
+            log_snr_next = self.log_snr(t_next)
 
             alpha, sigma = log_snr_to_alpha_sigma(log_snr)
             alpha_next, sigma_next = log_snr_to_alpha_sigma(log_snr_next)
