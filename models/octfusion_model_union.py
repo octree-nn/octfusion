@@ -35,16 +35,10 @@ from utils.distributed import reduce_loss_dict, get_rank
 
 # rendering
 from utils.util_dualoctree import calc_sdf
-from utils.util import TorchRecoder, seed_everything
+from utils.util import TorchRecoder, seed_everything, category_5_to_label
 
 TRUNCATED_TIME = 0.7
-category_5_to_label = {
-    'airplane': 0,
-    'car': 1,
-    'chair': 2,
-    'table': 3,
-    'rifle': 4,
-}
+
 
 class OctFusionModel(BaseModel):
     def name(self):

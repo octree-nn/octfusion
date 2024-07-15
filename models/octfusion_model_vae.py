@@ -35,16 +35,9 @@ from utils.distributed import reduce_loss_dict, get_rank
 
 # rendering
 from utils.util_dualoctree import calc_sdf
-from utils.util import TorchRecoder
+from utils.util import TorchRecoder, category_5_to_label
 
 TRUNCATED_TIME = 0.7
-category_5_to_label = {
-    'airplane': 0,
-    'car': 1,
-    'chair': 2,
-    'table': 3,
-    'rifle': 4,
-}
 
 class OctFusionModel(BaseModel):
     def name(self):
@@ -109,7 +102,7 @@ class OctFusionModel(BaseModel):
         if opt.ckpt is None and os.path.exists(os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")):
             opt.ckpt = os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")
         if opt.ckpt is not None:
-            self.load_ckpt(opt.ckpt, self.autoencoder, self.autoencoder, load_opt=self.isTrain)
+            self.load_ckpt(opt.ckpt, self.autoencoder, load_opt=self.isTrain)
             if self.isTrain:
                 self.optimizers = [self.optimizer]
         
@@ -282,6 +275,7 @@ class OctFusionModel(BaseModel):
     def save(self, label, global_iter, save_opt=True):
 
         state_dict = {
+            'autoencoder': self.autoencoder.state_dict(),
             'opt': self.optimizer.state_dict(),
             'global_step': global_iter,
         }
@@ -308,7 +302,7 @@ class OctFusionModel(BaseModel):
         else:
             state_dict = ckpt
             
-        autoencoder.load_state_dict(state_dict)
+        autoencoder.load_state_dict(state_dict['autoencoder'])
         print(colored('[*] weight successfully load from: %s' % ckpt, 'blue'))
 
         if load_opt:
