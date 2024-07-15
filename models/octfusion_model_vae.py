@@ -109,7 +109,7 @@ class OctFusionModel(BaseModel):
         if opt.ckpt is None and os.path.exists(os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")):
             opt.ckpt = os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")
         if opt.ckpt is not None:
-            self.load_ckpt(opt.ckpt, self.df, self.ema_df, load_opt=self.isTrain)
+            self.load_ckpt(opt.ckpt, self.autoencoder, self.autoencoder, load_opt=self.isTrain)
             if self.isTrain:
                 self.optimizers = [self.optimizer]
         
@@ -289,7 +289,7 @@ class OctFusionModel(BaseModel):
         # if save_opt:
         #     state_dict['opt'] = self.optimizer.state_dict()
 
-        save_filename = 'df_%s.pth' % (label)
+        save_filename = 'vae_%s.pth' % (label)
         save_path = os.path.join(self.opt.ckpt_dir, save_filename)
 
         ckpts = os.listdir(self.opt.ckpt_dir)
@@ -301,15 +301,14 @@ class OctFusionModel(BaseModel):
 
         torch.save(state_dict, save_path)
 
-    def load_ckpt(self, ckpt, df, ema_df, load_opt=False):
+    def load_ckpt(self, ckpt, autoencoder, load_opt=False):
         map_fn = lambda storage, loc: storage
         if type(ckpt) == str:
             state_dict = torch.load(ckpt, map_location=map_fn)
         else:
             state_dict = ckpt
             
-        df.load_state_dict(state_dict['df'])
-        ema_df.load_state_dict(state_dict['ema_df'])
+        autoencoder.load_state_dict(state_dict)
         print(colored('[*] weight successfully load from: %s' % ckpt, 'blue'))
 
         if load_opt:

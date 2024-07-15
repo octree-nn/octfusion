@@ -45,7 +45,7 @@ data:
         load_split_large: &load_split_large False
         load_sdf: &load_sdf True
         load_occu: &load_occu False
-        batch_size: &batch_size 2
+        batch_size: &batch_size 4
         shuffle: True
 
         point_scale: 0.5
