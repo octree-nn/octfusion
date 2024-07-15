@@ -72,7 +72,7 @@ fi
 
 cmd="train.py --name ${name} --logs_dir ${logs_dir} --gpu_ids ${gpu_ids} --mode ${mode} \
             --lr ${lr} --epochs ${epochs}  --min_lr ${min_lr} --warmup_epochs ${warmup_epochs} --update_learning_rate ${update_learning_rate} --ema_rate ${ema_rate} --seed ${seed} \
-            --model ${model} --df_cfg ${df_cfg} --ckpt_num ${ckpt_num} --category ${category} --split_dir ${split_dir} \
+            --model ${model} --df_cfg ${df_cfg} --ckpt_num ${ckpt_num} --category ${category} \
             --vq_model ${vq_model} --vq_cfg ${vq_cfg} \
             --display_freq ${display_freq} --print_freq ${print_freq} \
             --save_steps_freq ${save_steps_freq} --save_latest_freq ${save_latest_freq} \
