@@ -64,7 +64,7 @@ me=$(echo $me | cut -d'.' -f 1)
 name="${category}_union/${note}_${dataset_mode}_lr${lr}"
 
 debug=0
-if [ "$mode" = "generate" ]; then
+if [ "$mode" = "generate" || "$mode" = "inference_vae" ]; then
     df_cfg="${logs_dir}/${name}/${df_yaml}"
     vq_cfg="${logs_dir}/${name}/${vq_yaml}"
     ckpt="${logs_dir}/${name}/ckpt/df_steps-latest.pth"

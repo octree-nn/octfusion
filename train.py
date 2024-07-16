@@ -114,7 +114,7 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
                 data['iter_num'] = iter_i
                 data['epoch'] = epoch
                 model.set_input(data)
-                model.inference()
+                model.inference(save_folder = f'temp/{iter_i}')
             else:
                 if opt.category == "im_5":
                     category = random.choice(list(category_5_to_num.keys()))
@@ -122,7 +122,7 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
                     category = opt.category
                 model.sample(category = category, prefix = 'results', ema = True, ddim_steps = 200, save_index = iter_i)
             
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
 
         if opt.update_learning_rate:
             model.update_learning_rate_cos(iter_i/epoch_length, opt)

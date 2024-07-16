@@ -175,7 +175,7 @@ class OctFusionModel(BaseModel):
 
 
     def forward(self):
-
+        self.autoencoder.train()
         model_out = self.autoencoder_module(self.octree_in, self.octree_gt, self.batch['pos'])
         loss_func = self.get_loss_function()
         output = loss_func(self.batch, model_out, self.vq_conf.loss.loss_type, kl_weight=self.vq_conf.loss.kl_weight)
@@ -186,14 +186,15 @@ class OctFusionModel(BaseModel):
         self.loss = output['loss']
         self.output = output
 
-    def inference(self):
+    @torch.no_grad()
+    def inference(self, save_folder = "results_vae"):
         self.autoencoder.eval()
         output = self.autoencoder.forward(octree_in = self.batch['octree_in'], evaluate=True)
         filename = self.batch['filename'][0]
         pos = filename.rfind('.')
         if pos != -1: 
             filename = filename[:pos]  # remove the suffix
-        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"results_vae", filename)
+        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, save_folder, filename)
         os.makedirs(save_dir, exist_ok=True)
         bbox = self.batch['bbox'][0].numpy() if 'bbox' in self.batch else None
         self.get_sdfs(output['neural_mpu'], self.batch_size, bbox)  # output['neural_mpu']是一个函数。
