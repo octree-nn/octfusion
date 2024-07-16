@@ -69,6 +69,7 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
         #     break
 
         if get_rank() == 0:
+            pbar.update(1)
             if iter_i % opt.print_freq == 0:
                 errors = model.get_current_errors()
 
@@ -126,7 +127,7 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
         if opt.update_learning_rate:
             model.update_learning_rate_cos(iter_i/epoch_length, opt)
 
-        pbar.update(1)
+        
 
 def inference(opt, model, test_loader):
     if get_rank() == 0:

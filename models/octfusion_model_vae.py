@@ -275,7 +275,7 @@ class OctFusionModel(BaseModel):
     def save(self, label, global_iter, save_opt=True):
 
         state_dict = {
-            'autoencoder': self.autoencoder.state_dict(),
+            'autoencoder': self.autoencoder_module.state_dict(),
             'opt': self.optimizer.state_dict(),
             'global_step': global_iter,
         }
@@ -287,7 +287,7 @@ class OctFusionModel(BaseModel):
         save_path = os.path.join(self.opt.ckpt_dir, save_filename)
 
         ckpts = os.listdir(self.opt.ckpt_dir)
-        ckpts = [ck for ck in ckpts if ck!='df_steps-latest.pth']
+        ckpts = [ck for ck in ckpts if not ck.endswith('latest.pth')]
         ckpts.sort(key=lambda x: int(x[9:-4]))
         if len(ckpts) > self.opt.ckpt_num:
             for ckpt in ckpts[:-self.opt.ckpt_num]:

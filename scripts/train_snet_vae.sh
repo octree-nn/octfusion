@@ -61,7 +61,7 @@ today=$(date '+%m%d')
 me=`basename "$0"`
 me=$(echo $me | cut -d'.' -f 1)
 
-name="${category}_union/cascade_pretrain_${note}_lr${lr}"
+name="${category}_union/${note}_${dataset_mode}_lr${lr}"
 
 debug=0
 if [ "$mode" = "generate" ]; then
