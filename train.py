@@ -139,7 +139,7 @@ def inference(opt, model, test_loader):
     print('The epoch length is', epoch_length)
 
     total_iters = epoch_length
-    start_iter = opt.start_iter
+    start_iter = 0
 
     # pbar = tqdm(total=total_iters)
     pbar = tqdm(range(start_iter, total_iters))

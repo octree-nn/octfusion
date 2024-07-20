@@ -289,7 +289,7 @@ class OctFusionModel(BaseModel):
 
         ckpts = os.listdir(self.opt.ckpt_dir)
         ckpts = [ck for ck in ckpts if not ck.endswith('latest.pth')]
-        ckpts.sort(key=lambda x: int(x[9:-4]))
+        ckpts.sort(key=lambda x: int(x[10:-4]))
         if len(ckpts) > self.opt.ckpt_num:
             for ckpt in ckpts[:-self.opt.ckpt_num]:
                 os.remove(os.path.join(self.opt.ckpt_dir, ckpt))

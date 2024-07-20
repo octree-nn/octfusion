@@ -8,34 +8,51 @@ Code release for the paper "OctFusion: Octree-based Diffusion Models for 3D Shap
 ![teaser](./assets/teaser.png)
 
 
-## Installation
-We recommend using [`conda`](https://www.anaconda.com/products/distribution) to install the required python packages. You might need to change the `cudatoolkit` version to match with your GPU driver.
-```
+## 1. Installation
+1. Create a `Conda` environment.
+```bash
 conda create -n octfusion python=3.9 -y && conda activate octfusion
-conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
-
-pip3 install ocnn h5py joblib termcolor scipy einops tqdm matplotlib opencv-python PyMCubes imageio trimesh omegaconf tensorboard notebook numpy tqdm yacs scipy plyfile tensorboard scikit-image trimesh wget mesh2sdf setuptools matplotlib
-
 ```
 
-## Usage
+2. Install PyTorch with Conda
+```bash
+conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
+```
 
-### Pre-trained Models
+3. Clone this repository and install other requirements.
+```bash
+git clone 
+cd OctFusion
+pip3 install -r requirements.txt 
+```
+
+## 2. Generation with pre-trained models
+
+### 2.1 Download pre-trained models
 We provide the pretrained models for the category-conditioned generation and sketch-conditioned generation. Please download the pretrained models from [Google Drive](https://drive.google.com/drive/folders/1mN6iZ-NHAkSyQ526bcoECiDrDSx4zL9B?usp=sharing) and put them in `saved_ckpt/`.
 
-### Generate
-
-#### Unconditional generation
+### 2.2 Generation
+1. Unconditional generation
 ```
 sh scripts/gen_snet_uncond.sh
 ```
 
-#### Category-conditioned generation
+2. Category-conditioned generation
 ```
 sh scripts/gen_snet_cond.sh
 ```
 
-### Preparing the data
+## 3. Train from scratch
+### 3.1 Data Preparation
+
+1. Download `ShapeNetCore.v1.zip` (31G) from [ShapeNet](https://shapenet.org/) and place it into the folder `data/ShapeNet`.
+
+2. Convert the meshes in `ShapeNetCore.v1` to signed distance fields (SDFs).
+
+```bash
+python tools/shapenet.py --run convert_mesh_to_sdf
+```
+We use the same data preparation as [DualOctreeGNN](https://github.com/microsoft/DualOctreeGNN.git). Note that this process is relatively slow, it may take several days to finish converting all the meshes from ShapeNet. 
 
 
 ### How to train the SDFusion
