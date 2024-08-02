@@ -6,13 +6,13 @@ logs_dir='logs'
 
 ### set gpus ###
 # gpu_ids=0          # single-gpu
-gpu_ids=0,1       # multi-gpu
+gpu_ids=4,5,6,7       # multi-gpu
 
 if [ ${#gpu_ids} -gt 1 ]; then
     # specify these two if multi-gpu
     # NGPU=2
     # NGPU=3
-    NGPU=2
+    NGPU=4
     HOST_NODE_ADDR="localhost:27000"
     echo "HERE"
 fi
@@ -31,14 +31,14 @@ seed=42
 ####################
 
 ### model stuff ###
-model='octfusion_union'
-df_yaml="octfusion_snet_union.yaml"
+model='union'
+df_yaml="octfusion_snet_uncond.yaml"
 df_cfg="configs/${df_yaml}"
 vq_model="GraphVAE"
-vq_yaml="shapenet_vae_lr.yaml"
+vq_yaml="shapenet_vae_eval.yaml"
 vq_cfg="configs/${vq_yaml}"
 vq_ckpt="saved_ckpt/all-KL-0.25-weight-0.001-depth-8-00200.model.pth"
-mode="train"
+mode="train_octfusion"
 
 ####################
 
@@ -61,7 +61,7 @@ today=$(date '+%m%d')
 me=`basename "$0"`
 me=$(echo $me | cut -d'.' -f 1)
 
-name="${category}_union/cascade_pretrain_${note}_lr${lr}"
+name="${category}_union/${note}_lr${lr}"
 
 debug=0
 if [ "$mode" = "generate" ]; then
@@ -70,7 +70,7 @@ if [ "$mode" = "generate" ]; then
     ckpt="${logs_dir}/${name}/ckpt/df_steps-latest.pth"
 fi
 
-ckpt="${logs_dir}/${name}/ckpt/df_steps-latest.pth"
+# ckpt="${logs_dir}/${name}/ckpt/df_steps-latest.pth"
 pretrain_ckpt="saved_ckpt/diffusion-ckpt/${category}/df_steps-small.pth"
 split_dir="logs/split_data/${category}_split_small/"
 
