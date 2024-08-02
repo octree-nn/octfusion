@@ -304,9 +304,9 @@ class OctFusionModel(BaseModel):
             label = None
         seed_everything(int(time.time()))
         small_time_pairs = self.get_sampling_timesteps(
-            self.batch_size, device=self.device, steps=ddim_steps)
+            batch_size, device=self.device, steps=ddim_steps)
 
-        shape = (self.batch_size, *self.z_shape)
+        shape = (batch_size, *self.z_shape)
         noised_split_small = torch.randn(shape, device = self.device)
 
         x_start_small = None
@@ -354,7 +354,7 @@ class OctFusionModel(BaseModel):
 
     
     @torch.no_grad()
-    def sample(self, data, split_path, category = 'airplane', prefix = 'results', ema = False, ddim_steps=200, ddim_eta=0., clean = False, save_index = 0):
+    def sample(self, data = None, split_path = None, category = 'airplane', prefix = 'results', ema = False, ddim_steps=200, ddim_eta=0., clean = False, save_index = 0):
 
         if ema:
             self.ema_df.eval()
