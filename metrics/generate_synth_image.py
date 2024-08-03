@@ -1,11 +1,16 @@
-from utils.render_utils import generate_image_for_fid
 import trimesh
 import os
 from multiprocessing import Pool, current_process
 import multiprocessing as mp
 from tqdm import tqdm
+import sys
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+sys.path.append(os.path.dirname(current_dir))
+from utils.render_utils import generate_image_for_fid
+
 os.environ['EGL_DEVICE_ID'] = '1'
-category = "table"
+category = "airplane"
 snc_category_to_synth_id_13 = {
     'airplane': '02691156',
     'bench': '02828884',
@@ -23,18 +28,12 @@ snc_category_to_synth_id_13 = {
 }
 
 cond = True
-if cond:
-    note = "res220_chan124_lr2e-4"
-    suffix = "split3_seed42"
-    fid_root = f'logs/im_5_union/cascade_pretrain_{note}/300epoch/fid_images_{category}_{suffix}'
-    mesh_dir = f'logs/im_5_union/cascade_pretrain_{note}/300epoch/results_{category}_{suffix}'
-else:
-    note = "res110_chan124_lr2e-4"
-    suffix = "split3_seed2024"
-    fid_root = f'logs/{category}_union/cascade_pretrain_{note}/1000epoch/fid_images_{category}_{suffix}'
-    mesh_dir = f'logs/{category}_union/cascade_pretrain_{note}/1000epoch/results_{category}_{suffix}'
+root_dir = "logs/airplane_union/uncond_1000epoch_lr2e-4"
+fid_dir = f'{root_dir}/fid_images_{category}'
+mesh_dir = f'{root_dir}/results_{category}'
 
-os.makedirs(fid_root, exist_ok=True)
+
+os.makedirs(fid_dir, exist_ok=True)
 
 meshes = os.listdir(mesh_dir)
 
@@ -44,9 +43,9 @@ def process_mesh(mesh):
     mesh = trimesh.load(mesh_path, force="mesh")
 
     # Set the GPU for this process
-    os.environ['EGL_DEVICE_ID'] = str(current_process()._identity[0] % 8)
+    os.environ['EGL_DEVICE_ID'] = str(current_process()._identity[0] % 4)
     try:
-        generate_image_for_fid(mesh, fid_root, name)
+        generate_image_for_fid(mesh, fid_dir, name)
     except:
         print(f'The mesh {name} occurs an error!')
         return
