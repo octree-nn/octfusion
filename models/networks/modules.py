@@ -50,15 +50,15 @@ class our_Identity(nn.Module):
 		return x
 	
 def ckpt_conv_wrapper(conv_op, x, *args):
-    def conv_wrapper(x, dummy_tensor, *args):
-        return conv_op(x, *args)
+	def conv_wrapper(x, dummy_tensor, *args):
+		return conv_op(x, *args)
 
-    # The dummy tensor is a workaround when the checkpoint is used for the first conv layer:
-    # https://discuss.pytorch.org/t/checkpoint-with-no-grad-requiring-inputs-problem/19117/11
-    dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
+	# The dummy tensor is a workaround when the checkpoint is used for the first conv layer:
+	# https://discuss.pytorch.org/t/checkpoint-with-no-grad-requiring-inputs-problem/19117/11
+	dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
 
-    return torch.utils.checkpoint.checkpoint(
-            conv_wrapper, x, dummy, *args)
+	return torch.utils.checkpoint.checkpoint(
+			conv_wrapper, x, dummy, *args)
 
 class ConvUpsample(nn.Module):
 	def __init__(self, channels, use_conv=True, dims=2):
@@ -94,9 +94,59 @@ class ConvDownsample(nn.Module):
 		assert x.shape[1] == self.channels
 		return self.op(x)
 
+		
+
+class MatrixProdOp(torch.autograd.Function):
+	@staticmethod
+	def setup(col_data, max_buffer=int(2e6)):
+		in_conv = col_data.shape[1]
+		buffer_n = 1
+		buffer_h = col_data.shape[0]
+		ideal_size = buffer_h * in_conv
+		if ideal_size > max_buffer:
+			kc = in_conv            # make `max_buffer` be divided
+			max_buffer = max_buffer // kc * kc  # by `kc` with no remainder
+			buffer_n = (ideal_size + max_buffer - 1) // max_buffer
+			buffer_h = (buffer_h + buffer_n - 1) // buffer_n
+		buffer_shape = (buffer_h, in_conv)
+
+		return buffer_n, buffer_h, buffer_shape
+	@staticmethod
+	def forward(ctx, col_data: torch.Tensor, weights: torch.Tensor):
+		# Setup
+		buffer_n, buffer_h, buffer_shape = MatrixProdOp.setup(col_data)
+		buffer = col_data.new_empty(buffer_shape)
+		out = col_data.new_zeros(col_data.shape[0], weights.shape[1])
+		# Loop over each sub-matrix
+		for i in range(buffer_n):
+			start = i * buffer_h
+			end = (i + 1) * buffer_h
+
+			# The boundary case in the last iteration
+			if end > col_data.shape[0]:
+				dis = end - col_data.shape[0]
+				end = col_data.shape[0]
+				buffer, _ = buffer.split([buffer_h-dis, dis])
+
+			# Perform octree2col
+			col_i = col_data[start:end]
+			valid = col_i >= 0
+			buffer.fill_(0)
+			buffer[valid] = col_data[col_i[valid]]
+
+			# The sub-matrix gemm
+			out[start:end] = torch.mm(buffer.flatten(1, 2), weights.flatten(0, 1))
+
+		return out
+	
+	@staticmethod
+	def backward(ctx, grad_output):
+		return
+	
+	
 class GraphConv(torch.nn.Module):
 
-	def __init__(self, in_channels, out_channels, n_edge_type=7, avg_degree=7, n_node_type=0, use_bias = False):
+	def __init__(self, in_channels, out_channels, n_edge_type=7, avg_degree=7, n_node_type=0, use_bias=False, direct_method=False):
 		super().__init__()
 		self.in_channels = in_channels
 		self.out_channels = out_channels
@@ -110,7 +160,7 @@ class GraphConv(torch.nn.Module):
 			torch.Tensor(n_edge_type * (in_channels + node_channel), out_channels))
 		if self.use_bias:
 			self.bias = torch.nn.Parameter(torch.Tensor(out_channels))
-
+		self.direct_method = direct_method
 		# if n_node_type > 0:
 		#     self.node_weights = torch.nn.Parameter(
 		#             torch.tensor([0.5 ** i for i in range(n_node_type)]))
@@ -142,9 +192,10 @@ class GraphConv(torch.nn.Module):
 		weights = None    # TODO: ablation the weights
 		index = row * self.n_edge_type + edge_type
 		col_data = scatter_mean(x[col], index, dim=0, weights=weights,
-														dim_size=x.shape[0] * self.n_edge_type)
+			dim_size=x.shape[0] * self.n_edge_type)
 
 		# matrix product
+		MatrixProdOp.forward(None, col_data.view(x.shape[0], -1), self.weights)
 		output = col_data.view(x.shape[0], -1) @ self.weights
 
 		if self.use_bias:

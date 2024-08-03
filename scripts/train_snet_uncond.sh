@@ -23,7 +23,7 @@ lr=2e-4
 min_lr=1e-6
 update_learning_rate=0
 warmup_epochs=40
-epochs=600
+epochs=1000
 batch_size=64
 ema_rate=0.999
 ckpt_num=5
@@ -43,9 +43,9 @@ mode="train_octfusion"
 ####################
 
 ### dataset stuff ###
-note="uncond"
+note="uncond_1000epoch"
 dataset_mode='snet'
-category='car'
+category='airplane'
 
 #####################
 
@@ -71,6 +71,7 @@ if [ "$mode" = "generate" ]; then
 fi
 
 # ckpt="${logs_dir}/${name}/ckpt/df_steps-latest.pth"
+ckpt="logs/airplane_union/cascade_pretrain_res110_chan124_lr2e-4/ckpt/df_steps-latest.pth"
 pretrain_ckpt="saved_ckpt/diffusion-ckpt/${category}/df_steps-small.pth"
 split_dir="logs/split_data/${category}_split_small/"
 
