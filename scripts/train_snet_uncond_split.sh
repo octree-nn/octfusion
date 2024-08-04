@@ -32,20 +32,18 @@ seed=42
 
 ### model stuff ###
 model='split'
-df_yaml="octfusion_snet_uncond.yaml"
+dataset_mode='snet'
+note="3000epoch"
+category='airplane'
+
+df_yaml="octfusion_${dataset_mode}_uncond.yaml"
 df_cfg="configs/${df_yaml}"
 vq_model="GraphVAE"
-vq_yaml="shapenet_vae_eval.yaml"
+vq_yaml="vae_${dataset_mode}_eval.yaml"
 vq_cfg="configs/${vq_yaml}"
 vq_ckpt="saved_ckpt/all-KL-0.25-weight-0.001-depth-8-00200.model.pth"
 mode="train_octfusion"
 
-####################
-
-### dataset stuff ###
-note="3000epoch"
-dataset_mode='snet'
-category='airplane'
 
 #####################
 
