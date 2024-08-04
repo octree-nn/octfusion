@@ -71,7 +71,6 @@ if [ "$mode" = "generate" ]; then
 fi
 
 # ckpt="${logs_dir}/${name}/ckpt/df_steps-latest.pth"
-ckpt="logs/airplane_union/cascade_pretrain_res110_chan124_lr2e-4/ckpt/df_steps-latest.pth"
 pretrain_ckpt="saved_ckpt/diffusion-ckpt/${category}/df_steps-small.pth"
 split_dir="logs/split_data/${category}_split_small/"
 
