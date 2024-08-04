@@ -130,23 +130,39 @@ class MatrixProdOp(torch.autograd.Function):
 
 			# Perform octree2col
 			col_i = col_data[start:end]
-			valid = col_i >= 0
-			buffer.fill_(0)
-			buffer[valid] = col_data[col_i[valid]]
+			buffer = col_i
 
 			# The sub-matrix gemm
-			out[start:end] = torch.mm(buffer.flatten(1, 2), weights.flatten(0, 1))
-
+			out[start:end] = buffer @ weights
+		ctx.save_for_backward(col_data, weights)
 		return out
 	
 	@staticmethod
-	def backward(ctx, grad_output):
-		return
-	
-	
+	def backward(ctx, col_data, weights, grad_output):
+		# col_data, weights = ctx.saved_tensors
+		buffer_n, buffer_h, buffer_shape = MatrixProdOp.setup(col_data)
+		for i in range(buffer_n):
+			start = i * buffer_h
+			end = (i + 1) * buffer_h
+
+			# The boundary case in the last iteration
+			if end > col_data.shape[0]:
+				end = col_data.shape[0]
+
+			# The sub-matrix gemm
+			buffer = torch.mm(grad_output[start:end], weights.t())
+			buffer = buffer.view(-1, buffer_shape[1], buffer_shape[2])
+			buffer = buffer.to(out.dtype)  # for pytorch.amp
+
+			# Performs col2octree
+			out = scatter_add(buffer[valid], neigh_i[valid], dim=0, out=out)
+
+		return out
+
+
 class GraphConv(torch.nn.Module):
 
-	def __init__(self, in_channels, out_channels, n_edge_type=7, avg_degree=7, n_node_type=0, use_bias=False, direct_method=False):
+	def __init__(self, in_channels, out_channels, n_edge_type=7, avg_degree=7, n_node_type=0, use_bias=False):
 		super().__init__()
 		self.in_channels = in_channels
 		self.out_channels = out_channels
@@ -160,7 +176,6 @@ class GraphConv(torch.nn.Module):
 			torch.Tensor(n_edge_type * (in_channels + node_channel), out_channels))
 		if self.use_bias:
 			self.bias = torch.nn.Parameter(torch.Tensor(out_channels))
-		self.direct_method = direct_method
 		# if n_node_type > 0:
 		#     self.node_weights = torch.nn.Parameter(
 		#             torch.tensor([0.5 ** i for i in range(n_node_type)]))
@@ -195,8 +210,44 @@ class GraphConv(torch.nn.Module):
 			dim_size=x.shape[0] * self.n_edge_type)
 
 		# matrix product
-		MatrixProdOp.forward(None, col_data.view(x.shape[0], -1), self.weights)
 		output = col_data.view(x.shape[0], -1) @ self.weights
+
+		
+
+		if self.use_bias:
+			output += self.bias
+
+		return output
+	
+	def forward_test(self, x, doctree, d):
+		edge_index = doctree.graph[d]['edge_idx']
+		edge_type = doctree.graph[d]['edge_dir']
+		node_type = doctree.graph[d]['node_type']
+		has_node_type = node_type is not None
+		if has_node_type and self.n_node_type > 1:
+			# concatenate the one_hot vector
+			one_hot = F.one_hot(node_type, num_classes=self.n_node_type)
+			x = torch.cat([x, one_hot], dim=1)
+
+		# x -> col_data
+		row, col = edge_index[0], edge_index[1]
+		# weights = torch.pow(0.5, node_type[col]) if has_node_type else None
+		weights = None    # TODO: ablation the weights
+		index = row * self.n_edge_type + edge_type
+		col_data = scatter_mean(x[col], index, dim=0, weights=weights,
+			dim_size=x.shape[0] * self.n_edge_type)
+
+		# matrix product
+		# if self.direct_method:
+		# col_data.requires_grad = True
+		output = col_data.view(x.shape[0], -1) @ self.weights
+		# output.requires_grad = True
+
+		# grad1 = torch.autograd.grad(output, [col_data], grad_outputs=torch.ones_like(output), create_graph=True)[0]
+		# # else:
+		# grad2 = MatrixProdOp.backward(None, col_data, self.weights, torch.ones_like(output))
+		# torch.abs(grad1 - grad2).sum()
+		
 
 		if self.use_bias:
 			output += self.bias

@@ -37,19 +37,20 @@ data:
         distort: False
 
         # data loading
-        location: &location data/ShapeNet/dataset_256
+        location: &location data/ShapeNet/dataset_10w
         filelist: &filelist data/ShapeNet/filelist
         load_octree: &load_octree False
         load_pointcloud: &load_pointcloud True
         load_split_small: &load_split_small False
         load_split_large: &load_split_large False
-        load_sdf: &load_sdf False
+        load_sdf: &load_sdf True
         load_occu: &load_occu False
-        batch_size: &batch_size 2
+        load_color: &load_color False
+        batch_size: &batch_size 4
         shuffle: True
 
         point_scale: 0.5
-        point_sample_num: 10000
+        point_sample_num: 50000
         sample_surf_points: False
         in_memory: False
         num_workers: 8
@@ -79,6 +80,7 @@ data:
         load_split_large: *load_split_large
         load_sdf: *load_sdf
         load_occu: *load_occu
+        load_color: *load_color
         shuffle: False
 
         point_scale: 0.5
@@ -86,3 +88,8 @@ data:
         sample_surf_points: False
         in_memory: False
         num_workers: 8
+
+loss:
+    name: geometry
+    loss_type: sdf_reg_loss
+    kl_weight: 0.1
