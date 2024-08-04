@@ -118,6 +118,12 @@ class OctFusionModel(BaseModel):
 
         if opt.pretrain_ckpt is not None:
             self.load_ckpt(opt.pretrain_ckpt, self.df.unet_lr, self.ema_df.unet_lr, load_opt=False)
+        
+        if self.stage_flag == "split":
+            self.set_requires_grad([
+                self.df.unet_hr
+            ], False)
+        elif opt.stage == "union":
             self.set_requires_grad([
                 self.df.unet_lr
             ], False)
@@ -144,14 +150,6 @@ class OctFusionModel(BaseModel):
         for m in [self.df]:
             trainable_params_num += sum([p.numel() for p in m.parameters() if p.requires_grad == True])
         print("Trainable_params: ", trainable_params_num)
-
-        # setup renderer
-        if 'snet' in opt.dataset_mode:
-            dist, elev, azim = 1.7, 20, 20
-        elif 'pix3d' in opt.dataset_mode:
-            dist, elev, azim = 1.7, 20, 20
-        elif opt.dataset_mode == 'buildingnet':
-            dist, elev, azim = 1.0, 20, 20
 
         # for distributed training
         if self.opt.distributed:
@@ -264,7 +262,7 @@ class OctFusionModel(BaseModel):
             pred = self.df(x_lr = noised_split_small, timesteps = noise_level, x_self_cond = x_self_cond, label = self.label)
 
             self.df_split_loss = F.mse_loss(pred, split_small)
-        else:
+        elif self.stage_flag == "union":
             times = torch.zeros((self.batch_size,), device = self.device).float().uniform_(0,1)
             noise_level = self.log_snr(times)
 
@@ -347,14 +345,14 @@ class OctFusionModel(BaseModel):
 
         save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{prefix}_{category}")
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
-        # for i in range(batch_size):
-        #     torch.save(noised_split_small[i].unsqueeze(0), os.path.join(save_dir, f"{save_index}.pth"))
+        for i in range(batch_size):
+            torch.save(noised_split_small[i].unsqueeze(0), os.path.join(save_dir, f"{save_index}.pth"))
         return noised_split_small
 
 
     
     @torch.no_grad()
-    def sample(self, data = None, split_path = None, category = 'airplane', prefix = 'results', ema = False, ddim_steps=200, ddim_eta=0., clean = False, save_index = 0):
+    def sample(self, split_path = None, category = 'airplane', prefix = 'results', ema = False, ddim_steps=200, clean = False, save_index = 0):
 
         if ema:
             self.ema_df.eval()

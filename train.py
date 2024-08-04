@@ -120,7 +120,11 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
                     category = random.choice(list(category_5_to_num.keys()))
                 else:
                     category = opt.category
-                model.sample(category = category, prefix = 'results', ema = True, ddim_steps = 200, save_index = iter_i)
+                
+                if opt.model == "split":
+                    model.sample_split(category = category, prefix = 'results', ema = True, ddim_steps=200, save_index = iter_i)
+                elif opt.model == "union":
+                    model.sample(category = category, prefix = 'results', ema = True, ddim_steps = 200, save_index = iter_i)
             
             # torch.cuda.empty_cache()
 
@@ -178,8 +182,11 @@ def generate(opt, model):
         
         if result_index >= total_num: 
             break
-
-        model.sample(data = None, split_path = split_path, category = category, prefix = 'results', ema = True, ddim_steps = 200, ddim_eta = 0., clean = False, save_index = result_index)
+        
+        if opt.model == "split":
+            model.sample_split(category = category, prefix = 'results', ema = True, ddim_steps=200, save_index = iter_i)
+        elif opt.model == "union":
+            model.sample(split_path = split_path, category = category, prefix = 'results', ema = True, ddim_steps = 200, clean = False, save_index = result_index)
         pbar.update(1)
 
 if __name__ == "__main__":
