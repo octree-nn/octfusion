@@ -107,13 +107,14 @@ class TransformShape:
 
 
 class ReadFile:
-    def __init__(self, load_octree = True, load_pointcloud = False, load_split_small = False, load_split_large = False, load_sdf=False, load_occu=False):
-        self.load_octree = load_octree
-        self.load_pointcloud = load_pointcloud
-        self.load_split_small = load_split_small
-        self.load_split_large = load_split_large
-        self.load_occu = load_occu
-        self.load_sdf = load_sdf
+    def __init__(self, flags):
+        self.load_octree = flags.load_octree
+        self.load_pointcloud = flags.load_pointcloud
+        self.load_split_small = flags.load_split_small
+        self.load_split_large = flags.load_split_large
+        self.load_occu = flags.load_occu
+        self.load_sdf = flags.load_sdf
+        self.load_color = flags.load_color
 
     def __call__(self, filename):
         output = {}
@@ -155,12 +156,18 @@ class ReadFile:
             raw = np.load(filename_sdf)
             sdf = {'points': raw['points'], 'grad': raw['grad'], 'sdf': raw['sdf']}
             output['sdf'] = sdf
+        
+        if self.load_color:
+            filename_color = os.path.join(filename, 'color.npz')
+            raw = np.load(filename_color)
+            color = {'points': raw['points'], 'colors': raw['colors']}
+            
         return output
 
 
 def get_shapenet_dataset(flags):
     transform = TransformShape(flags)
-    read_file = ReadFile(flags.load_octree, flags.load_pointcloud, flags.load_split_small, flags.load_split_large, flags.load_sdf, flags.load_occu)
+    read_file = ReadFile(flags)
     dataset = Dataset(flags.location, flags.filelist, transform,
                                         read_file=read_file, in_memory=flags.in_memory)
     return dataset, collate_func
