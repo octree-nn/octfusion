@@ -12,17 +12,13 @@ snc_synth_id_to_category_5 = {
 
 category_to_snc_synth_id = {v:k for (k,v) in snc_synth_id_to_category_5.items()}
 
-category = 'table'
+category = 'airplane'
 cond = True
 synth_id = category_to_snc_synth_id[category]
 
+root_dir = "logs/airplane_union/uncond_1000epoch_lr2e-4"
+synthesis_path = f'{root_dir}/fid_images_{category}'
 
-if cond:
-    suffix = "split3_seed42"
-    synthesis_path = f'logs/im_5_union/cascade_pretrain_res220_chan124_lr2e-4/300epoch/fid_images_{category}_{suffix}'
-else:
-    suffix = "split3_seed2024"
-    synthesis_path = f'logs/{category}_union/cascade_pretrain_res110_chan124_lr2e-4/1000epoch/fid_images_{category}_{suffix}'
 dataset_path = f'data/ShapeNet/fid_images/{category}'
 
 views1 = os.listdir(synthesis_path)
