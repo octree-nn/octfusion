@@ -33,8 +33,8 @@ seed=42
 ### model stuff ###
 model='split'
 dataset_mode='obja'
-note="3000epoch"
-category='airplane'
+note="1000epoch"
+category='obja'
 
 df_yaml="octfusion_${dataset_mode}_uncond.yaml"
 df_cfg="configs/${df_yaml}"
@@ -47,7 +47,7 @@ mode="train_octfusion"
 #####################
 
 ### display & log stuff ###
-display_freq=3000
+display_freq=1000
 print_freq=25
 save_steps_freq=3000
 save_latest_freq=500
