@@ -49,7 +49,7 @@ data:
         batch_size: &batch_size 4
         shuffle: True
 
-        point_scale: 0.5
+        point_scale: &point_scale 0.5
         point_sample_num: 50000
         sample_surf_points: False
         in_memory: False
@@ -83,7 +83,7 @@ data:
         load_color: *load_color
         shuffle: False
 
-        point_scale: 0.5
+        point_scale: *point_scale
         point_sample_num: 10000
         sample_surf_points: False
         in_memory: False

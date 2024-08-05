@@ -24,9 +24,8 @@ class TransformShape:
         self.depth = flags.depth
         self.full_depth = flags.full_depth
 
-        self.point_sample_num = 3000
-        self.sdf_sample_num = 5000
-        self.points_scale = 0.5    # the points are in [-0.5, 0.5]
+        self.point_sample_num = flags.point_sample_num
+        self.point_scale = flags.point_scale
         self.noise_std = 0.005
 
     def points2octree(self, points: Points):
@@ -37,7 +36,7 @@ class TransformShape:
     def process_points_cloud(self, sample):
         # get the input
         points, normals = sample['points'], sample['normals']
-        points = points / self.points_scale    # scale to [-1.0, 1.0]
+        points = points / self.point_scale    # scale to [-1.0, 1.0]
 
         # transform points to octree
         points_gt = Points(points = torch.from_numpy(points).float(), normals = torch.from_numpy(normals).float())
@@ -50,29 +49,29 @@ class TransformShape:
     def sample_sdf(self, sample):     # 这里加载的sdf的坐标也都是在[-1,1]范围内的。
         sdf = sample['sdf']
         grad = sample['grad']
-        points = sample['points'] / self.points_scale    # to [-1, 1]
+        points = sample['points'] / self.point_scale    # to [-1, 1]
 
-        rand_idx = np.random.choice(points.shape[0], size=self.sdf_sample_num)
+        rand_idx = np.random.choice(points.shape[0], size=self.point_sample_num)
         points = torch.from_numpy(points[rand_idx]).float()
         sdf = torch.from_numpy(sdf[rand_idx]).float()
         grad = torch.from_numpy(grad[rand_idx]).float()
         return {'pos': points, 'sdf': sdf, 'grad': grad}
 
     def sample_on_surface(self, points, normals):
-        rand_idx = np.random.choice(points.shape[0], size=self.sdf_sample_num)
+        rand_idx = np.random.choice(points.shape[0], size=self.point_sample_num)
         xyz = torch.from_numpy(points[rand_idx]).float()
         grad = torch.from_numpy(normals[rand_idx]).float()
-        sdf = torch.zeros(self.sdf_sample_num)
+        sdf = torch.zeros(self.point_sample_num)
         return {'pos': xyz, 'sdf': sdf, 'grad': grad}
 
     def sample_off_surface(self, xyz):
-        xyz = xyz / self.points_scale    # to [-1, 1]
+        xyz = xyz / self.point_scale    # to [-1, 1]
 
-        rand_idx = np.random.choice(xyz.shape[0], size=self.sdf_sample_num)
+        rand_idx = np.random.choice(xyz.shape[0], size=self.point_sample_num)
         xyz = torch.from_numpy(xyz[rand_idx]).float()
         # grad = torch.zeros(self.sample_number, 3)    # dummy grads
         grad = xyz / (xyz.norm(p=2, dim=1, keepdim=True) + 1.0e-6)
-        sdf = -1 * torch.ones(self.sdf_sample_num)    # dummy sdfs
+        sdf = -1 * torch.ones(self.point_sample_num)    # dummy sdfs
         return {'pos': xyz, 'sdf': sdf, 'grad': grad}
 
     def __call__(self, sample, idx):
