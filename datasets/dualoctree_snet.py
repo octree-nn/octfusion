@@ -40,7 +40,9 @@ class TransformShape:
         points = points / self.points_scale    # scale to [-1.0, 1.0]
 
         # transform points to octree
-        points_gt = Points(points = torch.from_numpy(points).float(),normals = torch.from_numpy(normals).float())
+        points_gt = Points(points = torch.from_numpy(points).float(), normals = torch.from_numpy(normals).float())
+        if self.flags.load_color:
+            points_gt.features = torch.from_numpy(sample['colors']).float()
         points_gt.clip(min=-1, max=1)
 
         return {'points': points_gt}
@@ -129,7 +131,14 @@ class ReadFile:
             filename_pc = os.path.join(filename, 'pointcloud.npz')
             raw = np.load(filename_pc)
             point_cloud = {'points': raw['points'], 'normals': raw['normals']}
+            if self.load_color:
+                filename_color = os.path.join(filename, 'color.npz')
+                raw = np.load(filename_color)
+                point_cloud['colors'] = raw['colors']
+            else:
+                point_cloud['colors'] = None
             output['point_cloud'] = point_cloud
+            
 
         if self.load_split_small:
             filename_split_small = os.path.join(filename + '.pth')
@@ -156,11 +165,6 @@ class ReadFile:
             raw = np.load(filename_sdf)
             sdf = {'points': raw['points'], 'grad': raw['grad'], 'sdf': raw['sdf']}
             output['sdf'] = sdf
-        
-        if self.load_color:
-            filename_color = os.path.join(filename, 'color.npz')
-            raw = np.load(filename_color)
-            color = {'points': raw['points'], 'colors': raw['colors']}
             
         return output
 
