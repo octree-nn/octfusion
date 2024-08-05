@@ -28,13 +28,12 @@ from models.networks.diffusion_networks.graph_unet_union import UNet3DModel
 from models.model_utils import load_dualoctree
 from models.networks.diffusion_networks.ldm_diffusion_util import *
 
-from models.networks.diffusion_networks.samplers.ddim_new import DDIMSampler
 
 # distributed
 from utils.distributed import reduce_loss_dict, get_rank
 
 # rendering
-from utils.util_dualoctree import calc_sdf
+from utils.util_dualoctree import calc_sdf, octree2split_small, octree2split_large, split2octree_small, split2octree_large
 from utils.util import TorchRecoder, seed_everything, category_5_to_label
 
 TRUNCATED_TIME = 0.7
@@ -196,16 +195,16 @@ class OctFusionModel(BaseModel):
             octree = ocnn.octree.merge_octrees(octrees)
             octree.construct_all_neigh()
             batch['octree_in'] = octree
-            batch['split_small'] = self.octree2split_small(batch['octree_in'])
+            batch['split_small'] = octree2split_small(batch['octree_in'], self.full_depth)
 
         batch['label'] = batch['label'].cuda()
         if self.load_octree:
             batch['octree_in'] = batch['octree_in'].cuda()
-            batch['split_small'] = self.octree2split_small(batch['octree_in'])
+            batch['split_small'] = octree2split_small(batch['octree_in'], self.full_depth)
             # batch['split_large'] = self.octree2split_large(batch['octree_in'])
         elif self.load_split_small:
             batch['split_small'] = batch['split_small'].cuda()
-            batch['octree_in'] = self.split2octree_small(batch['split_small'])
+            batch['octree_in'] = split2octree_small(batch['split_small'], self.input_depth, self.full_depth)
 
     def set_input(self, input=None):
         self.batch_to_cuda(input)
@@ -246,7 +245,7 @@ class OctFusionModel(BaseModel):
         if self.stage_flag == "split":
             times = torch.zeros(
                 (self.batch_size,), device=self.device).float().uniform_(0, 1)
-            split_small = self.octree2split_small(self.doctree_in.octree)
+            split_small = octree2split_small(self.doctree_in.octree, self.full_depth)
             noise = torch.randn_like(split_small)
 
             noise_level = self.log_snr(times)
@@ -341,7 +340,7 @@ class OctFusionModel(BaseModel):
             )
             noised_split_small = mean + torch.sqrt(variance) * noise
         
-        octree_small = self.split2octree_small(noised_split_small)
+        octree_small = split2octree_small(noised_split_small, self.input_depth, self.full_depth)
 
         save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{prefix}_{category}")
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
@@ -373,7 +372,7 @@ class OctFusionModel(BaseModel):
         else:
             split_small = self.sample_split(ema=ema, prefix=prefix, ddim_steps = ddim_steps, category=category, save_index=save_index)
         seed_everything(self.opt.seed)        
-        octree_small = self.split2octree_small(split_small)
+        octree_small = split2octree_small(split_small, self.input_depth, self.full_depth)
 
         save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{prefix}_{category}")
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
@@ -424,82 +423,6 @@ class OctFusionModel(BaseModel):
         self.get_sdfs(self.output['neural_mpu'], batch_size, bbox = None)
         self.export_mesh(save_dir = save_dir, index = save_index, clean = clean)
 
-
-    def octree2split_small(self, octree):
-
-        child_full_p1 = octree.children[self.full_depth + 1]
-        split_full_p1 = (child_full_p1 >= 0)
-        split_full_p1 = split_full_p1.reshape(-1, 8)
-        split_full = octree_pad(data = split_full_p1, octree = octree, depth = self.full_depth)
-        split_full = octree2voxel(data=split_full, octree=octree, depth = self.full_depth)
-        split_full = split_full.permute(0,4,1,2,3).contiguous()
-
-        split_full = split_full.float()
-        split_full = 2 * split_full - 1  # scale to [-1, 1]
-
-        return split_full
-
-    def octree2split_large(self, octree):
-
-        child_small_p1 = octree.children[self.small_depth + 1]
-        split_small_p1 = (child_small_p1 >= 0)
-        split_small_p1 = split_small_p1.reshape(-1, 8)
-        split_small = octree_pad(data = split_small_p1, octree = octree, depth = self.small_depth)
-
-        split_small = split_small.float()
-        split_small = 2 * split_small - 1    # scale to [-1, 1]
-
-        return split_small
-
-    def split2octree_small(self, split):
-
-        discrete_split = copy.deepcopy(split)
-        discrete_split[discrete_split > 0] = 1
-        discrete_split[discrete_split < 0] = 0
-
-        batch_size = discrete_split.shape[0]
-        octree_out = create_full_octree(depth = self.input_depth, full_depth = self.full_depth, batch_size = batch_size, device = self.device)
-        split_sum = torch.sum(discrete_split, dim = 1)
-        nempty_mask_voxel = (split_sum > 0)
-        x, y, z, b = octree_out.xyzb(self.full_depth)
-        nempty_mask = nempty_mask_voxel[b,x,y,z]
-        label = nempty_mask.long()
-        octree_out.octree_split(label, self.full_depth)
-        octree_out.octree_grow(self.full_depth + 1)
-        octree_out.depth += 1
-
-        x, y, z, b = octree_out.xyzb(depth = self.full_depth, nempty = True)
-        nempty_mask_p1 = discrete_split[b,:,x,y,z]
-        nempty_mask_p1 = nempty_mask_p1.reshape(-1)
-        label_p1 = nempty_mask_p1.long()
-        octree_out.octree_split(label_p1, self.full_depth + 1)
-        octree_out.octree_grow(self.full_depth + 2)
-        octree_out.depth += 1
-
-        return octree_out
-
-    def split2octree_large(self, octree, split):
-
-        discrete_split = copy.deepcopy(split)
-        discrete_split[discrete_split > 0] = 1
-        discrete_split[discrete_split < 0] = 0
-
-        octree_out = copy.deepcopy(octree)
-        split_sum = torch.sum(discrete_split, dim = 1)
-        nempty_mask_small = (split_sum > 0)
-        label = nempty_mask_small.long()
-        octree_out.octree_split(label, depth = self.small_depth)
-        octree_out.octree_grow(self.small_depth + 1)
-        octree_out.depth += 1
-
-        nempty_mask_small_p1 = discrete_split[split_sum > 0]
-        nempty_mask_small_p1 = nempty_mask_small_p1.reshape(-1)
-        label_p1 = nempty_mask_small_p1.long()
-        octree_out.octree_split(label_p1, depth = self.small_depth + 1)
-        octree_out.octree_grow(self.small_depth + 2)
-        octree_out.depth += 1
-
-        return octree_out
 
     def export_octree(self, octree, depth, save_dir = None, index = 0):
         try:

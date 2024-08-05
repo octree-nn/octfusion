@@ -5,8 +5,6 @@
 # Written by Peng-Shuai Wang
 # --------------------------------------------------------
 
-# autopep8: off
-import ocnn
 import torch
 import torch.autograd
 import numpy as np
@@ -17,8 +15,9 @@ import skimage.measure
 import trimesh
 from plyfile import PlyData, PlyElement
 from scipy.spatial import cKDTree
-
-# autopep8: on
+from ocnn.nn import octree2voxel, octree_pad
+import copy
+from models.networks.diffusion_networks.ldm_diffusion_util import create_full_octree
 
 
 def get_mgrid(size, dim=3):
@@ -196,3 +195,79 @@ def points2ply(filename, points, scale=1.0):
 
     # write ply
     PlyData([el]).write(filename)
+
+def octree2split_small(octree, full_depth):
+
+    child_full_p1 = octree.children[full_depth + 1]
+    split_full_p1 = (child_full_p1 >= 0)
+    split_full_p1 = split_full_p1.reshape(-1, 8)
+    split_full = octree_pad(data = split_full_p1, octree = octree, depth = full_depth)
+    split_full = octree2voxel(data=split_full, octree=octree, depth = full_depth)
+    split_full = split_full.permute(0,4,1,2,3).contiguous()
+
+    split_full = split_full.float()
+    split_full = 2 * split_full - 1  # scale to [-1, 1]
+
+    return split_full
+
+def octree2split_large(octree, small_depth):
+
+    child_small_p1 = octree.children[small_depth + 1]
+    split_small_p1 = (child_small_p1 >= 0)
+    split_small_p1 = split_small_p1.reshape(-1, 8)
+    split_small = octree_pad(data = split_small_p1, octree = octree, depth = small_depth)
+
+    split_small = split_small.float()
+    split_small = 2 * split_small - 1    # scale to [-1, 1]
+
+    return split_small
+
+def split2octree_small(split, input_depth, full_depth):
+
+    discrete_split = copy.deepcopy(split)
+    discrete_split[discrete_split > 0] = 1
+    discrete_split[discrete_split < 0] = 0
+
+    batch_size = discrete_split.shape[0]
+    octree_out = create_full_octree(depth = input_depth, full_depth = full_depth, batch_size = batch_size, device = split.device)
+    split_sum = torch.sum(discrete_split, dim = 1)
+    nempty_mask_voxel = (split_sum > 0)
+    x, y, z, b = octree_out.xyzb(full_depth)
+    nempty_mask = nempty_mask_voxel[b,x,y,z]
+    label = nempty_mask.long()
+    octree_out.octree_split(label, full_depth)
+    octree_out.octree_grow(full_depth + 1)
+    octree_out.depth += 1
+
+    x, y, z, b = octree_out.xyzb(depth = full_depth, nempty = True)
+    nempty_mask_p1 = discrete_split[b,:,x,y,z]
+    nempty_mask_p1 = nempty_mask_p1.reshape(-1)
+    label_p1 = nempty_mask_p1.long()
+    octree_out.octree_split(label_p1, full_depth + 1)
+    octree_out.octree_grow(full_depth + 2)
+    octree_out.depth += 1
+
+    return octree_out
+
+def split2octree_large(octree, split, small_depth):
+
+    discrete_split = copy.deepcopy(split)
+    discrete_split[discrete_split > 0] = 1
+    discrete_split[discrete_split < 0] = 0
+
+    octree_out = copy.deepcopy(octree)
+    split_sum = torch.sum(discrete_split, dim = 1)
+    nempty_mask_small = (split_sum > 0)
+    label = nempty_mask_small.long()
+    octree_out.octree_split(label, depth = small_depth)
+    octree_out.octree_grow(small_depth + 1)
+    octree_out.depth += 1
+
+    nempty_mask_small_p1 = discrete_split[split_sum > 0]
+    nempty_mask_small_p1 = nempty_mask_small_p1.reshape(-1)
+    label_p1 = nempty_mask_small_p1.long()
+    octree_out.octree_split(label_p1, depth = small_depth + 1)
+    octree_out.octree_grow(small_depth + 2)
+    octree_out.depth += 1
+
+    return octree_out
