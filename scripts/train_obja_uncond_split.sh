@@ -6,14 +6,14 @@ logs_dir='logs'
 
 ### set gpus ###
 # gpu_ids=0          # single-gpu
-gpu_ids=0,1,2,3       # multi-gpu
+gpu_ids=4,5,6,7       # multi-gpu
 
 if [ ${#gpu_ids} -gt 1 ]; then
     # specify these two if multi-gpu
     # NGPU=2
     # NGPU=3
     NGPU=4
-    HOST_NODE_ADDR="localhost:21000"
+    HOST_NODE_ADDR="localhost:22000"
     echo "HERE"
 fi
 ################
@@ -42,7 +42,7 @@ vq_model="GraphVAE"
 vq_yaml="vae_${dataset_mode}_eval.yaml"
 vq_cfg="configs/${vq_yaml}"
 vq_ckpt="saved_ckpt/all-KL-0.25-weight-0.001-depth-8-00200.model.pth"
-mode="train_octfusion"
+mode="generate"
 
 #####################
 

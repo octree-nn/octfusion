@@ -29,7 +29,7 @@ from utils.util import seed_everything
 import torch
 from utils.visualizer import Visualizer
 
-category_5_to_num = {'airplane' : 2831, 'car': 5247, 'chair': 4744, 'table': 5956, 'rifle': 1660}
+category_5_to_num = {'airplane' : 2831, 'car': 5247, 'chair': 4744, 'table': 5956, 'rifle': 1660, 'obja': 10000}
 
 def train_main_worker(opt, model, train_loader, test_loader, visualizer):
 
