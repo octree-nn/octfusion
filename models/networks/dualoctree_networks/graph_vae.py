@@ -121,7 +121,7 @@ class GraphVAE(torch.nn.Module):
         # self.resblk_num = [3] * 7 + [1] + [1] * 9
         # self.resblk_num = [3] * 16
         self.resblk_nums = [self.resblk_num] * 16      # resblk_num[d] 为深度d（分辨率）下resblock的数量。
-        self.channels = [4, 512, 512, 256, 128, 64, 32, 32, 24, 8]  # depth i的channel为channels[i]
+        self.channels = [4, 512, 512, 256, 128, 64, 32, 32, 24, 16, 8]  # depth i的channel为channels[i]
 
     def _make_predict_module(self, channel_in, channel_out=2, num_hidden=32):
         return torch.nn.Sequential(

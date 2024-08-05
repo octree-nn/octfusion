@@ -265,11 +265,9 @@ class OctFusionModel(BaseModel):
 
         ret = OrderedDict([
             ('loss', self.loss.data),
+            ('lr', self.optimizer.param_groups[0]['lr']),
         ])
         ret.update(self.output)
-
-        if hasattr(self, 'loss_gamma'):
-            ret['gamma'] = self.loss_gamma.data
 
         return ret
 
