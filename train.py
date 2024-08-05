@@ -252,7 +252,7 @@ if __name__ == "__main__":
             df_cfg = opt.df_cfg
             cfg_out = os.path.join(expr_dir, os.path.basename(df_cfg))
             os.system(f'cp {df_cfg} {cfg_out}')
-    if opt.mode == 'train_octfusion' or opt.mode == 'train_vae':
+    if opt.mode == 'train':
         if opt.debug == "0":
             try:
                 train_main_worker(opt, model, train_loader, test_loader, visualizer)
@@ -265,9 +265,10 @@ if __name__ == "__main__":
         else:
             train_main_worker(opt, model, train_loader, test_loader, visualizer)
     elif opt.mode == 'generate':
-        generate(opt, model)
-    elif opt.mode == 'inference_vae':
-        inference(opt, model, test_loader)
+        if opt.model == "vae":
+            inference(opt, model, test_loader)
+        else:
+            generate(opt, model)        
     else:
         raise ValueError
 

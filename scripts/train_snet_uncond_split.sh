@@ -42,7 +42,7 @@ vq_model="GraphVAE"
 vq_yaml="vae_${dataset_mode}_eval.yaml"
 vq_cfg="configs/${vq_yaml}"
 vq_ckpt="saved_ckpt/all-KL-0.25-weight-0.001-depth-8-00200.model.pth"
-mode="train_octfusion"
+mode="train"
 
 
 #####################
