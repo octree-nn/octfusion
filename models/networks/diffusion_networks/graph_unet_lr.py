@@ -224,7 +224,7 @@ class UNet3DModel(nn.Module):
             x = upsample(x)
 
         x = self.end(x)
-        if x_hr is not None:
+        if as_middle:
             return x
         else:
             return self.out(x)

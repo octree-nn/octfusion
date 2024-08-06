@@ -308,6 +308,13 @@ def alpha_cosine_log_snr(t, s: float = 0.008):
 def log_snr_to_alpha_sigma(log_snr):
     return torch.sqrt(torch.sigmoid(log_snr)), torch.sqrt(torch.sigmoid(-log_snr))
 
+def get_sampling_timesteps(batch, device, steps):
+    times = torch.linspace(1., 0., steps + 1, device=device)
+    times = repeat(times, 't -> b t', b=batch)
+    times = torch.stack((times[:, :-1], times[:, 1:]), dim=0)
+    times = times.unbind(dim=-1)
+    return times
+    
 def create_full_octree(depth, full_depth,batch_size, device):
     r''' Initialize a full octree for decoding.
     '''
