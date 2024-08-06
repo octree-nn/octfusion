@@ -71,14 +71,11 @@ class UNet3DModel(nn.Module):
         image_size,
         input_depth,
         full_depth,
-        in_split_channels,
-        in_feature_channels,
+        in_channels,
         model_channels,
         lr_model_channels,
-        out_split_channels,
-        out_feature_channels,
+        out_channels,
         num_res_blocks,
-        attention_resolutions,
         dropout=0,
         channel_mult=[1, 2, 4],
         dims=3,
@@ -86,8 +83,6 @@ class UNet3DModel(nn.Module):
         use_checkpoint=False,
         num_heads=-1,
         use_scale_shift_norm=False,
-        context_dim=None,                 # custom transformer support
-        n_embed=None,                     # custom support for prediction of discrete ids into codebook of first stage vq model
         **kwargs,
     ):
         super().__init__()
@@ -95,13 +90,10 @@ class UNet3DModel(nn.Module):
         self.image_size = image_size
         self.input_depth = input_depth
         self.full_depth = full_depth
-        self.in_split_channels = in_split_channels
-        self.in_feature_channels = in_feature_channels
+        self.in_channels = in_channels
         self.model_channels = model_channels
-        self.out_split_channels = out_split_channels
-        self.out_feature_channels = out_feature_channels
+        self.out_channels = out_channels
         self.num_res_blocks = num_res_blocks
-        self.attention_resolutions = attention_resolutions
         self.dropout = dropout
         self.channel_mult = channel_mult
         self.num_classes = num_classes
@@ -122,12 +114,10 @@ class UNet3DModel(nn.Module):
             self.label_emb = nn.Embedding(num_classes, time_embed_dim)
 
         d = self.input_depth
+        
+        self.input_conv = GraphConv(self.in_channels, model_channels, n_edge_type, avg_degree, self.input_depth - 1)
 
-        self.input_blocks = nn.ModuleList(
-           [
-              GraphConv(self.in_feature_channels, model_channels, n_edge_type, avg_degree, self.input_depth - 1)
-           ]
-        )
+        self.input_blocks = nn.ModuleList([])
 
         self._feature_size = model_channels
         input_block_chans = [model_channels]
@@ -135,17 +125,17 @@ class UNet3DModel(nn.Module):
         for level, mult in enumerate(channel_mult):
             for _ in range(self.num_res_blocks[level]):
                 resblk = GraphResBlockEmbed(
-                        ch,
-                        time_embed_dim,
-                        dropout,
-                        out_channels=mult * model_channels,
-                        n_edge_type = n_edge_type,
-                        avg_degree = avg_degree,
-                        n_node_type = d - 1,
-                        dims=dims,
-                        use_checkpoint=use_checkpoint,
-                        use_scale_shift_norm=use_scale_shift_norm,
-                    )
+                    ch,
+                    time_embed_dim,
+                    dropout,
+                    out_channels=mult * model_channels,
+                    n_edge_type = n_edge_type,
+                    avg_degree = avg_degree,
+                    n_node_type = d - 1,
+                    dims=dims,
+                    use_checkpoint=use_checkpoint,
+                    use_scale_shift_norm=use_scale_shift_norm,
+                )
                 ch = mult * model_channels
                 self.input_blocks.append(resblk)
                 self._feature_size += ch
@@ -216,9 +206,12 @@ class UNet3DModel(nn.Module):
 
         self.end_norm = graphnormalization(ch)
         self.end = nn.SiLU()
-        self.out = zero_module(GraphConv(ch, self.out_feature_channels, n_edge_type, avg_degree, self.input_depth - 1))
+        self.out = zero_module(GraphConv(ch, self.out_channels, n_edge_type, avg_degree, self.input_depth - 1))
 
-    def forward(self, x_hr, doctree, unet_lr = None, timesteps = None, label = None, context = None, **kwargs):
+    def forward_as_middle(self, h, doctree, timesteps, label, context):
+        return self.forward(x=None, x_hr=h, doctree=doctree, timesteps=timesteps, label=label, context=context)
+
+    def forward(self, x = None, doctree = None, unet_lr = None, timesteps = None, label = None, context = None, as_middle=False, **kwargs):
         """
         Apply the model to an input batch.
         :param x: an [N x C x ...] Tensor of inputs.
@@ -241,8 +234,11 @@ class UNet3DModel(nn.Module):
             emb = emb + self.label_emb(label)
 
         d = self.input_depth
-
-        h = x_hr
+        
+        if not as_middle:
+            h = self.input_conv(x, doctree, d)
+        else:
+            h = x
 
         for module in self.input_blocks:
             if isinstance(module, GraphConv):
@@ -258,13 +254,7 @@ class UNet3DModel(nn.Module):
         h = self.middle_block1(h, emb, doctree, d)
 
         if unet_lr is not None:
-            h_lr = octree2voxel(data=h, octree=doctree.octree, depth = self.full_depth)
-            h_lr = h_lr.permute(0, 4, 1, 2, 3).contiguous()
-            h_lr = unet_lr(x_hr=h_lr, timesteps=timesteps, label=label, context=context)
-            x, y, z, b = doctree.octree.xyzb(self.full_depth)
-            h_lr = h_lr.permute(0, 2, 3, 4, 1).contiguous()
-            h_lr = h_lr[b, x, y, z, :]
-            # h = h + h_lr
+            h_lr = unet_lr.forward_as_middle(h, doctree, timesteps, label, context)
             h = torch.cat([h, h_lr], dim=1)
     
         h = self.middle_block2(h, emb, doctree, d)
@@ -277,10 +267,13 @@ class UNet3DModel(nn.Module):
                 h = module(h, doctree, d)
                 d += 1
 
+        if as_middle:
+            return h
+        
         h = self.end(self.end_norm(h, doctree, d))
 
         out = self.out(h, doctree, d)
 
-        assert out.shape[0] == x_hr.shape[0]
+        assert out.shape[0] == x.shape[0]
 
         return out

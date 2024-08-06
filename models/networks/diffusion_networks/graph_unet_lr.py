@@ -11,7 +11,7 @@ import torch
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
-
+from ocnn.nn import octree2voxel
 from einops import rearrange
 
 # from ldm.modules.diffusionmodules.util import (
@@ -64,12 +64,13 @@ class UNet3DModel(nn.Module):
     # def __init__(self, config_dict):
     def __init__(
         self,
+        full_depth, 
         in_split_channels,
-        lr_model_channels,
+        model_channels,
         out_split_channels,
         attention_resolutions,
         dropout=0,
-        lr_channel_mult=(1, 2, 4, 8),
+        channel_mult=(1, 2, 4, 8),
         dims=2,
         num_classes=None,
         use_checkpoint=False,
@@ -81,13 +82,13 @@ class UNet3DModel(nn.Module):
     ):
         super().__init__()
         # import pdb; pdb.set_trace()
-
+        self.full_depth = full_depth
         self.in_channels = in_split_channels
-        self.model_channels = lr_model_channels
+        self.model_channels = model_channels
         self.out_channels = out_split_channels
         self.attention_resolutions = attention_resolutions
         self.dropout = dropout
-        self.channel_mult = lr_channel_mult
+        self.channel_mult = channel_mult
         self.num_classes = num_classes
         self.use_checkpoint = use_checkpoint
         self.dtype = th.float32
@@ -171,8 +172,16 @@ class UNet3DModel(nn.Module):
 
         self.out = conv_nd(dims, self.model_channels, self.out_channels, 3, padding=1)
 
-
-    def forward(self, x_lr=None, x_hr=None, timesteps=None, x_self_cond=None, label = None, context=None, **kwargs):
+    def forward_as_middle(self, h, doctree, timesteps, label, context):
+        h_lr = octree2voxel(data=h, octree=doctree.octree, depth=self.full_depth)
+        h_lr = h_lr.permute(0, 4, 1, 2, 3).contiguous()
+        h_lr = self.forward(x=h_lr, timesteps=timesteps, label=label, context=context, as_middle=True)
+        x, y, z, b = doctree.octree.xyzb(self.full_depth)
+        h_lr = h_lr.permute(0, 2, 3, 4, 1).contiguous()
+        h_lr = h_lr[b, x, y, z, :]
+        return h_lr
+    
+    def forward(self, x=None, timesteps=None, x_self_cond=None, label = None, context=None, as_middle=False, **kwargs):
         """
         Apply the model to an input batch.
         :param x: an [N x C x ...] Tensor of inputs.
@@ -185,12 +194,11 @@ class UNet3DModel(nn.Module):
             self.num_classes is not None
         ), "must specify label if and only if the model is class-conditional"
 
-        if x_hr == None:
-            x_self_cond = default(x_self_cond, lambda: torch.zeros_like(x_lr))
-            x = torch.cat((x_lr, x_self_cond), dim=1)
+        if not as_middle:
+            x_self_cond = default(x_self_cond, lambda: torch.zeros_like(x))
+            x = torch.cat((x, x_self_cond), dim=1)
             x = self.input_emb(x)
-        else:
-            x = x_hr
+
         h = []
 
         emb = self.time_emb(self.time_pos_emb(timesteps))

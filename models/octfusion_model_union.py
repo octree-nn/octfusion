@@ -83,7 +83,7 @@ class OctFusionModel(BaseModel):
         self.num_timesteps = df_model_params.timesteps
         self.enable_label = "num_classes" in df_conf.unet.params
 
-        self.df = UNet3DModel(unet_params)
+        self.df = UNet3DModel(**unet_params)
         self.df.to(self.device)
         self.stage_flag = opt.model
 
@@ -258,9 +258,9 @@ class OctFusionModel(BaseModel):
             x_self_cond = None
             if random() < 0.5:
                 with torch.no_grad():
-                    x_self_cond = self.df(x_lr = noised_split_small, timesteps = noise_level, label = self.label)
+                    x_self_cond = self.df(x = noised_split_small, unet_type="lr", timesteps = noise_level, label = self.label)
 
-            pred = self.df(x_lr = noised_split_small, timesteps = noise_level, x_self_cond = x_self_cond, label = self.label)
+            pred = self.df(x = noised_split_small, unet_type="lr", timesteps = noise_level, x_self_cond = x_self_cond, label = self.label)
 
             self.df_split_loss = F.mse_loss(pred, split_small)
         elif self.stage_flag == "union":
@@ -278,7 +278,7 @@ class OctFusionModel(BaseModel):
             batch_sigma = sigma[batch_id].unsqueeze(1)
             noised_feature = noised_feature * batch_alpha + noise * batch_sigma
 
-            output = self.df(x_hr = noised_feature, doctree = self.doctree_in, timesteps = noise_level, label = self.label)
+            output = self.df(x = noised_feature, unet_type="hr", doctree = self.doctree_in, timesteps = noise_level, unet_lr = self.df.unet_lr, label = self.label)
 
             self.df_feature_loss = F.mse_loss(output, noise)
 
