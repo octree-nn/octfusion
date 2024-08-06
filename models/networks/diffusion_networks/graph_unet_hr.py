@@ -209,7 +209,7 @@ class UNet3DModel(nn.Module):
         self.out = zero_module(GraphConv(ch, self.out_channels, n_edge_type, avg_degree, self.input_depth - 1))
 
     def forward_as_middle(self, h, doctree, timesteps, label, context):
-        return self.forward(x=None, x_hr=h, doctree=doctree, timesteps=timesteps, label=label, context=context)
+        return self.forward(x=h, doctree=doctree, timesteps=timesteps, label=label, context=context, as_middle=True)
 
     def forward(self, x = None, doctree = None, unet_lr = None, timesteps = None, label = None, context = None, as_middle=False, **kwargs):
         """

@@ -85,7 +85,7 @@ class OctFusionModel(BaseModel):
 
         self.df = UNet3DModel(**unet_params)
         self.df.to(self.device)
-        self.stage_flag = opt.model
+        self.stage_flag = opt.stage_flag
 
         # record z_shape
         self.split_channel = 8
@@ -118,11 +118,11 @@ class OctFusionModel(BaseModel):
         if opt.pretrain_ckpt is not None:
             self.load_ckpt(opt.pretrain_ckpt, self.df, self.ema_df, load_options=["unet_lr"])
         
-        if self.stage_flag == "split":
+        if self.stage_flag == "lr":
             self.set_requires_grad([
                 self.df.unet_hr
             ], False)
-        elif self.stage_flag == "union":
+        elif self.stage_flag == "hr":
             self.set_requires_grad([
                 self.df.unet_lr
             ], False)
@@ -227,9 +227,44 @@ class OctFusionModel(BaseModel):
         self.df.eval()
 
 
-    # check: ddpm.py, line 871 forward
-    # check: p_losses
-    # check: q_sample, apply_mode
+    def forward_lr(self, split_small):
+        times = torch.zeros(
+            (self.batch_size,), device=self.device).float().uniform_(0, 1)
+        
+        noise = torch.randn_like(split_small)
+
+        noise_level = self.log_snr(times)
+        padded_noise_level = right_pad_dims_to(split_small, noise_level)
+        alpha, sigma = log_snr_to_alpha_sigma(padded_noise_level)
+        noised_split_small = alpha * split_small + sigma * noise
+
+        x_self_cond = None
+        if random() < 0.5:
+            with torch.no_grad():
+                x_self_cond = self.df(unet_type="lr", x = noised_split_small, timesteps = noise_level, label = self.label)
+
+        pred = self.df(unet_type="lr", x = noised_split_small, timesteps = noise_level, x_self_cond = x_self_cond, label = self.label)
+
+        return F.mse_loss(pred, split_small)
+    
+    def forward_hr(self, input_data, input_depth, unet_type, unet_lr):
+        times = torch.zeros((self.batch_size,), device = self.device).float().uniform_(0,1)
+        noise_level = self.log_snr(times)
+
+        alpha, sigma = log_snr_to_alpha_sigma(noise_level)
+
+        noised_feature = input_data.clone()
+
+        batch_id = self.doctree_in.batch_id(input_depth)
+        noise = torch.randn_like(noised_feature, device = self.device)
+
+        batch_alpha = alpha[batch_id].unsqueeze(1)
+        batch_sigma = sigma[batch_id].unsqueeze(1)
+        noised_feature = noised_feature * batch_alpha + noise * batch_sigma
+
+        output = self.df(unet_type=unet_type, x = noised_feature, doctree = self.doctree_in, timesteps = noise_level, unet_lr = unet_lr, label = self.label)
+
+        return F.mse_loss(output, noise)
 
     def forward(self):
 
@@ -240,50 +275,17 @@ class OctFusionModel(BaseModel):
         with torch.no_grad():
             self.input_data, self.doctree_in = self.autoencoder_module.extract_code(self.octree_in)
 
-        self.df_feature_loss = torch.tensor(0., device=self.device)
-        self.df_split_loss = torch.tensor(0., device=self.device)
-        
+        self.df_hr_loss = torch.tensor(0., device=self.device)
+        self.df_lr_loss = torch.tensor(0., device=self.device)
 
-        if self.stage_flag == "split":
-            times = torch.zeros(
-                (self.batch_size,), device=self.device).float().uniform_(0, 1)
+        if self.stage_flag == "lr":
             split_small = octree2split_small(self.doctree_in.octree, self.full_depth)
-            noise = torch.randn_like(split_small)
+            self.df_lr_loss = self.forward_lr(split_small)
+            
+        elif self.stage_flag == "hr":
+            self.df_hr_loss = self.forward_hr(self.input_data, self.small_depth, "hr", self.df.unet_lr)
 
-            noise_level = self.log_snr(times)
-            padded_noise_level = right_pad_dims_to(split_small, noise_level)
-            alpha, sigma = log_snr_to_alpha_sigma(padded_noise_level)
-            noised_split_small = alpha * split_small + sigma * noise
-
-            x_self_cond = None
-            if random() < 0.5:
-                with torch.no_grad():
-                    x_self_cond = self.df(unet_type="lr", x = noised_split_small, timesteps = noise_level, label = self.label)
-
-            pred = self.df(unet_type="lr", x = noised_split_small, timesteps = noise_level, x_self_cond = x_self_cond, label = self.label)
-
-            self.df_split_loss = F.mse_loss(pred, split_small)
-        elif self.stage_flag == "union":
-            times = torch.zeros((self.batch_size,), device = self.device).float().uniform_(0,1)
-            noise_level = self.log_snr(times)
-
-            alpha, sigma = log_snr_to_alpha_sigma(noise_level)
-
-            noised_feature = self.input_data.clone()
-
-            batch_id = self.doctree_in.batch_id(depth = self.small_depth)
-            noise = torch.randn_like(noised_feature, device = self.device)
-
-            batch_alpha = alpha[batch_id].unsqueeze(1)
-            batch_sigma = sigma[batch_id].unsqueeze(1)
-            noised_feature = noised_feature * batch_alpha + noise * batch_sigma
-
-            output = self.df(unet_type="hr", x = noised_feature, doctree = self.doctree_in, timesteps = noise_level, unet_lr = self.df.unet_lr, label = self.label)
-
-            self.df_feature_loss = F.mse_loss(output, noise)
-
-        self.loss = self.df_split_loss + self.df_feature_loss
-
+        self.loss = self.df_lr_loss + self.df_hr_loss
 
     def get_sampling_timesteps(self, batch, device, steps):
         times = torch.linspace(1., 0., steps + 1, device=device)
@@ -293,14 +295,9 @@ class OctFusionModel(BaseModel):
         return times
 
     @torch.no_grad()
-    def sample_split(self, ema=False, prefix = 'results', ddim_steps=200, category = 'airplane', truncated_index = 0.0, save_index = 0):
+    def sample_lr(self, ema=False, ddim_steps=200, label = None, truncated_index = 0.0):
         batch_size = self.vq_conf.data.test.batch_size
 
-        if self.enable_label:
-            label = torch.ones(batch_size).to(self.device) * category_5_to_label[category]
-            label = label.long()
-        else:
-            label = None
         seed_everything(int(time.time()))
         small_time_pairs = self.get_sampling_timesteps(
             batch_size, device=self.device, steps=ddim_steps)
@@ -342,47 +339,16 @@ class OctFusionModel(BaseModel):
             )
             noised_split_small = mean + torch.sqrt(variance) * noise
         
-        octree_small = split2octree_small(noised_split_small, self.input_depth, self.full_depth)
-
-        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{prefix}_{category}")
-        self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
-        for i in range(batch_size):
-            torch.save(noised_split_small[i].unsqueeze(0), os.path.join(save_dir, f"{save_index}.pth"))
         return noised_split_small
-
-
-    
-    @torch.no_grad()
-    def sample(self, split_path = None, category = 'airplane', prefix = 'results', ema = False, ddim_steps=200, clean = False, save_index = 0):
-
-        if ema:
-            self.ema_df.eval()
-        else:
-            self.df.eval()
-
-        batch_size = self.vq_conf.data.test.batch_size
-
-        if self.enable_label:
-            label = torch.ones(batch_size).to(self.device) * category_5_to_label[category]
-            label = label.long()
-        else:
-            label = None
         
-        if split_path != None:
-            split_small = torch.load(split_path)
-            split_small = split_small.to(self.device)
-        else:
-            split_small = self.sample_split(ema=ema, prefix=prefix, ddim_steps = ddim_steps, category=category, save_index=save_index)
-        seed_everything(self.opt.seed)        
-        octree_small = split2octree_small(split_small, self.input_depth, self.full_depth)
 
-        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{prefix}_{category}")
-        self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
+    @torch.no_grad()
+    def sample_hr(self, doctree_lr = None, label = None, ema = False, ddim_steps=200):
+        batch_size = self.vq_conf.data.test.batch_size
+        
+        seed_everything(self.opt.seed)
 
-        doctree_small = dual_octree.DualOctree(octree_small)
-        doctree_small.post_processing_for_docnn()
-
-        doctree_small_num = doctree_small.total_num
+        doctree_small_num = doctree_lr.total_num
         noised_feature = torch.randn((doctree_small_num, self.code_channel), device = self.device)
 
         feature_time_pairs = self.get_sampling_timesteps(
@@ -403,9 +369,9 @@ class OctFusionModel(BaseModel):
             noise_cond = log_snr
 
             if ema:
-                pred_noise = self.ema_df(unet_type="hr", x = noised_feature, doctree = doctree_small, timesteps = noise_cond, unet_lr = self.ema_df.unet_lr, label=label)
+                pred_noise = self.ema_df(unet_type="hr", x = noised_feature, doctree = doctree_lr, timesteps = noise_cond, unet_lr = self.ema_df.unet_lr, label=label)
             else:
-                pred_noise = self.df(unet_type="hr", x = noised_feature, doctree = doctree_small, timesteps = noise_cond, unet_lr = self.df.unet_lr, label=label)
+                pred_noise = self.df(unet_type="hr", x = noised_feature, doctree = doctree_lr, timesteps = noise_cond, unet_lr = self.df.unet_lr, label=label)
 
             alpha, sigma, alpha_next, sigma_next = alpha[0], sigma[0], alpha_next[0], sigma_next[0]
 
@@ -413,7 +379,42 @@ class OctFusionModel(BaseModel):
 
             noised_feature = feature_start * alpha_next + pred_noise * sigma_next
 
-        samples = noised_feature
+        return noised_feature
+    
+    @torch.no_grad()
+    def sample(self, split_path = None, category = 'airplane', prefix = 'results', ema = False, ddim_steps=200, clean = False, save_index = 0):
+
+        if ema:
+            self.ema_df.eval()
+        else:
+            self.df.eval()
+        
+        if self.enable_label:
+            label = torch.ones(batch_size).to(self.device) * category_5_to_label[category]
+            label = label.long()
+        else:
+            label = None
+            
+        save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{prefix}_{category}")
+        batch_size = self.vq_conf.data.test.batch_size
+        if split_path != None:
+            split_small = torch.load(split_path)
+            split_small = split_small.to(self.device)
+        else:
+            split_small = self.sample_lr(ema=ema, ddim_steps=ddim_steps, label=label)
+        
+        octree_small = split2octree_small(split_small, self.input_depth, self.full_depth)
+        self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
+        for i in range(batch_size):
+            torch.save(split_small[i].unsqueeze(0), os.path.join(save_dir, f"{save_index}.pth"))
+        
+        if self.stage_flag == "lr":
+            return
+        
+        doctree_small = dual_octree.DualOctree(octree_small)
+        doctree_small.post_processing_for_docnn()
+            
+        samples = self.sample_hr(doctree_lr = doctree_small, label = label, ema = ema, ddim_steps = ddim_steps)
 
         print(samples.max())
         print(samples.min())

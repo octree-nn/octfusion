@@ -28,6 +28,7 @@ batch_size=64
 ema_rate=0.999
 ckpt_num=5
 seed=42
+num_times=3
 ####################
 
 ### model stuff ###
@@ -71,7 +72,7 @@ fi
 
 cmd="train.py --name ${name} --logs_dir ${logs_dir} --gpu_ids ${gpu_ids} --mode ${mode} \
             --lr ${lr} --epochs ${epochs}  --min_lr ${min_lr} --warmup_epochs ${warmup_epochs} --update_learning_rate ${update_learning_rate} --ema_rate ${ema_rate} --seed ${seed} \
-            --model ${model} --df_cfg ${df_cfg} --ckpt_num ${ckpt_num} --category ${category} \
+            --model ${model} --df_cfg ${df_cfg} --ckpt_num ${ckpt_num} --category ${category} --num_times ${num_times} \
             --vq_model ${vq_model} --vq_cfg ${vq_cfg} --vq_ckpt ${vq_ckpt} \
             --display_freq ${display_freq} --print_freq ${print_freq} \
             --save_steps_freq ${save_steps_freq} --save_latest_freq ${save_latest_freq} \

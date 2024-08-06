@@ -40,7 +40,7 @@ class BaseOptions():
 
         # dataset stuff
         self.parser.add_argument('--dataset_mode', type=str, default='snet', help='chooses how datasets are loaded. [mnist, snet, abc, snet-abc]')
-        self.parser.add_argument('--res', type=int, default=64, help='dataset resolution')
+        self.parser.add_argument('--num_times', type=int, default=2, help='dataset resolution')
         self.parser.add_argument('--category', type=str, default='chair', help='category for shapenet')
         self.parser.add_argument('--split_dir', type=str, default=None, help='split path')
         self.parser.add_argument('--trunc_thres', type=float, default=0.2, help='threshold for truncated sdf.')
@@ -52,8 +52,13 @@ class BaseOptions():
 
         ############## START: model related options ################
         self.parser.add_argument(
-            '--model', type=str, default='split',
-            choices=['split', 'union', 'high-res', 'vae'],
+            '--model', type=str, default='union_2t',
+            choices=['union_2t', 'union_3t', 'vae'],
+            help='chooses which model to use.'
+        )
+        self.parser.add_argument(
+            '--stage_flag', type=str, default='lr',
+            choices=['lr', 'hr', 'feature'],
             help='chooses which model to use.'
         )
         self.parser.add_argument('--ckpt', type=str, default=None, help='ckpt to load.')

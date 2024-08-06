@@ -7,10 +7,13 @@ import math
 def create_model(opt):
     model = None
 
-    if opt.model == 'split' or opt.model == 'union' or opt.model == 'high-res':
+    if opt.model == "union_2t":
         from models.octfusion_model_union import OctFusionModel
         model = OctFusionModel()
-    elif opt.model == 'vae':
+    elif opt.model == "union_3t":
+        from models.octfusion_model_union_3t import OctFusionModel
+        model = OctFusionModel()
+    elif opt.model == "vae":
         from models.octfusion_model_vae import OctFusionModel
         model = OctFusionModel()
     else:

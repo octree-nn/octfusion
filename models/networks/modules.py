@@ -585,7 +585,7 @@ class TimestepEmbedSequential(nn.Sequential, TimestepBlock):  # 这个类的作�
 			if isinstance(layer, TimestepBlock):
 				x = layer(x, emb)
 			elif isinstance(layer, GraphUpsample):
-			   x = layer(x, edge_index, edge_type, node_type, leaf_mask, numd)
+				x = layer(x, edge_index, edge_type, node_type, leaf_mask, numd)
 			else:
 				x = layer(x)
 		return x
