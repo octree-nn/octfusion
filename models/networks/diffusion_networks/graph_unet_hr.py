@@ -115,9 +115,9 @@ class UNet3DModel(nn.Module):
 
         d = self.input_depth
         
-        self.input_conv = GraphConv(self.in_channels, model_channels, n_edge_type, avg_degree, self.input_depth - 1)
-
-        self.input_blocks = nn.ModuleList([])
+        self.input_blocks = nn.ModuleList([
+            GraphConv(self.in_channels, model_channels, n_edge_type, avg_degree, self.input_depth - 1)
+        ])
 
         self._feature_size = model_channels
         input_block_chans = [model_channels]
@@ -236,11 +236,12 @@ class UNet3DModel(nn.Module):
         d = self.input_depth
         
         if not as_middle:
-            h = self.input_conv(x, doctree, d)
+            h = self.input_blocks[0](x, doctree, d)
         else:
             h = x
-
-        for module in self.input_blocks:
+        hs.append(h)
+        
+        for module in self.input_blocks[1:]:
             if isinstance(module, GraphConv):
                 h = module(h, doctree, d)
             elif isinstance(module, GraphResBlockEmbed):
@@ -267,11 +268,11 @@ class UNet3DModel(nn.Module):
                 h = module(h, doctree, d)
                 d += 1
 
+        h = self.end(self.end_norm(h, doctree, d))
+        
         if as_middle:
             return h
         
-        h = self.end(self.end_norm(h, doctree, d))
-
         out = self.out(h, doctree, d)
 
         assert out.shape[0] == x.shape[0]

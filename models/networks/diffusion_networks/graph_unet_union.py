@@ -5,7 +5,7 @@ from abc import abstractmethod
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from models.networks.diffusion_networks import graph_unet_lr, graph_unet_hr, graph_unet_feature
+from models.networks.diffusion_networks import graph_unet_lr, graph_unet_hr
 
 class UNet3DModel(nn.Module):
 
@@ -41,6 +41,7 @@ class UNet3DModel(nn.Module):
                     channel_mult=channel_mult[i],
                     use_checkpoint=use_checkpoint,
                     num_heads=num_heads,
+                    dims=dims,
                 )
             elif unet_type[i] == "hr":
                 unet_model = graph_unet_hr.UNet3DModel(
@@ -66,9 +67,13 @@ class UNet3DModel(nn.Module):
             self.unet_feature = unet_models[2]
 
 
-    def forward(self, x=None, unet_type=None, x_self_cond=None, doctree=None, timesteps=None, unet_lr=None, label=None, context=None, **kwargs):
+    def forward(self, unet_type=None, **input_data):
         if unet_type == "lr":
-            return self.unet_lr(x=x, timesteps=timesteps, x_self_cond=x_self_cond, label=label, context=context)
+            return self.unet_lr(**input_data)
         elif unet_type == "hr":
-            return self.unet_hr(x=x, doctree=doctree, timesteps=timesteps, unet_lr=unet_lr, label=label, context=context)
+            return self.unet_hr(**input_data)
+        elif unet_type == "feature":
+            return self.unet_feature(**input_data)
+        else:
+            raise ValueError
         

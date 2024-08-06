@@ -258,9 +258,9 @@ class OctFusionModel(BaseModel):
             x_self_cond = None
             if random() < 0.5:
                 with torch.no_grad():
-                    x_self_cond = self.df(x = noised_split_small, unet_type="lr", timesteps = noise_level, label = self.label)
+                    x_self_cond = self.df(unet_type="lr", x = noised_split_small, timesteps = noise_level, label = self.label)
 
-            pred = self.df(x = noised_split_small, unet_type="lr", timesteps = noise_level, x_self_cond = x_self_cond, label = self.label)
+            pred = self.df(unet_type="lr", x = noised_split_small, timesteps = noise_level, x_self_cond = x_self_cond, label = self.label)
 
             self.df_split_loss = F.mse_loss(pred, split_small)
         elif self.stage_flag == "union":
@@ -278,7 +278,7 @@ class OctFusionModel(BaseModel):
             batch_sigma = sigma[batch_id].unsqueeze(1)
             noised_feature = noised_feature * batch_alpha + noise * batch_sigma
 
-            output = self.df(x = noised_feature, unet_type="hr", doctree = self.doctree_in, timesteps = noise_level, unet_lr = self.df.unet_lr, label = self.label)
+            output = self.df(unet_type="hr", x = noised_feature, doctree = self.doctree_in, timesteps = noise_level, unet_lr = self.df.unet_lr, label = self.label)
 
             self.df_feature_loss = F.mse_loss(output, noise)
 
@@ -325,9 +325,9 @@ class OctFusionModel(BaseModel):
             noise_cond = self.log_snr(t)
 
             if ema:
-                x_start_small = self.ema_df(x_lr = noised_split_small, timesteps = noise_cond, x_self_cond = x_start_small, label = label)
+                x_start_small = self.ema_df(unet_type="lr", x = noised_split_small, timesteps = noise_cond, x_self_cond = x_start_small, label = label)
             else:
-                x_start_small = self.df(x_lr = noised_split_small, timesteps = noise_cond, x_self_cond = x_start_small, label = label)
+                x_start_small = self.df(unet_type="lr", x = noised_split_small, timesteps = noise_cond, x_self_cond = x_start_small, label = label)
 
             if t[0] < TRUNCATED_TIME:
                 x_start_small.sign_()
@@ -403,9 +403,9 @@ class OctFusionModel(BaseModel):
             noise_cond = log_snr
 
             if ema:
-                pred_noise = self.ema_df(x_hr = noised_feature, doctree = doctree_small, timesteps = noise_cond, label=label)
+                pred_noise = self.ema_df(unet_type="hr", x = noised_feature, doctree = doctree_small, timesteps = noise_cond, unet_lr = self.ema_df.unet_lr, label=label)
             else:
-                pred_noise = self.df(x_hr = noised_feature, doctree = doctree_small, timesteps = noise_cond, label=label)
+                pred_noise = self.df(unet_type="hr", x = noised_feature, doctree = doctree_small, timesteps = noise_cond, unet_lr = self.df.unet_lr, label=label)
 
             alpha, sigma, alpha_next, sigma_next = alpha[0], sigma[0], alpha_next[0], sigma_next[0]
 
@@ -555,11 +555,11 @@ class OctFusionModel(BaseModel):
         if "unet_lr" in load_options and "df_unet_lr" in state_dict:
             df.unet_lr.load_state_dict(state_dict['df_unet_lr'])
             ema_df.unet_lr.load_state_dict(state_dict['ema_df_unet_lr'])
+            print(colored('[*] weight successfully load unet_lr from: %s' % ckpt, 'blue'))
         if "unet_hr" in load_options and "df_unet_hr" in state_dict:
             df.unet_hr.load_state_dict(state_dict['df_unet_hr'])
             ema_df.unet_hr.load_state_dict(state_dict['ema_df_unet_hr'])
-
-        print(colored('[*] weight successfully load from: %s' % ckpt, 'blue'))
+            print(colored('[*] weight successfully load unet_hr from: %s' % ckpt, 'blue'))
 
         if "opt" in load_options and "opt" in state_dict:
             self.start_iter = state_dict['global_step']
