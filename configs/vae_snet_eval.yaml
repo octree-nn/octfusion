@@ -46,7 +46,7 @@ data:
         load_sdf: &load_sdf False
         load_occu: &load_occu False
         load_color: &load_color False
-        batch_size: &batch_size 16
+        batch_size: &batch_size 2
         shuffle: True
 
         point_scale: &point_scale 0.5
