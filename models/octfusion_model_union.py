@@ -116,13 +116,13 @@ class OctFusionModel(BaseModel):
         ######## END: Define Networks ########
 
         if opt.pretrain_ckpt is not None:
-            self.load_ckpt(opt.pretrain_ckpt, self.df.unet_lr, self.ema_df.unet_lr, load_opt=False)
+            self.load_ckpt(opt.pretrain_ckpt, self.df, self.ema_df, load_options=["unet_lr"])
         
         if self.stage_flag == "split":
             self.set_requires_grad([
                 self.df.unet_hr
             ], False)
-        elif opt.stage == "union":
+        elif self.stage_flag == "union":
             self.set_requires_grad([
                 self.df.unet_lr
             ], False)
@@ -140,11 +140,13 @@ class OctFusionModel(BaseModel):
 
         if opt.ckpt is None and os.path.exists(os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")):
             opt.ckpt = os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")
-        if opt.ckpt is not None:
-            self.load_ckpt(opt.ckpt, self.df, self.ema_df, load_opt=self.isTrain)
-            if self.isTrain:
-                self.optimizers = [self.optimizer]
         
+        if opt.ckpt is not None:
+            load_options = ["unet_lr", "unet_hr"]
+            if self.isTrain:
+                load_options.append("opt")
+            self.load_ckpt(opt.ckpt, self.df, self.ema_df, load_options)
+                
         trainable_params_num = 0
         for m in [self.df]:
             trainable_params_num += sum([p.numel() for p in m.parameters() if p.requires_grad == True])
@@ -520,17 +522,16 @@ class OctFusionModel(BaseModel):
 
         return ret
 
-    def save(self, label, global_iter, save_opt=True):
+    def save(self, label, global_iter):
 
         state_dict = {
-            'df': self.df_module.state_dict(),
-            'ema_df': self.ema_df.state_dict(),
+            'df_unet_lr': self.df_module.unet_lr.state_dict(),
+            'df_unet_hr': self.df_module.unet_hr.state_dict(),
+            'ema_df_unet_lr': self.ema_df.unet_lr.state_dict(),
+            'ema_df_unet_hr': self.ema_df.unet_hr.state_dict(),
             'opt': self.optimizer.state_dict(),
             'global_step': global_iter,
         }
-
-        # if save_opt:
-        #     state_dict['opt'] = self.optimizer.state_dict()
 
         save_filename = 'df_%s.pth' % (label)
         save_path = os.path.join(self.opt.ckpt_dir, save_filename)
@@ -544,18 +545,23 @@ class OctFusionModel(BaseModel):
 
         torch.save(state_dict, save_path)
 
-    def load_ckpt(self, ckpt, df, ema_df, load_opt=False):
+    def load_ckpt(self, ckpt, df, ema_df, load_options=[]):
         map_fn = lambda storage, loc: storage
         if type(ckpt) == str:
             state_dict = torch.load(ckpt, map_location=map_fn)
         else:
             state_dict = ckpt
-            
-        df.load_state_dict(state_dict['df'])
-        ema_df.load_state_dict(state_dict['ema_df'])
+        
+        if "unet_lr" in load_options and "df_unet_lr" in state_dict:
+            df.unet_lr.load_state_dict(state_dict['df_unet_lr'])
+            ema_df.unet_lr.load_state_dict(state_dict['ema_df_unet_lr'])
+        if "unet_hr" in load_options and "df_unet_hr" in state_dict:
+            df.unet_hr.load_state_dict(state_dict['df_unet_hr'])
+            ema_df.unet_hr.load_state_dict(state_dict['ema_df_unet_hr'])
+
         print(colored('[*] weight successfully load from: %s' % ckpt, 'blue'))
 
-        if load_opt:
+        if "opt" in load_options and "opt" in state_dict:
             self.start_iter = state_dict['global_step']
             print(colored('[*] training start from: %d' % self.start_iter, 'green'))
             self.optimizer.load_state_dict(state_dict['opt'])
