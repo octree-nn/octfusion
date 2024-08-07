@@ -182,26 +182,25 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
 
         c = None
 
-        with torch.no_grad():
-            self.input_data, self.doctree_in = self.autoencoder_module.extract_code(self.octree_in)
-
         
         self.df_lr_loss = torch.tensor(0., device=self.device)
         self.df_hr_loss = torch.tensor(0., device=self.device)
         self.df_feature_loss = torch.tensor(0., device=self.device)
 
         if self.stage_flag == "lr":
-            split_small = octree2split_small(self.doctree_in.octree, self.full_depth)
+            split_small = octree2split_small(self.octree_in, self.full_depth)
             self.df_lr_loss = self.forward_lr(split_small)
             
         elif self.stage_flag == "hr":
-            split_large = octree2split_large(self.doctree_in.octree, self.small_depth)
+            split_large = octree2split_large(self.octree_in, self.small_depth)
             nnum_large = split_large.shape[0]
             split_large_padded = torch.zeros((self.doctree_in.graph[self.small_depth]['keyd'].shape[0], split_large.shape[1]), device=self.device)
             split_large_padded[-nnum_large:, :] = split_large
             
             self.df_hr_loss = self.forward_hr(split_large_padded, self.small_depth, "hr", self.df.unet_lr)
         elif self.stage_flag == "feature":
+            with torch.no_grad():
+                self.input_data, self.doctree_in = self.autoencoder_module.extract_code(self.octree_in)
             self.df_feature_loss = self.forward_hr(self.input_data, self.large_depth, "feature", self.df.unet_hr)
 
         self.loss = self.df_lr_loss + self.df_hr_loss + self.df_feature_loss

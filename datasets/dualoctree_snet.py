@@ -140,7 +140,7 @@ class ReadFile:
             
 
         if self.load_split_small:
-            filename_split_small = os.path.join(filename + '.pth')
+            filename_split_small = os.path.join(filename, 'split_small.pth')
             raw = torch.load(filename_split_small, map_location = 'cpu')
             output['split_small'] = raw
 

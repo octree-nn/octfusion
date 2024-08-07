@@ -25,7 +25,7 @@ def get_filenames(filelist):
     return filenames
 
 def points2octree(points):
-    octree = ocnn.octree.Octree(depth = 8, full_depth = 4)
+    octree = ocnn.octree.Octree(depth = 10, full_depth = 4)
     octree.build_octree(points)
     return octree
         
@@ -48,7 +48,7 @@ for filename in tqdm(filenames):
     split_small = octree2split_small(octree_gt, full_depth=4)
     split_large = octree2split_large(octree_gt, small_depth=6)
     os.makedirs(filename_split, exist_ok = True)
-    torch.save(split_small, os.path.join(filename_split, "split_small.pth"))
+    torch.save(split_small.squeeze(0), os.path.join(filename_split, "split_small.pth"))
     torch.save(split_large, os.path.join(filename_split, "split_large.pth"))
     
     
