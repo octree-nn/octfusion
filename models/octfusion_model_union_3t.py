@@ -150,7 +150,13 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
             opt.ckpt = os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")
         
         if opt.ckpt is not None:
-            load_options = ["unet_lr", "unet_hr", "unet_feature"]
+            if self.stage_flag == "lr":
+                load_options = ["unet_lr"]
+            elif self.stage_flag == "hr":
+                load_options = ["unet_lr", "unet_hr"]
+            elif self.stage_flag == "feature":
+                load_options = ["unet_lr", "unet_hr", "unet_feature"]
+
             if self.isTrain:
                 load_options.append("opt")
             self.load_ckpt(opt.ckpt, self.df, self.ema_df, load_options)
@@ -231,7 +237,9 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         octree_small = split2octree_small(split_small, self.small_depth, self.full_depth)
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
         for i in range(batch_size):
-            torch.save(split_small[i].unsqueeze(0), os.path.join(save_dir, "splits_small", f"{save_index}.pth"))
+            save_path = os.path.join(save_dir, "splits_small", f"{save_index}.pth")
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            torch.save(split_small[i].unsqueeze(0), save_path)
         
         if self.stage_flag == "lr":
             return
@@ -243,7 +251,9 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         octree_large = split2octree_small(split_large, self.input_depth, self.full_depth)
         self.export_octree(octree_large, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
         for i in range(batch_size):
-            torch.save(split_large[i].unsqueeze(0), os.path.join(save_dir, "splits_large", f"{save_index}.pth"))
+            save_path = os.path.join(save_dir, "splits_large", f"{save_index}.pth")
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            torch.save(split_small[i].unsqueeze(0), save_path)
         
         if self.stage_flag == "hr":
             return

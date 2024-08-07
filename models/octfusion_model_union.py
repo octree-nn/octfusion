@@ -142,7 +142,10 @@ class OctFusionModel(BaseModel):
             opt.ckpt = os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")
         
         if opt.ckpt is not None:
-            load_options = ["unet_lr", "unet_hr"]
+            if self.stage_flag == "lr":
+                load_options = ["unet_lr"]
+            elif self.stage_flag == "hr":
+                load_options = ["unet_lr", "unet_hr"]
             if self.isTrain:
                 load_options.append("opt")
             self.load_ckpt(opt.ckpt, self.df, self.ema_df, load_options)
@@ -283,7 +286,7 @@ class OctFusionModel(BaseModel):
             self.df_lr_loss = self.forward_lr(split_small)
             
         elif self.stage_flag == "hr":
-            self.df_hr_loss = self.forward_hr(self.input_data, self.small_depth, "hr", self.df.unet_lr)
+            self.df_hr_loss = self.forward_hr(self.input_data, self.small_depth, "hr", self.df_module.unet_lr)
 
         self.loss = self.df_lr_loss + self.df_hr_loss
 
