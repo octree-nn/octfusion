@@ -235,10 +235,10 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         
         octree_small = split2octree_small(split_small, self.small_depth, self.full_depth)
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
-        for i in range(batch_size):
-            save_path = os.path.join(save_dir, "splits_small", f"{save_index}.pth")
-            os.makedirs(os.path.dirname(save_path), exist_ok=True)
-            torch.save(split_small[i].unsqueeze(0), save_path)
+        # for i in range(batch_size):
+        #     save_path = os.path.join(save_dir, "splits_small", f"{save_index}.pth")
+        #     os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        #     torch.save(split_small[i].unsqueeze(0), save_path)
         
         if self.stage_flag == "lr":
             return
@@ -249,10 +249,10 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         split_large = self.sample_hr(doctree_lr = doctree_small, label = label, ema = ema, ddim_steps = ddim_steps)
         octree_large = split2octree_small(split_large, self.input_depth, self.full_depth)
         self.export_octree(octree_large, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
-        for i in range(batch_size):
-            save_path = os.path.join(save_dir, "splits_large", f"{save_index}.pth")
-            os.makedirs(os.path.dirname(save_path), exist_ok=True)
-            torch.save(split_small[i].unsqueeze(0), save_path)
+        # for i in range(batch_size):
+        #     save_path = os.path.join(save_dir, "splits_large", f"{save_index}.pth")
+        #     os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        #     torch.save(split_small[i].unsqueeze(0), save_path)
         
         if self.stage_flag == "hr":
             return

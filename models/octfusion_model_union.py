@@ -408,8 +408,10 @@ class OctFusionModel(BaseModel):
         
         octree_small = split2octree_small(split_small, self.input_depth, self.full_depth)
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
-        for i in range(batch_size):
-            torch.save(split_small[i].unsqueeze(0), os.path.join(save_dir, f"{save_index}.pth"))
+        # for i in range(batch_size):
+        #     save_path = os.path.join(save_dir, "splits_small", f"{save_index}.pth")
+        #     os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        #     torch.save(split_small[i].unsqueeze(0), save_path)
         
         if self.stage_flag == "lr":
             return
