@@ -30,7 +30,7 @@ from models.networks.diffusion_networks.ldm_diffusion_util import *
 
 
 # distributed
-from utils.distributed import reduce_loss_dict, get_rank
+from utils.distributed import reduce_loss_dict, get_rank, get_world_size
 
 # rendering
 from utils.util_dualoctree import calc_sdf, octree2split_small, octree2split_large, split2octree_small, split2octree_large
@@ -45,7 +45,7 @@ class OctFusionModel(BaseModel):
 
     def initialize(self, opt):
         BaseModel.initialize(self, opt)
-        self.isTrain = opt.isTrain
+        self.isTrain = opt.mode == "train"
         self.model_name = self.name()
         self.device = opt.device
         self.gradient_clip_val = 1.
@@ -69,7 +69,8 @@ class OctFusionModel(BaseModel):
         self.solver = self.vq_conf.solver
 
         self.input_depth = self.vq_conf.model.depth
-        self.small_depth = self.vq_conf.model.depth_stop
+        self.octree_depth = self.vq_conf.model.depth_stop
+        self.small_depth = 6
         self.full_depth = self.vq_conf.model.full_depth
 
         self.load_octree = self.vq_conf.data.train.load_octree
@@ -298,91 +299,57 @@ class OctFusionModel(BaseModel):
         return times
 
     @torch.no_grad()
-    def sample_lr(self, ema=False, ddim_steps=200, label = None, truncated_index = 0.0):
+    def sample_loop(self, doctree_lr = None, ema=False, shape=None, ddim_steps=200, label=None, unet_type="lr", unet_lr=None, df_type="x0", truncated_index=0.0):
         batch_size = self.vq_conf.data.test.batch_size
 
-        seed_everything(int(time.time()))
-        small_time_pairs = self.get_sampling_timesteps(
+        time_pairs = self.get_sampling_timesteps(
             batch_size, device=self.device, steps=ddim_steps)
 
-        shape = (batch_size, *self.z_shape)
-        noised_split_small = torch.randn(shape, device = self.device)
+        noised_data = torch.randn(shape, device = self.device)
 
-        x_start_small = None
+        x_start = None
 
-        small_iter = tqdm(small_time_pairs, desc='small sampling loop time step')
+        time_iter = tqdm(time_pairs, desc='small sampling loop time step')
 
-        for t, t_next in small_iter:
+        for t, t_next in time_iter:
 
             log_snr = self.log_snr(t)
             log_snr_next = self.log_snr(t_next)
-            log_snr, log_snr_next = map(
-                partial(right_pad_dims_to, noised_split_small), (log_snr, log_snr_next))
-
-            alpha, _ = log_snr_to_alpha_sigma(log_snr)
-            alpha_next, sigma_next = log_snr_to_alpha_sigma(log_snr_next)
-
-            noise_cond = self.log_snr(t)
-
-            if ema:
-                x_start_small = self.ema_df(unet_type="lr", x = noised_split_small, timesteps = noise_cond, x_self_cond = x_start_small, label = label)
-            else:
-                x_start_small = self.df(unet_type="lr", x = noised_split_small, timesteps = noise_cond, x_self_cond = x_start_small, label = label)
-
-            if t[0] < TRUNCATED_TIME:
-                x_start_small.sign_()
-
-            c = -expm1(log_snr - log_snr_next)
-            mean = alpha_next * (noised_split_small * (1 - c) / alpha + c * x_start_small)
-            variance = (sigma_next ** 2) * c
-            noise = torch.where(
-                rearrange(t_next > truncated_index, 'b -> b 1 1 1 1'),
-                torch.randn_like(noised_split_small),
-                torch.zeros_like(noised_split_small)
-            )
-            noised_split_small = mean + torch.sqrt(variance) * noise
-        
-        return noised_split_small
-        
-
-    @torch.no_grad()
-    def sample_hr(self, doctree_lr = None, label = None, ema = False, ddim_steps=200):
-        batch_size = self.vq_conf.data.test.batch_size
-        
-        seed_everything(self.opt.seed)
-
-        doctree_small_num = doctree_lr.total_num
-        noised_feature = torch.randn((doctree_small_num, self.code_channel), device = self.device)
-
-        feature_time_pairs = self.get_sampling_timesteps(
-            batch_size, device=self.device, steps=ddim_steps)
-
-        feature_start = None
-
-        feature_iter = tqdm(feature_time_pairs, desc='feature stage sampling loop time step')
-
-        for t, t_next in feature_iter:
-
-            log_snr = self.log_snr(t)
-            log_snr_next = self.log_snr(t_next)
-
-            alpha, sigma = log_snr_to_alpha_sigma(log_snr)
-            alpha_next, sigma_next = log_snr_to_alpha_sigma(log_snr_next)
-
             noise_cond = log_snr
-
+            
             if ema:
-                pred_noise = self.ema_df(unet_type="hr", x = noised_feature, doctree = doctree_lr, timesteps = noise_cond, unet_lr = self.ema_df.unet_lr, label=label)
+                output = self.ema_df(unet_type=unet_type, x=noised_data, doctree=doctree_lr,  timesteps=noise_cond, unet_lr=unet_lr, x_self_cond=x_start, label=label)
             else:
-                pred_noise = self.df(unet_type="hr", x = noised_feature, doctree = doctree_lr, timesteps = noise_cond, unet_lr = self.df.unet_lr, label=label)
+                output = self.df(unet_type=unet_type, x=noised_data, doctree=doctree_lr,  timesteps=noise_cond, unet_lr=unet_lr, x_self_cond=x_start, label=label)
 
-            alpha, sigma, alpha_next, sigma_next = alpha[0], sigma[0], alpha_next[0], sigma_next[0]
+            if t[0] < truncated_index and unet_type == "lr":
+                output.sign_()
 
-            feature_start = (noised_feature - pred_noise * sigma) / alpha.clamp(min=1e-8)
+            if df_type == "x0":
+                x_start = output
+                padded_log_snr, padded_log_snr_next = map(
+                    partial(right_pad_dims_to, noised_data), (log_snr, log_snr_next))
 
-            noised_feature = feature_start * alpha_next + pred_noise * sigma_next
+                alpha, sigma = log_snr_to_alpha_sigma(padded_log_snr)
+                alpha_next, sigma_next = log_snr_to_alpha_sigma(padded_log_snr_next)
 
-        return noised_feature
+                c = -expm1(padded_log_snr - padded_log_snr_next)
+                mean = alpha_next * (noised_data * (1 - c) / alpha + c * output)
+                variance = (sigma_next ** 2) * c
+                noise = torch.where(
+                    rearrange(t_next > truncated_index, 'b -> b 1 1 1 1'),
+                    torch.randn_like(noised_data),
+                    torch.zeros_like(noised_data)
+                )
+                noised_data = mean + torch.sqrt(variance) * noise
+            elif df_type == "eps":
+                alpha, sigma = log_snr_to_alpha_sigma(log_snr)
+                alpha_next, sigma_next = log_snr_to_alpha_sigma(log_snr_next)
+                alpha, sigma, alpha_next, sigma_next = alpha[0], sigma[0], alpha_next[0], sigma_next[0]
+                x_start = (noised_data - output * sigma) / alpha.clamp(min=1e-8)
+                noised_data = x_start * alpha_next + output * sigma_next
+        
+        return noised_data
     
     @torch.no_grad()
     def sample(self, split_path = None, category = 'airplane', prefix = 'results', ema = False, ddim_steps=200, clean = False, save_index = 0):
@@ -404,9 +371,10 @@ class OctFusionModel(BaseModel):
             split_small = torch.load(split_path)
             split_small = split_small.to(self.device)
         else:
-            split_small = self.sample_lr(ema=ema, ddim_steps=ddim_steps, label=label)
+            seed_everything(save_index * get_world_size() + get_rank())
+            split_small = self.sample_loop(doctree_lr=None, ema=ema, shape=(batch_size, *self.z_shape), ddim_steps=ddim_steps, label=label, unet_type="lr", unet_lr=[], df_type="x0", truncated_index=TRUNCATED_TIME)
         
-        octree_small = split2octree_small(split_small, self.input_depth, self.full_depth)
+        octree_small = split2octree_small(split_small, self.octree_depth, self.full_depth)
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
         # for i in range(batch_size):
         #     save_path = os.path.join(save_dir, "splits_small", f"{save_index}.pth")
@@ -418,8 +386,11 @@ class OctFusionModel(BaseModel):
         
         doctree_small = dual_octree.DualOctree(octree_small)
         doctree_small.post_processing_for_docnn()
-            
-        samples = self.sample_hr(doctree_lr = doctree_small, label = label, ema = ema, ddim_steps = ddim_steps)
+
+        doctree_small_num = doctree_small.total_num
+        
+        seed_everything(self.opt.seed)
+        samples = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.code_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr=self.ema_df.unet_lr, df_type="eps")
 
         print(samples.max())
         print(samples.min())
@@ -430,7 +401,6 @@ class OctFusionModel(BaseModel):
         self.output = self.autoencoder_module.decode_code(samples, doctree_small)
         self.get_sdfs(self.output['neural_mpu'], batch_size, bbox = None)
         self.export_mesh(save_dir = save_dir, index = save_index, clean = clean)
-
 
     def export_octree(self, octree, depth, save_dir = None, index = 0):
         try:
