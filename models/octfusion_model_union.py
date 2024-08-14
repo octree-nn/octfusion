@@ -270,6 +270,27 @@ class OctFusionModel(BaseModel):
 
         return F.mse_loss(output, noise)
 
+    def calc_loss(self, input_data, doctree_in, batch_id, unet_type, unet_lr, df_type="x0"):
+        times = torch.zeros(
+            (self.batch_size,), device=self.device).float().uniform_(0, 1)
+        
+        noise = torch.randn_like(input_data)
+
+        noise_level = self.log_snr(times)
+        alpha, sigma = log_snr_to_alpha_sigma(noise_level)
+        batch_alpha = right_pad_dims_to(input_data, alpha[batch_id])
+        batch_sigma = right_pad_dims_to(input_data, sigma[batch_id])
+        noised_data = batch_alpha * input_data + batch_sigma * noise
+
+        output = self.df(unet_type=unet_type, x=noised_data, doctree=doctree_in, unet_lr=unet_lr, timesteps=noise_level, label=self.label)
+        
+        if df_type == "x0":
+            return F.mse_loss(output, input_data)
+        elif df_type == "eps":
+            return F.mse_loss(output, noise)
+        else:
+            raise ValueError(f'invalid loss type {df_type}')
+        
     def forward(self):
 
         self.df.train()
@@ -287,7 +308,8 @@ class OctFusionModel(BaseModel):
             self.df_lr_loss = self.forward_lr(split_small)
             
         elif self.stage_flag == "hr":
-            self.df_hr_loss = self.forward_hr(self.input_data, self.small_depth, "hr", self.df_module.unet_lr)
+            # self.df_hr_loss = self.forward_hr(self.input_data, self.small_depth, "hr", self.df_module.unet_lr)
+            self.df_hr_loss = self.calc_loss(self.input_data, self.doctree_in, self.doctree_in.batch_id(self.small_depth), "hr", self.df_module.unet_lr, "eps")
 
         self.loss = self.df_lr_loss + self.df_hr_loss
 
