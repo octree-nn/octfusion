@@ -30,6 +30,9 @@ class UNet3DModel(nn.Module):
         super().__init__()
         unet_models = []
         num_models = len(unet_type)
+        self.unet_lr = None
+        self.unet_hr = None
+        self.unet_feature = None
         for i in range(num_models):
             if unet_type[i] == "lr":
                 unet_model = graph_unet_lr.UNet3DModel(

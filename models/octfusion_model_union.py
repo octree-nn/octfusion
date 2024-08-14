@@ -44,6 +44,10 @@ class OctFusionModel(BaseModel):
         return 'SDFusion-Model-Union-Two-Times'
 
     def initialize(self, opt):
+        self.network_initialize(opt)
+        self.optimizer_initialize(opt)
+        
+    def network_initialize(self, opt):
         BaseModel.initialize(self, opt)
         self.isTrain = opt.mode == "train"
         self.model_name = self.name()
@@ -71,6 +75,7 @@ class OctFusionModel(BaseModel):
         self.input_depth = self.vq_conf.model.depth
         self.octree_depth = self.vq_conf.model.depth_stop
         self.small_depth = 6
+        self.large_depth = 8
         self.full_depth = self.vq_conf.model.full_depth
 
         self.load_octree = self.vq_conf.data.train.load_octree
@@ -116,6 +121,7 @@ class OctFusionModel(BaseModel):
 
         ######## END: Define Networks ########
 
+    def optimizer_initialize(self, opt):
         if opt.pretrain_ckpt is not None:
             self.load_ckpt(opt.pretrain_ckpt, self.df, self.ema_df, load_options=["unet_lr"])
         
@@ -304,8 +310,9 @@ class OctFusionModel(BaseModel):
         self.df_lr_loss = torch.tensor(0., device=self.device)
 
         if self.stage_flag == "lr":
-            split_small = octree2split_small(self.doctree_in.octree, self.full_depth)
-            self.df_lr_loss = self.forward_lr(split_small)
+            # self.df_lr_loss = self.forward_lr(split_small)
+            batch_id = torch.arange(0, self.batch_size, device=self.device).long()
+            self.df_lr_loss = self.calc_loss(self.split_small, self.doctree_in, batch_id, "lr", None, "x0")
             
         elif self.stage_flag == "hr":
             # self.df_hr_loss = self.forward_hr(self.input_data, self.small_depth, "hr", self.df_module.unet_lr)

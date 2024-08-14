@@ -30,7 +30,7 @@ from models.networks.diffusion_networks.ldm_diffusion_util import *
 
 
 # distributed
-from utils.distributed import reduce_loss_dict, get_rank
+from utils.distributed import reduce_loss_dict, get_rank, get_world_size
 
 # rendering
 from utils.util_dualoctree import calc_sdf, octree2split_small, octree2split_large, split2octree_small, split2octree_large
@@ -44,78 +44,11 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         return 'SDFusion-Model-Union-Two-Times'
 
     def initialize(self, opt):
-        BaseModel.initialize(self, opt)
-        self.isTrain = opt.isTrain
-        self.model_name = self.name()
-        self.device = opt.device
-        self.gradient_clip_val = 1.
-        self.start_iter = opt.start_iter
-
-        if self.isTrain:
-            self.log_dir = os.path.join(opt.logs_dir, opt.name)
-            self.train_dir = os.path.join(self.log_dir, 'train_temp')
-            self.test_dir = os.path.join(self.log_dir, 'test_temp')
-
-
-        ######## START: Define Networks ########
-        assert opt.df_cfg is not None
-        assert opt.vq_cfg is not None
-
-        # init df
-        df_conf = OmegaConf.load(opt.df_cfg)
-        vq_conf = OmegaConf.load(opt.vq_cfg)
-
-        self.vq_conf = vq_conf
-        self.solver = self.vq_conf.solver
-
-        self.input_depth = self.vq_conf.model.depth
-        self.large_depth = self.vq_conf.model.depth_stop
-        self.small_depth = 6
-        self.full_depth = self.vq_conf.model.full_depth
-
-        self.load_octree = self.vq_conf.data.train.load_octree
-        self.load_pointcloud = self.vq_conf.data.train.load_pointcloud
-        self.load_split_small = self.vq_conf.data.train.load_split_small
-
-        # init diffusion networks
-        df_model_params = df_conf.model.params
-        unet_params = df_conf.unet.params
-        self.conditioning_key = df_model_params.conditioning_key
-        self.num_timesteps = df_model_params.timesteps
-        self.enable_label = "num_classes" in df_conf.unet.params
-
-        self.df = UNet3DModel(**unet_params)
-        self.df.to(self.device)
-        self.stage_flag = opt.stage_flag
-
-        # record z_shape
-        self.split_channel = 8
-        self.code_channel = self.vq_conf.model.embed_dim
-        z_sp_dim = 2 ** self.full_depth
-        self.z_shape = (self.split_channel, z_sp_dim, z_sp_dim, z_sp_dim)
-
-        self.ema_df = copy.deepcopy(self.df)
-        self.ema_df.to(self.device)
-        if opt.isTrain:
-            self.ema_rate = opt.ema_rate
-            self.ema_updater = EMA(self.ema_rate)
-            self.reset_parameters()
-            set_requires_grad(self.ema_df, False)
-
-        self.noise_schedule = "linear"
-        if self.noise_schedule == "linear":
-            self.log_snr = beta_linear_log_snr
-        elif self.noise_schedule == "cosine":
-            self.log_snr = alpha_cosine_log_snr
-        else:
-            raise ValueError(f'invalid noise schedule {self.noise_schedule}')
-
-        # init vqvae
-
-        self.autoencoder = load_dualoctree(conf = vq_conf, ckpt = opt.vq_ckpt, opt = opt)
-
-        ######## END: Define Networks ########
-
+        octfusion_model_union.OctFusionModel.network_initialize(self, opt)
+        self.optimizer_initialize(opt)
+        
+        
+    def optimizer_initialize(self, opt):
         if opt.pretrain_ckpt is not None:
             self.load_ckpt(opt.pretrain_ckpt, self.df, self.ema_df, load_options=["unet_lr"])
         
@@ -188,29 +121,29 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         self.df_feature_loss = torch.tensor(0., device=self.device)
 
         if self.stage_flag == "lr":
-            split_small = octree2split_small(self.octree_in, self.full_depth)
-            self.df_lr_loss = self.forward_lr(split_small)
+            batch_id = torch.arange(0, self.batch_size, device=self.device).long()
+            self.df_lr_loss = self.calc_loss(self.split_small, self.doctree_in, batch_id, "lr", None, "x0")
             
         elif self.stage_flag == "hr":
+            self.doctree_in = dual_octree.DualOctree(self.octree_in)
+            self.doctree_in.post_processing_for_docnn()
+            
             split_large = octree2split_large(self.octree_in, self.small_depth)
             nnum_large = split_large.shape[0]
             split_large_padded = torch.zeros((self.doctree_in.graph[self.small_depth]['keyd'].shape[0], split_large.shape[1]), device=self.device)
             split_large_padded[-nnum_large:, :] = split_large
+            batch_id = self.doctree_in.batch_id(self.small_depth)
             
+            seed_everything(0)
             self.df_hr_loss = self.forward_hr(split_large_padded, self.small_depth, "hr", self.df.unet_lr)
+            seed_everything(0)
+            self.df_hr_loss = self.calc_loss(split_large_padded, self.doctree_in, batch_id, "hr", unet_lr=self.df_module.unet_lr, df_type="eps")
         elif self.stage_flag == "feature":
             with torch.no_grad():
                 self.input_data, self.doctree_in = self.autoencoder_module.extract_code(self.octree_in)
             self.df_feature_loss = self.forward_hr(self.input_data, self.large_depth, "feature", self.df.unet_hr)
 
         self.loss = self.df_lr_loss + self.df_hr_loss + self.df_feature_loss
-
-    def get_sampling_timesteps(self, batch, device, steps):
-        times = torch.linspace(1., 0., steps + 1, device=device)
-        times = repeat(times, 't -> b t', b=batch)
-        times = torch.stack((times[:, :-1], times[:, 1:]), dim=0)
-        times = times.unbind(dim=-1)
-        return times
 
     def sample(self, split_path = None, category = 'airplane', prefix = 'results', ema = False, ddim_steps=200, clean = False, save_index = 0):
 
@@ -231,9 +164,10 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
             split_small = torch.load(split_path)
             split_small = split_small.to(self.device)
         else:
-            split_small = self.sample_lr(ema=ema, ddim_steps=ddim_steps, label=label)
+            seed_everything(save_index * get_world_size() + get_rank())
+            split_small = self.sample_loop(doctree_lr=None, ema=ema, shape=(batch_size, *self.z_shape), ddim_steps=ddim_steps, label=label, unet_type="lr", unet_lr_list=[], df_type="x0", truncated_index=TRUNCATED_TIME)
         
-        octree_small = split2octree_small(split_small, self.small_depth, self.full_depth)
+        octree_small = split2octree_small(split_small, self.octree_depth, self.full_depth)
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
         # for i in range(batch_size):
         #     save_path = os.path.join(save_dir, "splits_small", f"{save_index}.pth")
@@ -245,10 +179,14 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         
         doctree_small = dual_octree.DualOctree(octree_small)
         doctree_small.post_processing_for_docnn()
+        doctree_small_num = doctree_small.total_num
             
-        split_large = self.sample_hr(doctree_lr = doctree_small, label = label, ema = ema, ddim_steps = ddim_steps)
-        octree_large = split2octree_small(split_large, self.input_depth, self.full_depth)
-        self.export_octree(octree_large, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
+        split_large = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.split_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr_list=[self.ema_df.unet_lr], df_type="eps")
+        
+        split_large = split_large[-octree_small.nnum[self.small_depth]: ]
+        
+        octree_large = split2octree_large(octree_small, split_large, self.small_depth)
+        self.export_octree(octree_large, depth = self.large_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
         # for i in range(batch_size):
         #     save_path = os.path.join(save_dir, "splits_large", f"{save_index}.pth")
         #     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -259,8 +197,9 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         
         doctree_large = dual_octree.DualOctree(octree_large)
         doctree_large.post_processing_for_docnn()
+        doctree_large_num = doctree_large.total_num
         
-        samples = self.sample_hr(doctree_lr = doctree_large, label = label, ema = ema, ddim_steps = ddim_steps)
+        samples = self.sample_loop(doctree_lr=doctree_large, shape=(doctree_large_num, self.code_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="feature", unet_lr_list=[self.ema_df.unet_lr, self.ema_df.unet_hr], df_type="eps")
 
         print(samples.max())
         print(samples.min())
