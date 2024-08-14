@@ -531,12 +531,13 @@ class OctFusionModel(BaseModel):
 
         state_dict = {
             'df_unet_lr': self.df_module.unet_lr.state_dict(),
-            'df_unet_hr': self.df_module.unet_hr.state_dict(),
             'ema_df_unet_lr': self.ema_df.unet_lr.state_dict(),
-            'ema_df_unet_hr': self.ema_df.unet_hr.state_dict(),
             'opt': self.optimizer.state_dict(),
             'global_step': global_iter,
         }
+        if self.stage_flag == "hr":
+            state_dict['df_unet_hr'] = self.df_module.unet_hr.state_dict()
+            state_dict['ema_df_unet_hr'] = self.ema_df.unet_hr.state_dict()
 
         save_filename = 'df_%s.pth' % (label)
         save_path = os.path.join(self.opt.ckpt_dir, save_filename)
