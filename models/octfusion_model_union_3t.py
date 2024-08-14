@@ -134,9 +134,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
             split_large_padded[-nnum_large:, :] = split_large
             batch_id = self.doctree_in.batch_id(self.small_depth)
             
-            seed_everything(0)
-            self.df_hr_loss = self.forward_hr(split_large_padded, self.small_depth, "hr", self.df.unet_lr)
-            seed_everything(0)
+            # self.df_hr_loss = self.forward_hr(split_large_padded, self.small_depth, "hr", self.df.unet_lr)
             self.df_hr_loss = self.calc_loss(split_large_padded, self.doctree_in, batch_id, "hr", unet_lr=self.df_module.unet_lr, df_type="eps")
         elif self.stage_flag == "feature":
             with torch.no_grad():
@@ -215,14 +213,16 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
 
         state_dict = {
             'df_unet_lr': self.df_module.unet_lr.state_dict(),
-            'df_unet_hr': self.df_module.unet_hr.state_dict(),
             'ema_df_unet_lr': self.ema_df.unet_lr.state_dict(),
-            'ema_df_unet_hr': self.ema_df.unet_hr.state_dict(),
-            'df_unet_feature': self.df_module.unet_feature.state_dict(),
-            'ema_df_unet_feature': self.ema_df.unet_feature.state_dict(),
             'opt': self.optimizer.state_dict(),
             'global_step': global_iter,
         }
+        if self.stage_flag == "hr" or self.stage_flag == "feature":
+            state_dict['df_unet_hr'] = self.df_module.unet_hr.state_dict()
+            state_dict['ema_df_unet_hr'] = self.ema_df.unet_hr.state_dict()
+        if self.stage_flag == "feature":
+            state_dict['df_unet_feature'] = self.df_module.unet_feature.state_dict()
+            state_dict['ema_df_unet_feature'] = self.ema_df.unet_feature.state_dict()
 
         save_filename = 'df_%s.pth' % (label)
         save_path = os.path.join(self.opt.ckpt_dir, save_filename)
