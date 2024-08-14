@@ -165,7 +165,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
             split_small = split_small.to(self.device)
         else:
             seed_everything(save_index * get_world_size() + get_rank())
-            split_small = self.sample_loop(doctree_lr=None, ema=ema, shape=(batch_size, *self.z_shape), ddim_steps=ddim_steps, label=label, unet_type="lr", unet_lr_list=[], df_type="x0", truncated_index=TRUNCATED_TIME)
+            split_small = self.sample_loop(doctree_lr=None, ema=ema, shape=(batch_size, *self.z_shape), ddim_steps=ddim_steps, label=label, unet_type="lr", unet_lr=None, df_type="x0", truncated_index=TRUNCATED_TIME)
         
         octree_small = split2octree_small(split_small, self.octree_depth, self.full_depth)
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
@@ -181,7 +181,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         doctree_small.post_processing_for_docnn()
         doctree_small_num = doctree_small.total_num
             
-        split_large = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.split_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr_list=[self.ema_df.unet_lr], df_type="eps")
+        split_large = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.split_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr=self.ema_df.unet_lr, df_type="eps")
         
         split_large = split_large[-octree_small.nnum[self.small_depth]: ]
         
