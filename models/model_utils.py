@@ -21,6 +21,9 @@ def load_dualoctree(conf, ckpt, opt = None):
             model_dict = trained_dict['model_dict']
         else:
             model_dict = trained_dict
+        
+        if 'autoencoder' in model_dict:
+            model_dict = model_dict['autoencoder']
 
         dualoctree.load_state_dict(model_dict)
 

@@ -1,0 +1,95 @@
+solver:
+    sdf_scale: 0.9
+    resolution: 256
+    save_sdf: False
+
+model:
+    name: graph_vae
+
+    channel: 4
+    depth: &depth 8
+    nout: 4
+    depth_out: *depth
+    full_depth: &full_depth 4
+    depth_stop: 6
+    bottleneck: 4
+    resblock_type: basic
+    code_channel: 16
+    resblk_num: 2
+
+    embed_dim: 3
+    n_embed: 8192
+    use_checkpoint: True
+
+data:
+    train:
+        name: shapenet
+
+        # octree building
+        depth: *depth
+        offset: 0.0
+        full_depth: *full_depth
+        node_dis: True
+        split_label: True
+
+        # no data augmentation
+        disable: False
+        distort: False
+
+        # data loading
+        location: &location data/Objaverse/objaverse-select
+        filelist: &filelist data/Objaverse/filelist
+        load_octree: &load_octree False
+        load_pointcloud: &load_pointcloud True
+        load_split_small: &load_split_small False
+        load_split_large: &load_split_large False
+        load_sdf: &load_sdf False
+        load_occu: &load_occu False
+        load_color: &load_color False
+        batch_size: &batch_size 2
+        shuffle: True
+
+        point_scale: &point_scale 1.0
+        point_sample_num: 10000
+        sample_surf_points: False
+        in_memory: False
+        num_workers: 8
+
+
+    test:
+        name: shapenet
+
+        # octree building
+        depth: *depth
+        offset: 0.0
+        full_depth: *full_depth
+        node_dis: True
+        split_label: True
+
+        # no data augmentation
+        disable: False
+        distort: False
+
+        # data loading
+        location: *location
+        filelist: *filelist
+        batch_size: 1
+        load_octree: *load_octree
+        load_pointcloud: *load_pointcloud
+        load_split_small: *load_split_small
+        load_split_large: *load_split_large
+        load_sdf: *load_sdf
+        load_occu: *load_occu
+        load_color: *load_color
+        shuffle: False
+
+        point_scale: *point_scale
+        point_sample_num: 10000
+        sample_surf_points: False
+        in_memory: False
+        num_workers: 8
+
+loss:
+    name: geometry
+    loss_type: sdf_reg_loss
+    kl_weight: 0.1
