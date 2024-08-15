@@ -122,7 +122,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
 
         if self.stage_flag == "lr":
             batch_id = torch.arange(0, self.batch_size, device=self.device).long()
-            self.df_lr_loss = self.calc_loss(self.split_small, self.doctree_in, batch_id, "lr", None, "x0")
+            self.df_lr_loss = self.calc_loss(self.split_small, None, batch_id, "lr", None, "x0")
             
         elif self.stage_flag == "hr":
             self.doctree_in = dual_octree.DualOctree(self.octree_in)
