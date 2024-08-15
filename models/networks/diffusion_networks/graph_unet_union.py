@@ -46,7 +46,8 @@ class UNet3DModel(nn.Module):
                     num_heads=num_heads,
                     dims=dims,
                 )
-            elif unet_type[i] == "hr":
+                self.unet_lr = unet_model
+            elif unet_type[i] == "hr" or unet_type[i] == "feature":
                 unet_model = graph_unet_hr.UNet3DModel(
                     image_size=image_size[i],
                     input_depth=input_depth[i],
@@ -61,13 +62,12 @@ class UNet3DModel(nn.Module):
                     use_checkpoint=use_checkpoint,
                     num_heads=num_heads,
                 )
+                if unet_type[i] == "hr":
+                    self.unet_hr = unet_model
+                if unet_type[i] == "feature":
+                    self.unet_feature = unet_model
             else:
                 raise ValueError
-            unet_models.append(unet_model)
-        self.unet_lr = unet_models[0]
-        self.unet_hr = unet_models[1]
-        if num_models > 2:
-            self.unet_feature = unet_models[2]
 
 
     def forward(self, unet_type=None, **input_data):
