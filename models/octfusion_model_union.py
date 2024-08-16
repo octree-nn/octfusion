@@ -89,7 +89,7 @@ class OctFusionModel(BaseModel):
         self.num_timesteps = df_model_params.timesteps
         self.enable_label = "num_classes" in df_conf.unet.params
 
-        self.df = UNet3DModel(**unet_params)
+        self.df = UNet3DModel(opt.stage_flag, **unet_params)
         self.df.to(self.device)
         self.stage_flag = opt.stage_flag
 
@@ -316,7 +316,7 @@ class OctFusionModel(BaseModel):
             
         elif self.stage_flag == "hr":
             # self.df_hr_loss = self.forward_hr(self.input_data, self.small_depth, "hr", self.df_module.unet_lr)
-            self.df_hr_loss = self.calc_loss(self.input_data, self.doctree_in, self.doctree_in.batch_id(self.small_depth), "hr", self.df_module.unet_lr, "eps")
+            self.df_hr_loss = self.calc_loss(self.input_data, self.doctree_in, self.doctree_in.batch_id(self.small_depth), "hr", self.df_module.unet_lr, "x0")
 
         self.loss = self.df_lr_loss + self.df_hr_loss
 

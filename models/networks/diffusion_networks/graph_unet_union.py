@@ -13,6 +13,7 @@ class UNet3DModel(nn.Module):
     # def __init__(self, config_dict):
     def __init__(
         self,
+        stage_flag,
         image_size,
         input_depth,
         unet_type,
@@ -68,6 +69,8 @@ class UNet3DModel(nn.Module):
                     self.unet_feature = unet_model
             else:
                 raise ValueError
+            if unet_type[i] == stage_flag:
+                break
 
 
     def forward(self, unet_type=None, **input_data):

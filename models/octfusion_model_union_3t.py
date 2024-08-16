@@ -135,7 +135,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
             batch_id = self.doctree_in.batch_id(self.small_depth)
             
             # self.df_hr_loss = self.forward_hr(split_large_padded, self.small_depth, "hr", self.df.unet_lr)
-            self.df_hr_loss = self.calc_loss(split_large_padded, self.doctree_in, batch_id, "hr", unet_lr=self.df_module.unet_lr, df_type="eps")
+            self.df_hr_loss = self.calc_loss(split_large_padded, self.doctree_in, batch_id, "hr", unet_lr=self.df_module.unet_lr, df_type="x0")
         elif self.stage_flag == "feature":
             with torch.no_grad():
                 self.input_data, self.doctree_in = self.autoencoder_module.extract_code(self.octree_in)
@@ -179,7 +179,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         doctree_small.post_processing_for_docnn()
         doctree_small_num = doctree_small.total_num
             
-        split_large = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.split_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr=self.ema_df.unet_lr, df_type="eps")
+        split_large = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.split_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr=self.ema_df.unet_lr, df_type="x0")
         
         split_large = split_large[-octree_small.nnum[self.small_depth]: ]
         
