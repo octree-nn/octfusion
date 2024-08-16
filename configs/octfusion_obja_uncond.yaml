@@ -10,7 +10,7 @@ unet:
     params:
         image_size: [16, 64, 256]
         input_depth: [4, 6, 8]
-        unet_type: ["lr", "hr"]
+        unet_type: ["lr"]
         full_depth: 4
         input_channels: [8, 8, 3]
         out_channels: [8, 8, 3]
