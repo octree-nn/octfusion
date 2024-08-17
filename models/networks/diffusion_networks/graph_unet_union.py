@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from models.networks.diffusion_networks import graph_unet_lr, graph_unet_hr
+from random import random
 
 class UNet3DModel(nn.Module):
 
@@ -75,6 +76,11 @@ class UNet3DModel(nn.Module):
 
     def forward(self, unet_type=None, **input_data):
         if unet_type == "lr":
+            self_cond = None
+            if random() < 0.5:
+                with torch.no_grad():
+                    self_cond = self.unet_lr(**input_data)
+            input_data['self_cond'] = self_cond
             return self.unet_lr(**input_data)
         elif unet_type == "hr":
             return self.unet_hr(**input_data)

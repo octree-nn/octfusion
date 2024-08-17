@@ -301,10 +301,7 @@ class OctFusionModel(BaseModel):
 
         self.df.train()
 
-        c = None
-
-        with torch.no_grad():
-            self.input_data, self.doctree_in = self.autoencoder_module.extract_code(self.octree_in)
+        c = None        
 
         self.df_hr_loss = torch.tensor(0., device=self.device)
         self.df_lr_loss = torch.tensor(0., device=self.device)
@@ -312,9 +309,11 @@ class OctFusionModel(BaseModel):
         if self.stage_flag == "lr":
             # self.df_lr_loss = self.forward_lr(split_small)
             batch_id = torch.arange(0, self.batch_size, device=self.device).long()
-            self.df_lr_loss = self.calc_loss(self.split_small, self.doctree_in, batch_id, "lr", None, "x0")
+            self.df_lr_loss = self.calc_loss(self.split_small, None, batch_id, "lr", None, "x0")
             
         elif self.stage_flag == "hr":
+            with torch.no_grad():
+                self.input_data, self.doctree_in = self.autoencoder_module.extract_code(self.octree_in)
             # self.df_hr_loss = self.forward_hr(self.input_data, self.small_depth, "hr", self.df_module.unet_lr)
             self.df_hr_loss = self.calc_loss(self.input_data, self.doctree_in, self.doctree_in.batch_id(self.small_depth), "hr", self.df_module.unet_lr, "x0")
 
