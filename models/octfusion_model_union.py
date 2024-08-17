@@ -366,7 +366,8 @@ class OctFusionModel(BaseModel):
                 mean = alpha_next * (noised_data * (1 - c) / alpha + c * output)
                 variance = (sigma_next ** 2) * c
                 noise = torch.where(
-                    rearrange(t_next > truncated_index, 'b -> b 1 1 1 1'),
+                    # rearrange(t_next > truncated_index, 'b -> b 1 1 1 1'),
+                    right_pad_dims_to(noised_data, t_next > truncated_index),
                     torch.randn_like(noised_data),
                     torch.zeros_like(noised_data)
                 )
@@ -419,7 +420,7 @@ class OctFusionModel(BaseModel):
         doctree_small_num = doctree_small.total_num
         
         seed_everything(self.opt.seed)
-        samples = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.code_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr=self.ema_df.unet_lr, df_type="eps")
+        samples = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.code_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr=self.ema_df.unet_lr, df_type="x0")
 
         print(samples.max())
         print(samples.min())
