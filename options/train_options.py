@@ -7,7 +7,7 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--lr', type=float, default=1e-4, help='initial learning rate for adam')
         self.parser.add_argument('--min_lr', type=float, default=1e-6, help='initial learning rate for adam')
         self.parser.add_argument('--update_learning_rate', type=int, default=0, help='whether to update learning rate')
-        self.parser.add_argument('--warmup_epochs', type=float, default=40, help='initial learning rate for adam')
+        self.parser.add_argument('--warmup_epochs', type=float, default=0, help='initial learning rate for adam')
         self.parser.add_argument('--lr_policy', type=str, default='lambda', help='learning rate policy: lambda|step|plateau')
         self.parser.add_argument('--lr_decay_iters', type=int, default=50, help='multiply by a gamma every lr_decay_iters iterations')
         # self.parser.add_argument('--phase', type=str, default='train', help='train, val, test, etc')

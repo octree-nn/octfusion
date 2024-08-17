@@ -126,7 +126,7 @@ def train_main_worker(opt, model, train_loader, test_loader, visualizer):
             # torch.cuda.empty_cache()
 
         if opt.update_learning_rate:
-            model.update_learning_rate_cos(iter_i/epoch_length, opt)
+            model.update_learning_rate_cos(epoch, opt)
 
         
 
