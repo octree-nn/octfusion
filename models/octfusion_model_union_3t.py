@@ -143,7 +143,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
 
         self.loss = self.df_lr_loss + self.df_hr_loss + self.df_feature_loss
 
-    def sample(self, split_path = None, category = 'airplane', prefix = 'results', ema = False, ddim_steps=200, clean = False, save_index = 0):
+    def sample(self, split_small = None, category = 'airplane', prefix = 'results', ema = False, ddim_steps=200, clean = False, save_index = 0):
 
         if ema:
             self.ema_df.eval()
@@ -158,11 +158,8 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
             
         save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{prefix}_{category}")
         batch_size = self.vq_conf.data.test.batch_size
-        if split_path != None:
-            split_small = torch.load(split_path)
-            split_small = split_small.to(self.device)
-        else:
-            seed_everything(save_index * get_world_size() + get_rank())
+        if split_small == None:
+            seed_everything(save_index)
             split_small = self.sample_loop(doctree_lr=None, ema=ema, shape=(batch_size, *self.z_shape), ddim_steps=ddim_steps, label=label, unet_type="lr", unet_lr=None, df_type="x0", truncated_index=TRUNCATED_TIME)
         
         octree_small = split2octree_small(split_small, self.octree_depth, self.full_depth)

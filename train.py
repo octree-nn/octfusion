@@ -156,8 +156,9 @@ def inference(opt, model, test_loader):
         pbar.update
 
 
-def generate(opt, model):
+def generate(opt, model, test_loader):
 
+    test_dg = get_data_generator(test_loader)
     # get n_epochs here
     total_iters = 100000000
     pbar = tqdm(total=total_iters)
@@ -173,14 +174,16 @@ def generate(opt, model):
         result_index = iter_i * get_world_size() + get_rank()
         if opt.split_dir is not None:
             split_path = os.path.join(opt.split_dir, f'{result_index}.pth')
+            split_small = torch.load(split_path)
+            split_small = split_small.to(model.device)
         else:
-            split_path = None
+            split_small = None
         model.batch_size = 1
         
         if result_index >= total_num: 
             break
-        
-        model.sample(split_path = split_path, category = category, prefix = 'results', ema = True, ddim_steps = 200, clean = False, save_index = result_index)
+
+        model.sample(split_small = split_small, category = category, prefix = 'results', ema = True, ddim_steps = 200, clean = False, save_index = result_index)
         pbar.update(1)
 
 if __name__ == "__main__":
@@ -262,7 +265,7 @@ if __name__ == "__main__":
         if opt.model == "vae":
             inference(opt, model, test_loader)
         else:
-            generate(opt, model)        
+            generate(opt, model, test_loader)        
     else:
         raise ValueError
 
