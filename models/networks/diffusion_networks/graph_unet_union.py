@@ -79,7 +79,7 @@ class UNet3DModel(nn.Module):
             if 'self_cond' not in input_data and random() < 0.5:
                 with torch.no_grad():
                     self_cond = self.unet_lr(**input_data)
-            input_data['self_cond'] = self_cond
+                input_data['self_cond'] = self_cond
             return self.unet_lr(**input_data)
         elif unet_type == "hr":
             return self.unet_hr(**input_data)

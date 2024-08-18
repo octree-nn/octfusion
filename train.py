@@ -225,18 +225,18 @@ if __name__ == "__main__":
     if get_rank() == 0:
         expr_dir = '%s/%s' % (opt.logs_dir, opt.name)
         model_f = inspect.getfile(model.__class__)
-        # unet_f = inspect.getfile(model.df_module.__class__)
+        unet_f = inspect.getfile(model.df_module.__class__)
         dset_f = inspect.getfile(train_ds.__class__)
         sh_f = 'train_octfusion_snet.sh'
         train_f = 'train.py'
         cprint(f'[*] saving model and dataset files: {model_f}, {dset_f}', 'blue')
         modelf_out = os.path.join(expr_dir, os.path.basename(model_f))
-        # unetf_out = os.path.join(expr_dir, os.path.basename(unet_f))
+        unetf_out = os.path.join(expr_dir, os.path.basename(unet_f))
         dsetf_out = os.path.join(expr_dir, os.path.basename(dset_f))
         sh_out = os.path.join(expr_dir, os.path.basename(sh_f))
         train_out = os.path.join(expr_dir, os.path.basename(train_f))
         os.system(f'cp {model_f} {modelf_out}')
-        # os.system(f'cp {unet_f} {unetf_out}')
+        os.system(f'cp {unet_f} {unetf_out}')
         os.system(f'cp {dset_f} {dsetf_out}')
         os.system(f'cp {sh_f} {sh_out}')
         os.system(f'cp {train_f} {train_out}')
