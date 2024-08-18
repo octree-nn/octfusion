@@ -76,8 +76,7 @@ class UNet3DModel(nn.Module):
 
     def forward(self, unet_type=None, **input_data):
         if unet_type == "lr":
-            self_cond = None
-            if random() < 0.5:
+            if 'self_cond' not in input_data and random() < 0.5:
                 with torch.no_grad():
                     self_cond = self.unet_lr(**input_data)
             input_data['self_cond'] = self_cond

@@ -511,6 +511,7 @@ class OctFusionModel(BaseModel):
         # self.set_requires_grad([self.df.unet_hr], requires_grad=True)
 
         self.forward()
+        assert not torch.isnan(self.loss).any()
         self.optimizer.zero_grad()
         self.backward()
         self.optimizer.step()
@@ -520,6 +521,7 @@ class OctFusionModel(BaseModel):
 
         ret = OrderedDict([
             ('loss', self.loss.data),
+            ('lr', self.optimizer.param_groups[0]['lr']),
         ])
 
         if hasattr(self, 'loss_gamma'):
