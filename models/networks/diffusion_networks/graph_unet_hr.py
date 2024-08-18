@@ -252,13 +252,14 @@ class UNet3DModel(nn.Module):
 
             hs.append(h)
 
-        h = self.middle_block1(h, emb, doctree, d)
+        
 
         if unet_lr is not None:
+            h = self.middle_block1(h, emb, doctree, d)
             h_lr = unet_lr.forward_as_middle(h, doctree, timesteps, label, context)
             h = torch.cat([h, h_lr], dim=1)
     
-        h = self.middle_block2(h, emb, doctree, d)
+            h = self.middle_block2(h, emb, doctree, d)
 
         for module in self.output_blocks:
             if isinstance(module, GraphResBlockEmbed):

@@ -139,7 +139,8 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         elif self.stage_flag == "feature":
             with torch.no_grad():
                 self.input_data, self.doctree_in = self.autoencoder_module.extract_code(self.octree_in)
-            self.df_feature_loss = self.forward_hr(self.input_data, self.large_depth, "feature", self.df.unet_hr)
+            # self.df_feature_loss = self.forward_hr(self.input_data, self.large_depth, "feature", self.df_module.unet_hr)
+            self.df_feature_loss = self.calc_loss(self.input_data, self.doctree_in, self.doctree_in.batch_id(self.large_depth), "feature", unet_lr=self.df_module.unet_hr, df_type="eps")
 
         self.loss = self.df_lr_loss + self.df_hr_loss + self.df_feature_loss
 
