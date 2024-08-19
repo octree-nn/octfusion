@@ -50,7 +50,11 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         
     def optimizer_initialize(self, opt):
         if opt.pretrain_ckpt is not None:
-            self.load_ckpt(opt.pretrain_ckpt, self.df, self.ema_df, load_options=["unet_lr"])
+            if self.stage_flag == "hr":
+                load_options = ["unet_lr"]
+            elif self.stage_flag == "feature":
+                load_options = ["unet_lr", "unet_hr"]
+            self.load_ckpt(opt.pretrain_ckpt, self.df, self.ema_df, load_options=load_options)
         
         if self.stage_flag == "lr":
             self.set_requires_grad([
@@ -176,7 +180,8 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         doctree_small = dual_octree.DualOctree(octree_small)
         doctree_small.post_processing_for_docnn()
         doctree_small_num = doctree_small.total_num
-            
+        
+        seed_everything(self.opt.seed)
         split_large = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.split_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr=self.ema_df.unet_lr, df_type="x0")
         
         split_large = split_large[-octree_small.nnum[self.small_depth]: ]
@@ -187,7 +192,6 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         #     save_path = os.path.join(save_dir, "splits_large", f"{save_index}.pth")
         #     os.makedirs(os.path.dirname(save_path), exist_ok=True)
         #     torch.save(split_small[i].unsqueeze(0), save_path)
-        
         if self.stage_flag == "hr":
             return
         
@@ -195,7 +199,8 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         doctree_large.post_processing_for_docnn()
         doctree_large_num = doctree_large.total_num
         
-        samples = self.sample_loop(doctree_lr=doctree_large, shape=(doctree_large_num, self.code_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="feature", unet_lr_list=[self.ema_df.unet_lr, self.ema_df.unet_hr], df_type="eps")
+        seed_everything(self.opt.seed)
+        samples = self.sample_loop(doctree_lr=doctree_large, shape=(doctree_large_num, self.code_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="feature", unet_lr=self.ema_df.unet_hr, df_type="eps")
 
         print(samples.max())
         print(samples.min())
@@ -203,7 +208,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         print(samples.std())
 
         # decode z
-        self.output = self.autoencoder_module.decode_code(samples, doctree_small)
+        self.output = self.autoencoder_module.decode_code(samples, doctree_large)
         self.get_sdfs(self.output['neural_mpu'], batch_size, bbox = None)
         self.export_mesh(save_dir = save_dir, index = save_index, clean = clean)
 

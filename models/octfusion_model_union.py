@@ -293,6 +293,14 @@ class OctFusionModel(BaseModel):
         if df_type == "x0":
             return F.mse_loss(output, input_data)
         elif df_type == "eps":
+            # x_start = (noised_data - output * batch_sigma) / batch_alpha.clamp(min=1e-8)
+            # self.output = self.autoencoder_module.decode_code(x_start, doctree_in)
+            # self.get_sdfs(self.output['neural_mpu'], self.batch_size, bbox = None)
+            # self.export_mesh(save_dir = "mytools/octree", index = 0)
+
+            # self.output = self.autoencoder_module.decode_code(input_data, doctree_in)
+            # self.get_sdfs(self.output['neural_mpu'], self.batch_size, bbox = None)
+            # self.export_mesh(save_dir = "mytools/octree", index = 2)
             return F.mse_loss(output, noise)
         else:
             raise ValueError(f'invalid loss type {df_type}')
