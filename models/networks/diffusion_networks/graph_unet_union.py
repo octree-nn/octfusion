@@ -28,9 +28,9 @@ class UNet3DModel(nn.Module):
         num_heads,
         use_checkpoint,
         dims,
+        **kwargs,
     ):
         super().__init__()
-        unet_models = []
         num_models = len(unet_type)
         self.unet_lr = None
         self.unet_hr = None

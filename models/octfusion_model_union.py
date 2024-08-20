@@ -88,6 +88,7 @@ class OctFusionModel(BaseModel):
         self.conditioning_key = df_model_params.conditioning_key
         self.num_timesteps = df_model_params.timesteps
         self.enable_label = "num_classes" in df_conf.unet.params
+        self.df_type = unet_params.df_type
 
         self.df = UNet3DModel(opt.stage_flag, **unet_params)
         self.df.to(self.device)
@@ -317,13 +318,13 @@ class OctFusionModel(BaseModel):
         if self.stage_flag == "lr":
             # self.df_lr_loss = self.forward_lr(split_small)
             batch_id = torch.arange(0, self.batch_size, device=self.device).long()
-            self.df_lr_loss = self.calc_loss(self.split_small, None, batch_id, "lr", None, "x0")
+            self.df_lr_loss = self.calc_loss(self.split_small, None, batch_id, "lr", None, self.df_type[0])
             
         elif self.stage_flag == "hr":
             with torch.no_grad():
                 self.input_data, self.doctree_in = self.autoencoder_module.extract_code(self.octree_in)
             # self.df_hr_loss = self.forward_hr(self.input_data, self.small_depth, "hr", self.df_module.unet_lr)
-            self.df_hr_loss = self.calc_loss(self.input_data, self.doctree_in, self.doctree_in.batch_id(self.small_depth), "hr", self.df_module.unet_lr, "x0")
+            self.df_hr_loss = self.calc_loss(self.input_data, self.doctree_in, self.doctree_in.batch_id(self.small_depth), "hr", self.df_module.unet_lr, self.df_type[1])
 
         self.loss = self.df_lr_loss + self.df_hr_loss
 
@@ -406,7 +407,7 @@ class OctFusionModel(BaseModel):
         batch_size = self.vq_conf.data.test.batch_size
         if split_small == None:
             seed_everything(save_index)
-            split_small = self.sample_loop(doctree_lr=None, ema=ema, shape=(batch_size, *self.z_shape), ddim_steps=ddim_steps, label=label, unet_type="lr", unet_lr=[], df_type="x0", truncated_index=TRUNCATED_TIME)
+            split_small = self.sample_loop(doctree_lr=None, ema=ema, shape=(batch_size, *self.z_shape), ddim_steps=ddim_steps, label=label, unet_type="lr", unet_lr=None, df_type=self.df_type[0], truncated_index=TRUNCATED_TIME)
         
         octree_small = split2octree_small(split_small, self.octree_depth, self.full_depth)
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
@@ -424,7 +425,7 @@ class OctFusionModel(BaseModel):
         doctree_small_num = doctree_small.total_num
         
         seed_everything(self.opt.seed)
-        samples = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.code_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr=self.ema_df.unet_lr, df_type="x0")
+        samples = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.code_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr=self.ema_df.unet_lr, df_type=self.df_type[1])
 
         print(samples.max())
         print(samples.min())

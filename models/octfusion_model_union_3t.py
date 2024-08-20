@@ -165,7 +165,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         batch_size = self.vq_conf.data.test.batch_size
         if split_small == None:
             seed_everything(save_index)
-            split_small = self.sample_loop(doctree_lr=None, ema=ema, shape=(batch_size, *self.z_shape), ddim_steps=ddim_steps, label=label, unet_type="lr", unet_lr=None, df_type="x0", truncated_index=TRUNCATED_TIME)
+            split_small = self.sample_loop(doctree_lr=None, ema=ema, shape=(batch_size, *self.z_shape), ddim_steps=ddim_steps, label=label, unet_type="lr", unet_lr=None, df_type=self.df_type[0], truncated_index=TRUNCATED_TIME)
         
         octree_small = split2octree_small(split_small, self.octree_depth, self.full_depth)
         self.export_octree(octree_small, depth = self.small_depth, save_dir = os.path.join(save_dir, "octree"), index = save_index)
@@ -182,7 +182,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         doctree_small_num = doctree_small.total_num
         
         seed_everything(self.opt.seed)
-        split_large = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.split_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr=self.ema_df.unet_lr, df_type="x0")
+        split_large = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.split_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr=self.ema_df.unet_lr, df_type=self.df_type[1])
         
         split_large = split_large[-octree_small.nnum[self.small_depth]: ]
         
@@ -200,7 +200,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         doctree_large_num = doctree_large.total_num
         
         seed_everything(self.opt.seed)
-        samples = self.sample_loop(doctree_lr=doctree_large, shape=(doctree_large_num, self.code_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="feature", unet_lr=self.ema_df.unet_hr, df_type="eps")
+        samples = self.sample_loop(doctree_lr=doctree_large, shape=(doctree_large_num, self.code_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="feature", unet_lr=self.ema_df.unet_hr, df_type=self.df_type[2])
 
         print(samples.max())
         print(samples.min())
