@@ -31,7 +31,7 @@ class BaseOptions():
 
     def initialize(self):
         # hyper parameters
-        self.parser.add_argument('--batch_size', type=int, default=1, help='input batch size')
+        self.parser.add_argument('--batch_size', type=int, default=2, help='input batch size')
         self.parser.add_argument('--gpu_ids', type=str, default='1', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
 
         # log stuff

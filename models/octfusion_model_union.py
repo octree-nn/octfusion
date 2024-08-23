@@ -68,7 +68,8 @@ class OctFusionModel(BaseModel):
         # init df
         df_conf = OmegaConf.load(opt.df_cfg)
         vq_conf = OmegaConf.load(opt.vq_cfg)
-
+        self.batch_size = vq_conf.data.train.batch_size = opt.batch_size
+        
         self.vq_conf = vq_conf
         self.solver = self.vq_conf.solver
 
@@ -224,7 +225,7 @@ class OctFusionModel(BaseModel):
         self.split_small = input['split_small']
         # self.split_large = input['split_large']
         self.octree_in = input['octree_in']
-        self.batch_size = self.octree_in.batch_size
+        self.batch_size = self.vq_conf.data.train.batch_size
 
         if self.enable_label:
             self.label = input['label']

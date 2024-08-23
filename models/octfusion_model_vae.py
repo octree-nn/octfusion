@@ -45,7 +45,7 @@ class OctFusionModel(BaseModel):
 
     def initialize(self, opt):
         BaseModel.initialize(self, opt)
-        self.isTrain = opt.isTrain
+        self.isTrain = opt.mode == 'train'
         self.model_name = self.name()
         self.device = opt.device
         self.gradient_clip_val = 1.

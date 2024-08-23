@@ -15,32 +15,39 @@ if [ ${#gpu_ids} -gt 1 ]; then
 fi
 ################
 
-### hyper params ###
-lr=2e-4
-min_lr=1e-6
-update_learning_rate=0
-warmup_epochs=40
-epochs=1000
-batch_size=64
-ema_rate=0.999
-ckpt_num=3
-seed=0
-####################
-
 ### model stuff ###
 model='union_2t'
-stage_flag='lr'
+mode="$1"
+stage_flag="$2"
 dataset_mode='snet'
-note="x0"
-category='table'
+note="test"
+category="$3"
 
 df_yaml="octfusion_${dataset_mode}_uncond.yaml"
 df_cfg="configs/${df_yaml}"
 vq_model="GraphVAE"
 vq_yaml="vae_${dataset_mode}_eval.yaml"
 vq_cfg="configs/${vq_yaml}"
-vq_ckpt="saved_ckpt/all-KL-0.25-weight-0.001-depth-8-00200.model.pth"
-mode="train"
+vq_ckpt="saved_ckpt/vae-ckpt/vae-shapenet-depth-8.pth"
+
+### hyper params ###
+lr=2e-4
+min_lr=1e-6
+update_learning_rate=0
+warmup_epochs=40
+ema_rate=0.999
+ckpt_num=3
+seed=42
+
+if [ $stage_flag = "lr" ]; then
+    epochs=3000
+    batch_size=16
+else
+    epochs=500
+    batch_size=2
+fi
+
+####################
 
 #####################
 
@@ -59,23 +66,17 @@ me=$(echo $me | cut -d'.' -f 1)
 name="${category}_union/${model}_${note}_lr${lr}"
 
 debug=0
-if [ "$mode" = "generate" ]; then
-    df_cfg="${logs_dir}/${name}/${df_yaml}"
-    vq_cfg="${logs_dir}/${name}/${vq_yaml}"
-    ckpt="${logs_dir}/${name}/ckpt/df_steps-latest.pth"
-fi
 
-# pretrain_ckpt="saved_ckpt/diffusion-ckpt/airplane/df_steps-split.pth"
-# ckpt="${logs_dir}/${name}/ckpt/df_steps-latest.pth"
-# split_dir="logs/split_data/airplane_split_small"
+# pretrain_ckpt="saved_ckpt/diffusion-ckpt/${category}/df_steps-split.pth"
+ckpt="saved_ckpt/diffusion-ckpt/${category}/df_steps-union.pth"
 
 cmd="train.py --name ${name} --logs_dir ${logs_dir} --gpu_ids ${gpu_ids} --mode ${mode} \
-            --lr ${lr} --epochs ${epochs}  --min_lr ${min_lr} --warmup_epochs ${warmup_epochs} --update_learning_rate ${update_learning_rate} --ema_rate ${ema_rate} --seed ${seed} \
-            --model ${model} --stage_flag ${stage_flag} --df_cfg ${df_cfg} --ckpt_num ${ckpt_num} --category ${category} \
-            --vq_model ${vq_model} --vq_cfg ${vq_cfg} --vq_ckpt ${vq_ckpt} \
-            --display_freq ${display_freq} --print_freq ${print_freq} \
-            --save_steps_freq ${save_steps_freq} --save_latest_freq ${save_latest_freq} \
-            --debug ${debug}"
+    --lr ${lr} --epochs ${epochs}  --min_lr ${min_lr} --warmup_epochs ${warmup_epochs} --update_learning_rate ${update_learning_rate} --ema_rate ${ema_rate} --seed ${seed} \
+    --model ${model} --stage_flag ${stage_flag} --df_cfg ${df_cfg} --ckpt_num ${ckpt_num} --category ${category} \
+    --vq_model ${vq_model} --vq_cfg ${vq_cfg} --vq_ckpt ${vq_ckpt} \
+    --display_freq ${display_freq} --print_freq ${print_freq} \
+    --save_steps_freq ${save_steps_freq} --save_latest_freq ${save_latest_freq} \
+    --debug ${debug}"
 
 if [ ! -z "$ckpt" ]; then
     cmd="${cmd} --ckpt ${ckpt}"
