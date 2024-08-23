@@ -32,50 +32,54 @@ pip3 install -r requirements.txt
 ## 2. Generation with pre-trained models
 
 ### 2.1 Download pre-trained models
-We provide the pretrained models for the category-conditioned generation and sketch-conditioned generation. Please download the pretrained models from [Google Drive]() or [Baidu Netdisk](https://pan.baidu.com/s/15-jp9Mwtw4soch8GAC7qgQ?pwd=rhui) and put them in `saved_ckpt/`.
+We provide the pretrained models for the category-conditioned generation and sketch-conditioned generation. Please download the pretrained models from [Google Drive]() or [Baidu Netdisk](https://pan.baidu.com/s/15-jp9Mwtw4soch8GAC7qgQ?pwd=rhui) and put them in `saved_ckpt/diffusion-ckpt` and `saved_ckpt/vae-ckpt`.
 
 ### 2.2 Generation
-1. Unconditional generation
+1. Unconditional generation in category `airplane`, `car`, `chair`, `rifle`, `table`.
 ```
-sh scripts/gen_snet_uncond.sh
+sh scripts/run_snet_uncond.sh generate hr $category
+# Example
+sh scripts/run_snet_uncond.sh generate hr airplane
+
 ```
 
 2. Category-conditioned generation
 ```
-sh scripts/gen_snet_cond.sh
+sh scripts/run_snet_cond.sh generate hr im_5
 ```
 
 ## 3. Train from scratch
 ### 3.1 Data Preparation
 
-1. Download `ShapeNetCore.v1.zip` (31G) from [ShapeNet](https://shapenet.org/) and place it into the folder `data/ShapeNet`.
+1. Download `ShapeNetCore.v1.zip` (31G) from [ShapeNet](https://shapenet.org/) and place it in `data/ShapeNet/ShapeNetCore.v1.zip`.
 
 2. Convert the meshes in `ShapeNetCore.v1` to signed distance fields (SDFs).
-
-```bash
-python tools/shapenet.py --run convert_mesh_to_sdf
-```
 We use the same data preparation as [DualOctreeGNN](https://github.com/microsoft/DualOctreeGNN.git). Note that this process is relatively slow, it may take several days to finish converting all the meshes from ShapeNet. 
+```bash
+python tools/repair_mesh.py --run convert_mesh_to_sdf
+python tools/repair_mesh.py --run generate_dataset
+```
 
 
-### How to train the SDFusion
 
+### 3.2 Train OctFusion
+1. VAE Training. We provide pretrained weights in `saved_ckpt/vae-ckpt/vae-shapenet-depth-8.pth`.
+```bash
+sh scripts/run_snet_vae.sh train vae im_5
+```
+2. Train the first stage model. We provide pretrained weights in `saved_ckpt/diffusion-ckpt/$category/df_steps-split.pth`.
+```bash
+sh scripts/run_snet_uncond.sh train lr $category
+```
 
+3. Load the pretrained first stage model and train the second stage. We provide pretrained weights in `saved_ckpt/diffusion-ckpt/$category/df_steps-union.pth`. 
 
 # <a name="citation"></a> Citation
 
 If you find this code helpful, please consider citing:
 
-1. Conference version
-```BibTeX
-@inproceedings{cheng2023sdfusion,
-  author={Cheng, Yen-Chi and Lee, Hsin-Ying and Tuyakov, Sergey and Schwing, Alex and Gui, Liangyan},
-  title={{SDFusion}: Multimodal 3D Shape Completion, Reconstruction, and Generation},
-  booktitle={CVPR},
-  year={2023},
-}
-```
-2. arxiv version
+
+1. arxiv version
 ```BibTeX
 @article{cheng2022sdfusion,
   author = {Cheng, Yen-Chi and Lee, Hsin-Ying and Tuyakov, Sergey and Schwing, Alex and Gui, Liangyan},

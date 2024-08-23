@@ -16,6 +16,7 @@ category_5_to_label = {
     'table': 3,
     'rifle': 4,
 }
+category_5_to_num = {'airplane' : 2831, 'car': 5247, 'chair': 4744, 'table': 5956, 'rifle': 1660, 'im_5': 10000, 'obja': 10000}
 
 def mkdirs(paths):
     if isinstance(paths, list) and not isinstance(paths, str):

@@ -25,10 +25,10 @@ logger = logging.getLogger("trimesh")
 logger.setLevel(logging.ERROR)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--run', type=str, default="generate_dataset")
+parser.add_argument('--run', type=str, default="convert_mesh_to_sdf")
 parser.add_argument('--start', type=int, default=0)
 parser.add_argument('--end', type=int, default=45572)
-parser.add_argument('--sdf_size', type=int, default=128)
+parser.add_argument('--sdf_size', type=int, default=256)
 args = parser.parse_args()
 
 size = args.sdf_size        # resolution of SDF
@@ -147,8 +147,7 @@ def run_mesh2sdf():
         vertices = (vertices - center) * scale
 
         # run mesh2sdf
-        sdf, mesh_new = mesh2sdf.compute(vertices, mesh.faces, size, fix=True,
-                                                                         level=level, return_mesh=True)
+        sdf, mesh_new = mesh2sdf.compute(vertices, mesh.faces, size, fix=True,level=level, return_mesh=True)
         mesh_new.vertices = mesh_new.vertices * shape_scale
 
         # save
@@ -191,8 +190,7 @@ def run_mesh2sdf_mp():
             vertices = (vertices - center) * scale
 
             # run mesh2sdf
-            sdf, mesh_new = mesh2sdf.compute(vertices, mesh.faces, size, fix=True,
-                                                                            level=level, return_mesh=True)
+            sdf, mesh_new = mesh2sdf.compute(vertices, mesh.faces, size, fix=True,level=level, return_mesh=True)
             mesh_new.vertices = mesh_new.vertices * shape_scale
 
             # save
@@ -464,8 +462,8 @@ def copy_convonet_filelists():
 
 
 def convert_mesh_to_sdf():
-    unzip_shapenet()
-    download_filelist()
+    # unzip_shapenet()
+    # download_filelist()
     run_mesh2sdf()
 
 

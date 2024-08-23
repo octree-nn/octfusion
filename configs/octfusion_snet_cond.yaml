@@ -1,0 +1,27 @@
+model:
+    params:
+        linear_start: 0.00085
+        linear_end: 0.012
+        conditioning_key: None
+        timesteps: 1000
+        scale_factor: 0.18215
+
+unet:
+    params:
+        image_size: [16, 64]
+        input_depth: [4, 6]
+        unet_type: ["lr", "hr"]
+        df_type: ["x0", "eps"]
+        full_depth: 4
+        input_channels: [8, 3]
+        out_channels: [8, 3]
+        model_channels: [64, 128]
+        num_res_blocks: [[1, 1, 1], [2, 2, 0]]
+        attention_resolutions: [2, 4, 8] # 16, 8, 4
+        channel_mult: [[1, 2, 4, 8], [1, 2, 4]]
+        # num_head_channels: 32
+        num_heads: 4
+        use_checkpoint: False
+        num_classes: 5
+        # 3d
+        dims: 3

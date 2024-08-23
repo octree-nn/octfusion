@@ -24,12 +24,11 @@ from utils.distributed import (
     get_world_size,
 )
 
-from utils.util import seed_everything
+from utils.util import seed_everything, category_5_to_label, category_5_to_num
 
 import torch
 from utils.visualizer import Visualizer
 
-category_5_to_num = {'airplane' : 2831, 'car': 5247, 'chair': 4744, 'table': 5956, 'rifle': 1660, 'obja': 10000}
 
 def train_main_worker(opt, model, train_loader, test_loader, visualizer):
 
@@ -163,11 +162,7 @@ def generate(opt, model, test_loader):
     total_iters = 100000000
     pbar = tqdm(total=total_iters)
 
-    if opt.category == "im_5":
-        category = "table"
-    else:
-        category = opt.category
-    total_num = category_5_to_num[category]
+    total_num = category_5_to_num[opt.category]
 
     for iter_i in range(total_iters):
 
@@ -183,6 +178,11 @@ def generate(opt, model, test_loader):
         if result_index >= total_num: 
             break
 
+        if opt.category == "im_5":
+            category = random.choice(list(category_5_to_label.keys()))
+        else:
+            category = opt.category
+        print(get_rank(), category)
         model.sample(split_small = split_small, category = category, prefix = 'results', ema = True, ddim_steps = 200, clean = False, save_index = result_index)
         pbar.update(1)
 

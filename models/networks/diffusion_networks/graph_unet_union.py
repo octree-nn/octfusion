@@ -28,6 +28,7 @@ class UNet3DModel(nn.Module):
         num_heads,
         use_checkpoint,
         dims,
+        num_classes=None,
         **kwargs,
     ):
         super().__init__()
@@ -47,6 +48,7 @@ class UNet3DModel(nn.Module):
                     use_checkpoint=use_checkpoint,
                     num_heads=num_heads,
                     dims=dims,
+                    num_classes=num_classes,
                 )
                 self.unet_lr = unet_model
             elif unet_type[i] == "hr" or unet_type[i] == "feature":
@@ -63,6 +65,7 @@ class UNet3DModel(nn.Module):
                     dims=dims,
                     use_checkpoint=use_checkpoint,
                     num_heads=num_heads,
+                    num_classes=num_classes,
                 )
                 if unet_type[i] == "hr":
                     self.unet_hr = unet_model

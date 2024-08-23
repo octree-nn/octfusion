@@ -47,6 +47,12 @@ else
     batch_size=2
 fi
 
+if [ $mode = "train" ]; then
+    pretrain_ckpt="saved_ckpt/diffusion-ckpt/${category}/df_steps-split.pth"
+else
+    ckpt="saved_ckpt/diffusion-ckpt/${category}/df_steps-union.pth"
+fi
+
 ####################
 
 #####################
@@ -66,9 +72,6 @@ me=$(echo $me | cut -d'.' -f 1)
 name="${category}_union/${model}_${note}_lr${lr}"
 
 debug=0
-
-# pretrain_ckpt="saved_ckpt/diffusion-ckpt/${category}/df_steps-split.pth"
-ckpt="saved_ckpt/diffusion-ckpt/${category}/df_steps-union.pth"
 
 cmd="train.py --name ${name} --logs_dir ${logs_dir} --gpu_ids ${gpu_ids} --mode ${mode} \
     --lr ${lr} --epochs ${epochs}  --min_lr ${min_lr} --warmup_epochs ${warmup_epochs} --update_learning_rate ${update_learning_rate} --ema_rate ${ema_rate} --seed ${seed} \
@@ -102,7 +105,7 @@ echo "[*] Training with command: "
 
 if [ $multi_gpu = 1 ]; then
 
-    cmd="--nnodes=1 --nproc_per_node=${NGPU} --max-restarts=100 --rdzv-backend=c10d --rdzv-endpoint=${HOST_NODE_ADDR}  ${cmd}"
+    cmd="--nnodes=1 --nproc_per_node=${NGPU} --rdzv-backend=c10d --rdzv-endpoint=${HOST_NODE_ADDR}  ${cmd}"
     echo "CUDA_VISIBLE_DEVICES=${gpu_ids} torchrun ${cmd}"
     CUDA_VISIBLE_DEVICES=${gpu_ids} torchrun ${cmd}
 
