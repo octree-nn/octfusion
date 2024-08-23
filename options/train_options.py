@@ -31,6 +31,3 @@ class TrainOptions(BaseOptions):
 
         self.parser.add_argument('--mode', type=str, default='train', help='# of iter for training', choices=["train", "generate"])
         self.parser.add_argument('--isTrain', type=str, default='True', help='# of iter for training')
-
-        # weights
-        self.parser.add_argument('--lambda_L1', type=float, default=10.0, help='weight for L1 loss')

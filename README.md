@@ -9,20 +9,23 @@ Code release for the paper "OctFusion: Octree-based Diffusion Models for 3D Shap
 
 
 ## 1. Installation
-1. Create a `Conda` environment.
+1. Clone this repository
 ```bash
-conda create -n octfusion python=3.9 -y && conda activate octfusion
+git clone https://github.com/octree-nn/octfusion.git
+cd octfusion
+```
+2. Create a `Conda` environment.
+```bash
+conda create -n octfusion python=3.11 -y && conda activate octfusion
 ```
 
-2. Install PyTorch with Conda
+3. Install PyTorch with Conda
 ```bash
 conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
 ```
 
-3. Clone this repository and install other requirements.
+4. Install other requirements.
 ```bash
-git clone 
-cd OctFusion
 pip3 install -r requirements.txt 
 ```
 

@@ -28,7 +28,7 @@ from models.networks.diffusion_networks.graph_unet_union import UNet3DModel
 from models.model_utils import load_dualoctree
 from models.networks.diffusion_networks.ldm_diffusion_util import *
 
-from models.networks.diffusion_networks.samplers.ddim_new import DDIMSampler
+from models.networks.diffusion_networks.samplers.ddim import DDIMSampler
 from models.networks.dualoctree_networks import loss
 # distributed
 from utils.distributed import reduce_loss_dict, get_rank

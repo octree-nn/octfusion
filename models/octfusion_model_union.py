@@ -238,45 +238,6 @@ class OctFusionModel(BaseModel):
         self.df.eval()
 
 
-    def forward_lr(self, split_small):
-        times = torch.zeros(
-            (self.batch_size,), device=self.device).float().uniform_(0, 1)
-        
-        noise = torch.randn_like(split_small)
-
-        noise_level = self.log_snr(times)
-        padded_noise_level = right_pad_dims_to(split_small, noise_level)
-        alpha, sigma = log_snr_to_alpha_sigma(padded_noise_level)
-        noised_split_small = alpha * split_small + sigma * noise
-
-        x_self_cond = None
-        if random() < 0.5:
-            with torch.no_grad():
-                x_self_cond = self.df(unet_type="lr", x = noised_split_small, timesteps = noise_level, label = self.label)
-
-        pred = self.df(unet_type="lr", x = noised_split_small, timesteps = noise_level, x_self_cond = x_self_cond, label = self.label)
-
-        return F.mse_loss(pred, split_small)
-    
-    def forward_hr(self, input_data, input_depth, unet_type, unet_lr):
-        times = torch.zeros((self.batch_size,), device = self.device).float().uniform_(0,1)
-        noise_level = self.log_snr(times)
-
-        alpha, sigma = log_snr_to_alpha_sigma(noise_level)
-
-        noised_feature = input_data.clone()
-
-        batch_id = self.doctree_in.batch_id(input_depth)
-        noise = torch.randn_like(noised_feature, device = self.device)
-
-        batch_alpha = alpha[batch_id].unsqueeze(1)
-        batch_sigma = sigma[batch_id].unsqueeze(1)
-        noised_feature = noised_feature * batch_alpha + noise * batch_sigma
-
-        output = self.df(unet_type=unet_type, x = noised_feature, doctree = self.doctree_in, timesteps = noise_level, unet_lr = unet_lr, label = self.label)
-
-        return F.mse_loss(output, noise)
-
     def calc_loss(self, input_data, doctree_in, batch_id, unet_type, unet_lr, df_type="x0"):
         times = torch.zeros(
             (self.batch_size,), device=self.device).float().uniform_(0, 1)
@@ -406,7 +367,7 @@ class OctFusionModel(BaseModel):
         save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{prefix}_{category}")
         batch_size = self.vq_conf.data.test.batch_size
         if split_small == None:
-            seed_everything(save_index)
+            seed_everything(self.opt.seed + save_index)
             split_small = self.sample_loop(doctree_lr=None, ema=ema, shape=(batch_size, *self.z_shape), ddim_steps=ddim_steps, label=label, unet_type="lr", unet_lr=None, df_type=self.df_type[0], truncated_index=TRUNCATED_TIME)
         
         octree_small = split2octree_small(split_small, self.octree_depth, self.full_depth)

@@ -39,16 +39,13 @@ class BaseOptions():
         self.parser.add_argument('--name', type=str, default='experiment_name', help='name of the experiment. It decides where to store samples and models')
 
         # dataset stuff
-        self.parser.add_argument('--dataset_mode', type=str, default='snet', help='chooses how datasets are loaded. [mnist, snet, abc, snet-abc]')
+        self.parser.add_argument('--dataset_mode', type=str, default='snet', help='chooses how datasets are loaded. [snet, obja]')
         self.parser.add_argument('--num_times', type=int, default=2, help='dataset resolution')
         self.parser.add_argument('--category', type=str, default='chair', help='category for shapenet')
         self.parser.add_argument('--split_dir', type=str, default=None, help='split path')
         self.parser.add_argument('--trunc_thres', type=float, default=0.2, help='threshold for truncated sdf.')
 
         self.parser.add_argument('--ratio', type=float, default=1., help='ratio of the dataset to use. for debugging and overfitting')
-        self.parser.add_argument('--max_dataset_size', default=2147483648, type=int, help='chooses the maximum dataset size.')
-        self.parser.add_argument('--nThreads', default=9, type=int, help='# threads for loading data')
-        self.parser.add_argument('--serial_batches', action='store_true', help='if true, takes images in order to make batches, otherwise takes them randomly')
 
         ############## START: model related options ################
         self.parser.add_argument(
@@ -74,8 +71,6 @@ class BaseOptions():
         self.parser.add_argument('--vq_model', type=str, default='',choices=['vqvae', 'GraphAE', 'GraphVQVAE','GraphVAE'], help='for choosing the vqvae model to use.')
 
         self.parser.add_argument('--vq_cfg', type=str, default='configs/vqvae_snet.yaml', help='vqvae model config file')
-        self.parser.add_argument('--vq_dset', type=str, default=None, help='dataset vqvae originally trained on')
-        self.parser.add_argument('--vq_cat', type=str, default=None, help='dataset category vqvae originally trained on')
         self.parser.add_argument('--vq_ckpt', type=str, default=None, help='vqvae ckpt to load.')
 
         # dualocnn stuff

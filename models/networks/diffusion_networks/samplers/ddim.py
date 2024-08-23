@@ -152,6 +152,8 @@ class DDIMSampler(object):
 
         iterator = tqdm(time_range, desc='DDIM Sampler', total=total_steps)
 
+        pred_x0 = None
+
         for i, step in enumerate(iterator):
             index = total_steps - i - 1
             ts = torch.full((b,), step, device=device, dtype=torch.long)
@@ -161,7 +163,7 @@ class DDIMSampler(object):
                 img_orig = self.model.q_sample(x0, ts)  # TODO: deterministic forward pass?
                 img = img_orig * mask + (1. - mask) * img
 
-            img, pred_x0 = self.p_sample_ddim(img, cond, ts, label, index=index, use_original_steps=ddim_use_original_steps,
+            img, pred_x0 = self.p_sample_ddim(img, cond, ts, pred_x0, label, index=index, use_original_steps=ddim_use_original_steps,
                                       quantize_denoised=quantize_denoised, temperature=temperature,
                                       noise_dropout=noise_dropout, score_corrector=score_corrector,
                                       corrector_kwargs=corrector_kwargs,
@@ -169,7 +171,6 @@ class DDIMSampler(object):
                                       unconditional_conditioning=unconditional_conditioning,
                                       mm_cls_free=mm_cls_free,
                                       )
-
             if callback: callback(i)
             if img_callback: img_callback(pred_x0, i)
 
@@ -180,14 +181,15 @@ class DDIMSampler(object):
         return img, intermediates
 
     @torch.no_grad()
-    def p_sample_ddim(self, x, c, t, label, index, repeat_noise=False, use_original_steps=False, quantize_denoised=False,
+    def p_sample_ddim(self, x, c, t, x_start, label, index, repeat_noise=False, use_original_steps=False, quantize_denoised=False,
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
                       unconditional_guidance_scale=1., unconditional_conditioning=None, mm_cls_free=False):
         b, *_, device = *x.shape, x.device
 
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
-            e_t = self.model.df(x, t, c_crossattn = [label])
-            # e_t = self.model.ema_df(x, t, c_crossattn = [label])
+            # pred_x0 = self.model.ema_df(x, t, x_start, c_crossattn = [label])
+            pred_x0 = self.model.df(x, t, x_start, c_crossattn = [label])
+            pred_x0.clamp_(-1, 1)
         elif mm_cls_free:
 
             uc_img, uc_txt = unconditional_conditioning['uc_img'], unconditional_conditioning['uc_txt']
@@ -233,7 +235,7 @@ class DDIMSampler(object):
         sqrt_one_minus_at = torch.full(param_shape, sqrt_one_minus_alphas[index],device=device)
 
         # current prediction for x_0
-        pred_x0 = (x - sqrt_one_minus_at * e_t) / a_t.sqrt()
+        e_t = (x - a_t.sqrt() * pred_x0) / sqrt_one_minus_at.clamp(min=1e-8)
         if quantize_denoised:
             # pred_x0, _, *_ = self.model.first_stage_model.quantize(pred_x0)
             pred_x0, _, *_ = self.model.vqvae.quantize(pred_x0, is_voxel=True)

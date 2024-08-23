@@ -164,7 +164,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{prefix}_{category}")
         batch_size = self.vq_conf.data.test.batch_size
         if split_small == None:
-            seed_everything(save_index)
+            seed_everything(self.opt.seed + save_index)
             split_small = self.sample_loop(doctree_lr=None, ema=ema, shape=(batch_size, *self.z_shape), ddim_steps=ddim_steps, label=label, unet_type="lr", unet_lr=None, df_type=self.df_type[0], truncated_index=TRUNCATED_TIME)
         
         octree_small = split2octree_small(split_small, self.octree_depth, self.full_depth)
