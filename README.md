@@ -1,6 +1,5 @@
 # OctFusion: Octree-based Diffusion Models for 3D Shape Generation
 [[`arXiv`](https://arxiv.org/abs/2212.04493)]
-[[`Project Page`](https://yccyenchicheng.github.io/SDFusion/)]
 [[`BibTex`](#citation)]
 
 Code release for the paper "OctFusion: Octree-based Diffusion Models for 3D Shape Generation".
