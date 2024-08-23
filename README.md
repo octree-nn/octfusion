@@ -82,10 +82,10 @@ If you find this code helpful, please consider citing:
 1. arxiv version
 ```BibTeX
 @article{cheng2022sdfusion,
-  author = {Cheng, Yen-Chi and Lee, Hsin-Ying and Tuyakov, Sergey and Schwing, Alex and Gui, Liangyan},
-  title = {{SDFusion}: Multimodal 3D Shape Completion, Reconstruction, and Generation},
+  author = {Xiong, Bo-jun and Wei, Si-tong and Zheng, Xin-yang and Cao, Yan-pei and Lian, Zhouhui and Wang, Peng-shuai},
+  title = {{OctFusion}: Octree-based Diffusion Models for 3D Shape Generation},
   journal = {arXiv},
-  year = {2022},
+  year = {2024},
 }
 ```
 
