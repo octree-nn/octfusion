@@ -225,7 +225,7 @@ class OctFusionModel(BaseModel):
         self.split_small = input['split_small']
         # self.split_large = input['split_large']
         self.octree_in = input['octree_in']
-        self.batch_size = self.vq_conf.data.train.batch_size
+        self.batch_size = self.octree_in.batch_size
 
         if self.enable_label:
             self.label = input['label']

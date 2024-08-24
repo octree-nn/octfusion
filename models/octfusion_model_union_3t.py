@@ -49,12 +49,6 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         
         
     def optimizer_initialize(self, opt):
-        if opt.pretrain_ckpt is not None:
-            if self.stage_flag == "hr":
-                load_options = ["unet_lr"]
-            elif self.stage_flag == "feature":
-                load_options = ["unet_lr", "unet_hr"]
-            self.load_ckpt(opt.pretrain_ckpt, self.df, self.ema_df, load_options=load_options)
         
         if self.stage_flag == "lr":
             self.set_requires_grad([
@@ -82,6 +76,13 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
             self.schedulers = [self.scheduler]
 
             self.print_networks(verbose=False)
+        
+        if opt.pretrain_ckpt is not None:
+            if self.stage_flag == "hr":
+                load_options = ["unet_lr"]
+            elif self.stage_flag == "feature":
+                load_options = ["unet_lr", "unet_hr"]
+            self.load_ckpt(opt.pretrain_ckpt, self.df, self.ema_df, load_options=load_options)
 
         if opt.ckpt is None and os.path.exists(os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")):
             opt.ckpt = os.path.join(opt.logs_dir, opt.name, "ckpt/df_steps-latest.pth")
@@ -126,7 +127,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
 
         if self.stage_flag == "lr":
             batch_id = torch.arange(0, self.batch_size, device=self.device).long()
-            self.df_lr_loss = self.calc_loss(self.split_small, None, batch_id, "lr", None, "x0")
+            self.df_lr_loss = self.calc_loss(self.split_small, None, batch_id, "lr", None, self.df_type[0])
             
         elif self.stage_flag == "hr":
             self.doctree_in = dual_octree.DualOctree(self.octree_in)
@@ -139,12 +140,12 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
             batch_id = self.doctree_in.batch_id(self.small_depth)
             
             # self.df_hr_loss = self.forward_hr(split_large_padded, self.small_depth, "hr", self.df.unet_lr)
-            self.df_hr_loss = self.calc_loss(split_large_padded, self.doctree_in, batch_id, "hr", unet_lr=self.df_module.unet_lr, df_type="x0")
+            self.df_hr_loss = self.calc_loss(split_large_padded, self.doctree_in, batch_id, "hr", unet_lr=self.df_module.unet_lr, df_type=self.df_type[1])
         elif self.stage_flag == "feature":
             with torch.no_grad():
                 self.input_data, self.doctree_in = self.autoencoder_module.extract_code(self.octree_in)
             # self.df_feature_loss = self.forward_hr(self.input_data, self.large_depth, "feature", self.df_module.unet_hr)
-            self.df_feature_loss = self.calc_loss(self.input_data, self.doctree_in, self.doctree_in.batch_id(self.large_depth), "feature", unet_lr=self.df_module.unet_hr, df_type="eps")
+            self.df_feature_loss = self.calc_loss(self.input_data, self.doctree_in, self.doctree_in.batch_id(self.large_depth), "feature", unet_lr=self.df_module.unet_hr, df_type=self.df_type[2])
 
         self.loss = self.df_lr_loss + self.df_hr_loss + self.df_feature_loss
 
@@ -164,7 +165,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         save_dir = os.path.join(self.opt.logs_dir, self.opt.name, f"{prefix}_{category}")
         batch_size = self.vq_conf.data.test.batch_size
         if split_small == None:
-            seed_everything(self.opt.seed + save_index)
+            # seed_everything(self.opt.seed + save_index)
             split_small = self.sample_loop(doctree_lr=None, ema=ema, shape=(batch_size, *self.z_shape), ddim_steps=ddim_steps, label=label, unet_type="lr", unet_lr=None, df_type=self.df_type[0], truncated_index=TRUNCATED_TIME)
         
         octree_small = split2octree_small(split_small, self.octree_depth, self.full_depth)
@@ -181,7 +182,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         doctree_small.post_processing_for_docnn()
         doctree_small_num = doctree_small.total_num
         
-        seed_everything(self.opt.seed)
+        # seed_everything(self.opt.seed)
         split_large = self.sample_loop(doctree_lr=doctree_small, shape=(doctree_small_num, self.split_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="hr", unet_lr=self.ema_df.unet_lr, df_type=self.df_type[1])
         
         split_large = split_large[-octree_small.nnum[self.small_depth]: ]
@@ -199,7 +200,7 @@ class OctFusionModel(octfusion_model_union.OctFusionModel):
         doctree_large.post_processing_for_docnn()
         doctree_large_num = doctree_large.total_num
         
-        seed_everything(self.opt.seed)
+        # seed_everything(self.opt.seed)
         samples = self.sample_loop(doctree_lr=doctree_large, shape=(doctree_large_num, self.code_channel), ema=ema, ddim_steps=ddim_steps, label=label, unet_type="feature", unet_lr=self.ema_df.unet_hr, df_type=self.df_type[2])
 
         print(samples.max())
