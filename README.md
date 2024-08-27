@@ -81,7 +81,7 @@ If you find this code helpful, please consider citing:
 1. arxiv version
 ```BibTeX
 @article{cheng2022sdfusion,
-  author = {Xiong, Bo-jun and Wei, Si-tong and Zheng, Xin-yang and Cao, Yan-pei and Lian, Zhouhui and Wang, Peng-shuai},
+  author = {Xiong, Bojun and Wei, Si-Tong and Zheng, Xin-Yang and Cao, Yan-Pei and Lian, Zhouhui and Wang, Peng-Shuai},
   title = {{OctFusion}: Octree-based Diffusion Models for 3D Shape Generation},
   journal = {arXiv},
   year = {2024},
