@@ -50,7 +50,7 @@ sh scripts/run_snet_cond.sh generate hr im_5
 ## 3. Train from scratch
 ### 3.1 Data Preparation
 
-1. Download `ShapeNetCore.v1.zip` (31G) from [ShapeNet](https://shapenet.org/) and place it in `data/ShapeNet/ShapeNetCore.v1.zip`.
+1. Download `ShapeNetCore.v1.zip` (31G) from [ShapeNet](https://shapenet.org/) and place it in `data/ShapeNet/ShapeNetCore.v1.zip`. Download `filelist` from [Google Drive](https://drive.google.com/drive/folders/140U_xzAy1MobUqurN67Fm2Y-3oWrZQ1m?usp=drive_link) or [Baidu Netdisk](https://pan.baidu.com/s/15-jp9Mwtw4soch8GAC7qgQ?pwd=rhui) and place it in `data/ShapeNet/filelist`.
 
 2. Convert the meshes in `ShapeNetCore.v1` to signed distance fields (SDFs).
 We use the same data preparation as [DualOctreeGNN](https://github.com/microsoft/DualOctreeGNN.git). Note that this process is relatively slow, it may take several days to finish converting all the meshes from ShapeNet. 

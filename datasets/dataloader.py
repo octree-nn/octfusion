@@ -4,6 +4,7 @@ import torch.utils.data
 from datasets.sampler import InfSampler, DistributedInfSampler
 from builder import get_dataset
 from omegaconf import OmegaConf
+from termcolor import colored, cprint
 
 def get_data_generator(loader):
 	while True:
@@ -21,6 +22,9 @@ def config_dataloader(opt):
 	if not flags_test.disable:
 		test_loader = get_dataloader(opt,flags_test, drop_last = False)
 
+	train_ds, test_ds = train_loader.dataset, test_loader.dataset
+	cprint('[*] # training images = %d' % len(train_ds), 'yellow')
+	cprint('[*] # testing images = %d' % len(test_ds), 'yellow')
 	return train_loader, test_loader
 
 def get_dataloader(opt, flags, drop_last = False):

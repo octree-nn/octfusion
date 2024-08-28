@@ -155,9 +155,8 @@ def generate_vae(opt, model, test_loader):
         pbar.update
 
 
-def generate(opt, model, test_loader):
+def generate(opt, model):
 
-    test_dg = get_data_generator(test_loader)
     # get n_epochs here
     total_iters = 100000000
     pbar = tqdm(total=total_iters)
@@ -182,7 +181,6 @@ def generate(opt, model, test_loader):
             category = random.choice(list(category_5_to_label.keys()))
         else:
             category = opt.category
-        print(get_rank(), category)
         model.sample(split_small = split_small, category = category, prefix = 'results', ema = True, ddim_steps = 200, clean = False, save_index = result_index)
         pbar.update(1)
 
@@ -197,19 +195,7 @@ if __name__ == "__main__":
 
     # get current time, print at terminal. easier to track exp
     from datetime import datetime
-    opt.exp_time = datetime.now().strftime('%Y-%m-%dT%H-%M')
-
-    train_loader, test_loader = config_dataloader(opt)
-    # train_dl, test_dl, test_dl_for_eval = CreateDataLoader(opt)
-    train_ds, test_ds = train_loader.dataset, test_loader.dataset
-
-    dataset_size = len(train_ds)
-    if opt.dataset_mode == 'shapenet_lang':
-        cprint('[*] # training text snippets = %d' % len(train_ds), 'yellow')
-        cprint('[*] # testing text snippets = %d' % len(test_ds), 'yellow')
-    else:
-        cprint('[*] # training images = %d' % len(train_ds), 'yellow')
-        cprint('[*] # testing images = %d' % len(test_ds), 'yellow')
+    opt.exp_time = datetime.now().strftime('%Y-%m-%dT%H-%M')      
 
     # main loop
     model = create_model(opt)
@@ -225,21 +211,22 @@ if __name__ == "__main__":
     if get_rank() == 0:
         expr_dir = '%s/%s' % (opt.logs_dir, opt.name)
         model_f = inspect.getfile(model.__class__)
-        # unet_f = inspect.getfile(model.df_module.__class__)
-        dset_f = inspect.getfile(train_ds.__class__)
-        sh_f = 'train_octfusion_snet.sh'
-        train_f = 'train.py'
-        cprint(f'[*] saving model and dataset files: {model_f}, {dset_f}', 'blue')
         modelf_out = os.path.join(expr_dir, os.path.basename(model_f))
-        # unetf_out = os.path.join(expr_dir, os.path.basename(unet_f))
-        dsetf_out = os.path.join(expr_dir, os.path.basename(dset_f))
-        sh_out = os.path.join(expr_dir, os.path.basename(sh_f))
-        train_out = os.path.join(expr_dir, os.path.basename(train_f))
         os.system(f'cp {model_f} {modelf_out}')
-        # os.system(f'cp {unet_f} {unetf_out}')
+        if opt.model != "vae":
+            unet_f = inspect.getfile(model.df_module.__class__)
+            unetf_out = os.path.join(expr_dir, os.path.basename(unet_f))
+            os.system(f'cp {unet_f} {unetf_out}')
+        dset_f = "datasets/dualoctree_snet.py"
+        dsetf_out = os.path.join(expr_dir, os.path.basename(dset_f))
         os.system(f'cp {dset_f} {dsetf_out}')
+        sh_f = 'scripts/run_snet_uncond.sh'
+        sh_out = os.path.join(expr_dir, os.path.basename(sh_f))
         os.system(f'cp {sh_f} {sh_out}')
+        train_f = 'train.py'
+        train_out = os.path.join(expr_dir, os.path.basename(train_f))
         os.system(f'cp {train_f} {train_out}')
+        
         if opt.vq_cfg is not None:
             vq_cfg = opt.vq_cfg
             cfg_out = os.path.join(expr_dir, os.path.basename(vq_cfg))
@@ -260,12 +247,14 @@ if __name__ == "__main__":
         #     #         f.write(traceback.format_exc() + "\n")
         #     #     raise ValueError
         # else:
+        train_loader, test_loader = config_dataloader(opt)
         train_main_worker(opt, model, train_loader, test_loader, visualizer)
     elif opt.mode == 'generate':
         if opt.model == "vae":
+            train_loader, test_loader = config_dataloader(opt)
             generate_vae(opt, model, test_loader)
         else:
-            generate(opt, model, test_loader)        
+            generate(opt, model)        
     else:
         raise ValueError
 
