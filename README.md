@@ -31,7 +31,7 @@ pip3 install -r requirements.txt
 ## 2. Generation with pre-trained models
 
 ### 2.1 Download pre-trained models
-We provide the pretrained models for the category-conditioned generation and sketch-conditioned generation. Please download the pretrained models from [Google Drive](https://drive.google.com/drive/folders/140U_xzAy1MobUqurN67Fm2Y-3oWrZQ1m?usp=sharing) or [Baidu Netdisk](https://pan.baidu.com/s/15-jp9Mwtw4soch8GAC7qgQ?pwd=rhui) and put them in `saved_ckpt/diffusion-ckpt` and `saved_ckpt/vae-ckpt`.
+We provide the pretrained models for the category-conditioned generation and sketch-conditioned generation. Please download the pretrained models from [Google Drive](https://drive.google.com/drive/folders/140U_xzAy1MobUqurN67Fm2Y-3oWrZQ1m?usp=drive_link) or [Baidu Netdisk](https://pan.baidu.com/s/15-jp9Mwtw4soch8GAC7qgQ?pwd=rhui) and put them in `saved_ckpt/diffusion-ckpt` and `saved_ckpt/vae-ckpt`.
 
 ### 2.2 Generation
 1. Unconditional generation in category `airplane`, `car`, `chair`, `rifle`, `table`.
