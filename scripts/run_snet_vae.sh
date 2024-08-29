@@ -97,10 +97,6 @@ echo "[*] Training is starting on `hostname`, GPU#: ${gpu_ids}, logs_dir: ${logs
 
 echo "[*] Training with command: "
 
-# if [ $multi_gpu = 1 ]; then
-#     cmd="-m torch.distributed.launch --nproc_per_node=${NGPU} --master_port=${PORT} ${cmd}"
-# fi
-
 if [ $multi_gpu = 1 ]; then
 
     cmd="--nnodes=1 --nproc_per_node=${NGPU} --rdzv-backend=c10d --rdzv-endpoint=${HOST_NODE_ADDR}  ${cmd}"

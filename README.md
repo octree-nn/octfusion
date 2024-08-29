@@ -44,7 +44,9 @@ sh scripts/run_snet_uncond.sh generate hr airplane
 
 2. Category-conditioned generation
 ```
-sh scripts/run_snet_cond.sh generate hr im_5
+sh scripts/run_snet_cond.sh generate hr $category
+# Example
+sh scripts/run_snet_cond.sh generate hr chair
 ```
 
 ## 3. Train from scratch

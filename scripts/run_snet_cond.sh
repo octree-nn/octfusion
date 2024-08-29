@@ -48,9 +48,9 @@ else
 fi
 
 if [ $mode = "train" ]; then
-    pretrain_ckpt="saved_ckpt/diffusion-ckpt/${category}/df_steps-split.pth"
+    pretrain_ckpt="saved_ckpt/diffusion-ckpt/im_5/df_steps-split.pth"
 else
-    ckpt="saved_ckpt/diffusion-ckpt/${category}/df_steps-union.pth"
+    ckpt="saved_ckpt/diffusion-ckpt/im_5/df_steps-union.pth"
 fi
 
 ####################
