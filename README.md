@@ -74,7 +74,9 @@ sh scripts/run_snet_uncond.sh train lr $category
 ```
 
 3. Load the pretrained first stage model and train the second stage. We provide pretrained weights in `saved_ckpt/diffusion-ckpt/$category/df_steps-union.pth`. 
-
+```bash
+sh scripts/run_snet_uncond.sh train hr $category
+```
 # <a name="citation"></a> Citation
 
 If you find this code helpful, please consider citing:
