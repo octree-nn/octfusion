@@ -2,7 +2,7 @@
 [[`arXiv`](https://arxiv.org/abs/2408.14732)]
 [[`BibTex`](#citation)]
 
-Code release for the paper "OctFusion: Octree-based Diffusion Models for 3D Shape Generation".
+Code release for the paper "OctFusion: Octree-based Diffusion Models for 3D Shape Generation". Computer Graphics Forum (to be presented at SGP 2025)
 
 ![teaser](./assets/teaser.png)
 
