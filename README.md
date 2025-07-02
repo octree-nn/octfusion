@@ -91,6 +91,18 @@ If you find this code helpful, please consider citing:
   year={2024}
 }
 ```
+2. CGF version
+```BibTex
+@article{Xiong_2025_SGP,
+  journal = {Computer Graphics Forum},
+  title = {{OctFusion: Octree-based Diffusion Models for 3D Shape Generation}},
+  author = {Xiong, Bojun and Wei, Si-Tong and Zheng, Xin-Yang and Cao, Yan-Pei and Lian, Zhouhui and Wang, Peng-Shuai},
+  year = {2025},
+  publisher = {The Eurographics Association and John Wiley & Sons Ltd.},
+  ISSN = {1467-8659},
+  DOI = {10.1111/cgf.70198}
+}
+```
 
 # <a name="issue"></a> Issues and FAQ
 Coming soon!
